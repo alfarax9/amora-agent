@@ -3,6 +3,7 @@ import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, it } from "node:test";
+import { fileURLToPath } from "node:url";
 import {
   capabilityLookup,
   probedCapabilities,
@@ -17,7 +18,7 @@ import { assignModel, emptySlots, resolveWorker } from "../src/model-layer/slots
 import { loadManifests } from "../src/runtime/manifests.ts";
 import { openStorage } from "../src/runtime/storage.ts";
 
-const [slice] = loadManifests(new URL("../workers", import.meta.url).pathname).items;
+const [slice] = loadManifests(fileURLToPath(new URL("../workers", import.meta.url))).items;
 if (!slice) throw new Error("the example manifest did not load");
 
 const capable: ModelCapabilities = {
@@ -85,7 +86,7 @@ describe("slot resolution", () => {
 describe("registry", () => {
   it("loads the shipped registry", () => {
     const { registry, errors } = loadRegistry(
-      new URL("../registry/models.yaml", import.meta.url).pathname,
+      fileURLToPath(new URL("../registry/models.yaml", import.meta.url)),
     );
     assert.deepEqual(errors, []);
     assert.equal(registry.version, 1);
