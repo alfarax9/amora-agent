@@ -1,0 +1,33 @@
+# From PRD §6.1. The prompt, contracts, and gate checks it names arrive with
+# the thin path in M1; M0 uses this manifest for loading and model slots.
+id: fe-slice-engineer
+division: forge
+sub_division: frontend
+wave: 1
+role: Slice / Markup Engineer
+mission: Turn approved designs into components that match the project's codebase.
+requires:
+  vision: true
+  tool_use: true
+  structured_output: false
+  min_context: 128000
+  reviewer_family_rule: none
+model_slot: fe-slice-engineer
+prompt: prompts/forge/fe-slice-engineer.md
+prompt_variants:
+  qwen: prompts/forge/fe-slice-engineer.qwen.md
+plugins:
+  - design_source
+  - filesystem: { scope: "src/components/**" }
+  - browser_screenshot
+memory: { project: true, global_patterns: true }
+input_contract: design_spec.v1
+output_contract: component_pkg.v1
+quality_gate:
+  - lint_and_typecheck_pass
+  - visual_diff_below: 0.03
+  - a11y_score_at_least: 90
+permissions:
+  shell: [npm, npx]
+  network: false
+budget: { max_usd_per_task: 0.50, max_retries: 3 }
