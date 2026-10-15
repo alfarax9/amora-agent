@@ -3,6 +3,7 @@ import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, it } from "node:test";
+import { fileURLToPath } from "node:url";
 import { loadManifests } from "../src/runtime/manifests.ts";
 
 const example = readFileSync(
@@ -21,7 +22,7 @@ function workersWith(files: Record<string, string>): string {
 
 describe("manifest loader", () => {
   it("loads the PRD example manifest", () => {
-    const { items, errors } = loadManifests(new URL("../workers", import.meta.url).pathname);
+    const { items, errors } = loadManifests(fileURLToPath(new URL("../workers", import.meta.url)));
     assert.deepEqual(errors, []);
     assert.equal(items[0]?.id, "fe-slice-engineer");
     assert.equal(items[0]?.requires.vision, true);
