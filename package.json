@@ -1,0 +1,36 @@
+{
+  "name": "amora",
+  "version": "0.1.0",
+  "description": "An open-source software agency staffed by AI workers, run on your own machine.",
+  "type": "module",
+  "private": true,
+  "bin": {
+    "amora": "./src/cli/main.ts"
+  },
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "scripts": {
+    "amora": "node src/cli/main.ts",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "knip": "knip",
+    "test": "node --test --test-reporter=spec \"test/**/*.test.ts\""
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@types/node": "24.19.1",
+    "eslint": "10.11.0",
+    "knip": "6.39.0",
+    "prettier": "3.9.9",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.71.0"
+  },
+  "dependencies": {
+    "@napi-rs/keyring": "2.1.0",
+    "ajv": "8.20.0",
+    "yaml": "2.9.1"
+  }
+}
