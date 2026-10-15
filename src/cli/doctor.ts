@@ -67,7 +67,8 @@ function checkDefinitions(context: AppContext): Check[] {
   if (problems.length > 0) {
     return problems.map((detail) => ({ status: "fail" as const, label: "Definitions", detail }));
   }
-  const detail = `${context.manifests.length} worker manifests, ${context.registry.models.length} registry models`;
+  const { version, models } = context.registry;
+  const detail = `${context.manifests.length} worker manifests, registry v${version} (${context.registrySource}) with ${models.length} models`;
   return [{ status: "pass", label: "Definitions", detail }];
 }
 
