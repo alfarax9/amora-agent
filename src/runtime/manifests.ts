@@ -1,5 +1,5 @@
 import { readdirSync, readFileSync } from "node:fs";
-import { basename, dirname, join, relative } from "node:path";
+import { basename, dirname, join, relative, sep } from "node:path";
 import { Ajv } from "ajv";
 import { parse } from "yaml";
 import { manifestSchema, type WorkerManifest } from "./manifest-schema.ts";
@@ -16,7 +16,8 @@ export function loadManifests(root: string): LoadResult<WorkerManifest> {
   const items: WorkerManifest[] = [];
   const errors: string[] = [];
   for (const file of yamlFiles(root)) {
-    const name = relative(root, file);
+    // Forward slashes on every platform, so messages and tests read the same.
+    const name = relative(root, file).split(sep).join("/");
     const data: unknown = parse(readFileSync(file, "utf8"));
     const problems = checkManifest(data, file);
     if (problems.length > 0) errors.push(...problems.map((problem) => `${name}: ${problem}`));
