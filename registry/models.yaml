@@ -1,0 +1,5 @@
+# AMORA model registry (PRD §7.5). Entries are added only after AMORA's own
+# probes have measured them; provider claims are never copied in. Until then,
+# `amora models probe <model>` measures a model on your own account.
+version: 1
+models: []
