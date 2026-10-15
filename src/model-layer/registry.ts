@@ -70,11 +70,24 @@ const validate = new Ajv({ allErrors: true }).compile<Registry>(
   }),
 );
 
-export function loadRegistry(path: string): { registry: Registry; errors: string[] } {
-  const data: unknown = parse(readFileSync(path, "utf8"));
+const emptyRegistry: Registry = { version: 0, models: [] };
+
+// Text from the network can be anything, an HTML error page included, so a
+// YAML syntax error is reported like any other problem instead of thrown.
+export function parseRegistry(text: string): { registry: Registry; errors: string[] } {
+  let data: unknown;
+  try {
+    data = parse(text);
+  } catch (error) {
+    return { registry: emptyRegistry, errors: [`not valid YAML: ${(error as Error).message}`] };
+  }
   if (validate(data)) return { registry: data, errors: [] };
   const errors = (validate.errors ?? []).map(
     (error) => `${error.instancePath || "/"} ${error.message ?? "is invalid"}`,
   );
-  return { registry: { version: 0, models: [] }, errors };
+  return { registry: emptyRegistry, errors };
+}
+
+export function loadRegistry(path: string): { registry: Registry; errors: string[] } {
+  return parseRegistry(readFileSync(path, "utf8"));
 }
