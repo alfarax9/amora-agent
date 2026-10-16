@@ -2,7 +2,7 @@ import { AsyncEntry } from "@napi-rs/keyring";
 
 // Secrets live in the OS keychain (S4): Keychain on macOS, Credential Manager
 // on Windows, Secret Service on Linux. Nothing else in AMORA stores them.
-type SecretName = "openrouter";
+type SecretName = "openrouter" | "omniroute";
 
 export type SecretStore = {
   get(name: SecretName): Promise<string | undefined>;
