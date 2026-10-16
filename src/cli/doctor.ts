@@ -7,6 +7,7 @@ import { assignedModels, resolveWorker } from "../model-layer/slots.ts";
 import { dayMs } from "../runtime/time.ts";
 import { bindAddress } from "../runtime/security.ts";
 import { type AppContext, defaultPort } from "./context.ts";
+import { omniRouteClient } from "./measure.ts";
 import { print } from "./output.ts";
 
 type Status = "pass" | "warn" | "fail";
@@ -32,18 +33,10 @@ async function checkKeychainAndGateway(context: AppContext): Promise<Check[]> {
     key = await context.secrets.get("openrouter");
   } catch (error) {
     return [
-      {
-        status: "fail",
-        label: "Keychain",
-        detail: `not reachable: ${(error as Error).message}`,
-      },
+      { status: "fail", label: "Keychain", detail: `not reachable: ${(error as Error).message}` },
     ];
   }
-  const keychain: Check = {
-    status: "pass",
-    label: "Keychain",
-    detail: "reachable",
-  };
+  const keychain: Check = { status: "pass", label: "Keychain", detail: "reachable" };
   if (!key) {
     const detail = "not connected; run amora and choose Connect OpenRouter";
     return [keychain, { status: "warn", label: "OpenRouter", detail }];
@@ -73,14 +66,39 @@ async function checkOpenRouter(key: string): Promise<Check> {
   }
 }
 
+// OmniRoute is optional, so not being connected is not a problem. When it is
+// connected, the key is checked against it, the way OpenRouter's is.
+async function checkOmniRoute(context: AppContext): Promise<Check> {
+  const label = "OmniRoute";
+  let client: Awaited<ReturnType<typeof omniRouteClient>>;
+  try {
+    client = await omniRouteClient(context);
+  } catch {
+    return { status: "pass", label, detail: "not connected (optional): amora connect omniroute" };
+  }
+  try {
+    const count = (await client.models()).length;
+    return {
+      status: "pass",
+      label,
+      detail: `connected, ${count} models; its own settings pick providers`,
+    };
+  } catch (error) {
+    if (error instanceof GatewayError && error.status === 401) {
+      return {
+        status: "fail",
+        label,
+        detail: "the stored key was rejected; run amora connect omniroute",
+      };
+    }
+    return { status: "warn", label, detail: `could not reach it: ${(error as Error).message}` };
+  }
+}
+
 function checkDefinitions(context: AppContext): Check[] {
   const problems = [...context.manifestErrors, ...context.registryErrors];
   if (problems.length > 0) {
-    return problems.map((detail) => ({
-      status: "fail" as const,
-      label: "Definitions",
-      detail,
-    }));
+    return problems.map((detail) => ({ status: "fail" as const, label: "Definitions", detail }));
   }
   const { version, models } = context.registry;
   const detail = `${context.manifests.length} worker manifests, registry v${version} (${context.registrySource}) with ${models.length} models`;
@@ -91,24 +109,14 @@ function checkDefinitions(context: AppContext): Check[] {
 // runs, that worker just cannot take work until it gets one.
 function checkCapabilities(context: AppContext): Check[] {
   if (context.manifests.length === 0) {
-    return [
-      {
-        status: "warn",
-        label: "Capabilities",
-        detail: "no worker manifests to check",
-      },
-    ];
+    return [{ status: "warn", label: "Capabilities", detail: "no worker manifests to check" }];
   }
   const unresolved = context.manifests
     .map((manifest) => resolveWorker(manifest, context.slots, context.lookup))
     .filter((resolution) => resolution.problems.length > 0);
   if (unresolved.length === 0) {
     return [
-      {
-        status: "pass",
-        label: "Capabilities",
-        detail: "every worker has a model that fits",
-      },
+      { status: "pass", label: "Capabilities", detail: "every worker has a model that fits" },
     ];
   }
   return unresolved.map(({ worker, problems }) => ({
@@ -173,12 +181,9 @@ function checkPort(port: number): Promise<Check> {
 export async function runDoctor(context: AppContext, port = defaultPort): Promise<boolean> {
   const checks: Check[] = [
     checkNode(),
-    {
-      status: "pass",
-      label: "Storage",
-      detail: context.storage.database.location() ?? "open",
-    },
+    { status: "pass", label: "Storage", detail: context.storage.database.location() ?? "open" },
     ...(await checkKeychainAndGateway(context)),
+    await checkOmniRoute(context),
     // The plugin host ships in M3; until then there is nothing to check.
     { status: "pass", label: "Plugins", detail: "none installed" },
     ...checkDefinitions(context),
