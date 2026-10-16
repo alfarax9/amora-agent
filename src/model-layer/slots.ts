@@ -22,6 +22,17 @@ export type Resolution = {
 
 export const emptySlots: SlotConfig = { divisions: {}, workers: {} };
 
+// Every model some level of the configuration points at, once each: the
+// models that are in use and so worth keeping probed.
+export function assignedModels(config: SlotConfig): string[] {
+  const models = [
+    config.global,
+    ...Object.values(config.divisions),
+    ...Object.values(config.workers),
+  ];
+  return [...new Set(models.filter((model): model is string => model !== undefined))];
+}
+
 function configuredModel(manifest: WorkerManifest, config: SlotConfig) {
   const worker = config.workers[manifest.model_slot];
   if (worker) return { model: worker, level: "worker" as const };
@@ -59,9 +70,17 @@ export function assignModel(
   config: SlotConfig,
   target: { level: SlotLevel; key?: string },
   model: string,
-  check: { manifest?: WorkerManifest; lookup: CapabilityLookup },
+  check: { manifest?: WorkerManifest; lookup: CapabilityLookup; expires?: string | null },
 ): { config: SlotConfig } | { problems: string[] } {
-  if (target.level === "global") return { config: { ...config, global: model } };
+  if (target.level === "global") {
+    // The global default is what every worker falls back to, so it has to
+    // outlive the next release (PRD §7.5).
+    if (check.expires) {
+      const reason = `${model} expires on ${check.expires}, and a model that expires cannot be the global default.`;
+      return { problems: [reason, "Use a division or worker override for it instead."] };
+    }
+    return { config: { ...config, global: model } };
+  }
   if (target.level === "division") {
     const division = target.key as Division;
     return { config: { ...config, divisions: { ...config.divisions, [division]: model } } };
@@ -73,4 +92,32 @@ export function assignModel(
   const problems = unmetRequirements(manifest.requires, capabilities, manifest.role);
   if (problems.length > 0) return { problems };
   return { config: { ...config, workers: { ...config.workers, [manifest.model_slot]: model } } };
+}
+
+// Removes one assignment, so that level falls back to the one above it. When
+// there is nothing to remove it says so, instead of reporting a change that
+// did not happen.
+export function unassignModel(
+  config: SlotConfig,
+  target: { level: SlotLevel; key?: string },
+  manifest?: WorkerManifest,
+): { config: SlotConfig; removed: string } | { problems: string[] } {
+  if (target.level === "global") {
+    const { global: removed, ...rest } = config;
+    return removed ? { config: rest, removed } : { problems: ["No global model is assigned."] };
+  }
+  if (target.level === "division") {
+    const division = target.key as Division;
+    const removed = config.divisions[division];
+    if (!removed) return { problems: [`${division} has no model of its own.`] };
+    const divisions = { ...config.divisions };
+    delete divisions[division];
+    return { config: { ...config, divisions }, removed };
+  }
+  if (!manifest) return { problems: [`No worker is named "${target.key ?? ""}".`] };
+  const removed = config.workers[manifest.model_slot];
+  if (!removed) return { problems: [`${manifest.role} has no model of its own.`] };
+  const workers = { ...config.workers };
+  delete workers[manifest.model_slot];
+  return { config: { ...config, workers }, removed };
 }
