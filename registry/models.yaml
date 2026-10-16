@@ -1,5 +1,30 @@
 # AMORA model registry (PRD §7.5). Entries are added only after AMORA's own
-# probes have measured them; provider claims are never copied in. Until then,
-# `amora models probe <model>` measures a model on your own account.
-version: 1
-models: []
+# probes have measured them; provider claims are never copied in. Add one with
+# `amora models probe <model>` and then `amora registry draft <model>`, and raise
+# `version` so installed copies pick the new file up.
+#
+# Not listed yet: nvidia/nemotron-3.5-super-vl:free. It probes well (vision, tool
+# use, strict JSON schema), but its license and base family could not be verified:
+# the Hugging Face card answered 401. A wrong family would break the
+# different-family reviewer rule, so it waits for a verified card.
+version: 2
+models:
+  - model: poolside/laguna-xs-2.1:free
+    base_family: poolside
+    license: openmdw-1.1
+    expires: 2026-10-31
+    capabilities:
+      vision: false
+      tool_use: true
+      structured_output: none
+      context: 262144
+    probe_date: 2026-10-16
+    pricing:
+      source: https://openrouter.ai/api/v1/models
+      effective_from: 2026-10-16
+      per_million:
+        input: 0
+        output: 0
+      reasoning_billed_as: output
+      tiers: []
+      time_windows: []

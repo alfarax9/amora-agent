@@ -89,7 +89,14 @@ describe("registry", () => {
       fileURLToPath(new URL("../registry/models.yaml", import.meta.url)),
     );
     assert.deepEqual(errors, []);
-    assert.equal(registry.version, 1);
+    assert.ok(Number.isInteger(registry.version) && registry.version >= 1);
+    // Every shipped entry names its source, license, and family, and has been probed.
+    for (const entry of registry.models) {
+      assert.match(entry.pricing.source, /^https:\/\//);
+      assert.ok(entry.license && entry.base_family && entry.probe_date);
+    }
+    const models = registry.models.map((entry) => entry.model);
+    assert.equal(new Set(models).size, models.length);
   });
 
   it("rejects an entry without a pricing source", () => {
