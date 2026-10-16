@@ -1,12 +1,12 @@
 import { spawn } from "node:child_process";
 import { createConnectFlows } from "../runtime/connect.ts";
-import { createOpenRouter } from "../model-layer/openrouter.ts";
 import { refreshRegistry } from "../model-layer/registry-source.ts";
 import { scheduleReprobes } from "../model-layer/reprobe.ts";
 import { createLogger, type Logger } from "../runtime/logger.ts";
 import { createSessions } from "../runtime/security.ts";
 import { startRuntime } from "../runtime/server.ts";
 import type { AppContext } from "./context.ts";
+import { measureModel } from "./measure.ts";
 import { print } from "./output.ts";
 
 // Opening the browser is a convenience: when it fails (no desktop, SSH
@@ -45,11 +45,11 @@ export async function startAmora(context: AppContext, port: number): Promise<voi
     logger,
   });
   refreshRegistryInBackground(context, logger);
+  // Background re-probes never allow data collection; that is chosen per run.
   const stopReprobes = scheduleReprobes({
     storage: context.storage,
-    openRouterFor: async () => {
-      const key = await context.secrets.get("openrouter");
-      return key ? createOpenRouter(key) : undefined;
+    measure: async (model) => {
+      await measureModel(context, model, { allowDataCollection: false });
     },
     logger,
   });

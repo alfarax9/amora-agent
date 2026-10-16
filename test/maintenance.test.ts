@@ -9,8 +9,7 @@ import {
   saveProbeResults,
   staleProbes,
 } from "../src/model-layer/known-models.ts";
-import { GatewayError, type ChatRequest } from "../src/model-layer/gateway.ts";
-import { type OpenRouter } from "../src/model-layer/openrouter.ts";
+import { GatewayError } from "../src/model-layer/gateway.ts";
 import { reprobeStale } from "../src/model-layer/reprobe.ts";
 import {
   assignedModels,
@@ -20,16 +19,12 @@ import {
 } from "../src/model-layer/slots.ts";
 import { loadManifests } from "../src/runtime/manifests.ts";
 import { createLogger } from "../src/runtime/logger.ts";
-import { openStorage } from "../src/runtime/storage.ts";
+import { openStorage, type Storage } from "../src/runtime/storage.ts";
 import { dayMs } from "../src/runtime/time.ts";
 
 const probed = new Date("2026-10-01T00:00:00Z");
 const results = [
-  {
-    capability: "structured_output" as const,
-    result: "json_schema",
-    detail: "old",
-  },
+  { capability: "structured_output" as const, result: "json_schema", detail: "old" },
   { capability: "tool_use" as const, result: "true", detail: "old" },
   { capability: "vision" as const, result: "false", detail: "old" },
   { capability: "context" as const, result: "1000", detail: "old" },
@@ -41,11 +36,7 @@ function tempStorage() {
 
 describe("models in use", () => {
   it("lists each assigned model once", () => {
-    const config = {
-      global: "a/one",
-      divisions: { forge: "a/one" },
-      workers: { x: "b/two" },
-    };
+    const config = { global: "a/one", divisions: { forge: "a/one" }, workers: { x: "b/two" } };
     assert.deepEqual(assignedModels(config), ["a/one", "b/two"]);
     assert.deepEqual(assignedModels(emptySlots), []);
   });
@@ -61,40 +52,20 @@ describe("stale probes", () => {
   });
 });
 
-function fakeOpenRouter(
-  failing: Record<string, GatewayError> = {},
-): OpenRouter & { asked: string[] } {
+// Stands in for the gateway: records which models it was asked to measure and
+// stores fresh results for them, or fails for the ones listed.
+function fakeMeasure(storage: Storage, failing: Record<string, Error> = {}) {
   const asked: string[] = [];
-  return {
-    asked,
-    model: async (id) => ({ id, context_length: 2000 }),
-    keyInfo: async () => ({
-      label: "k",
-      is_free_tier: false,
-      limit_remaining: null,
-    }),
-    chat: async (request: ChatRequest) => {
-      asked.push(request.model);
-      const failure = failing[request.model];
-      if (failure) throw failure;
-      const answer = '{"answer":5}';
-      if (request.tools) {
-        return {
-          choices: [
-            {
-              message: {
-                content: null,
-                tool_calls: [{ function: { name: "submit_result", arguments: answer } }],
-              },
-            },
-          ],
-        };
-      }
-      return {
-        choices: [{ message: { content: request.response_format ? answer : "Red." } }],
-      };
-    },
+  const fresh = results.map((result) =>
+    result.capability === "context" ? { ...result, result: "2000" } : result,
+  );
+  const measure = async (model: string) => {
+    asked.push(model);
+    const failure = failing[model];
+    if (failure) throw failure;
+    saveProbeResults(storage, model, fresh);
   };
+  return { asked, measure };
 }
 
 describe("scheduled re-probes", () => {
@@ -104,16 +75,16 @@ describe("scheduled re-probes", () => {
     const storage = tempStorage();
     saveProbeResults(storage, "a/stale", results, probed);
     saveProbeResults(storage, "a/fresh", results, new Date(late - dayMs));
-    const openRouter = fakeOpenRouter();
+    const { asked, measure } = fakeMeasure(storage);
     const refreshed = await reprobeStale({
       storage,
-      openRouter,
+      measure,
       models: ["a/stale", "a/fresh"],
       logger: createLogger(() => undefined),
       now: late,
     });
     assert.deepEqual(refreshed, ["a/stale"]);
-    assert.ok(openRouter.asked.every((model) => model === "a/stale"));
+    assert.deepEqual(asked, ["a/stale"]);
     assert.equal(probedCapabilities(storage, "a/stale")?.capabilities.context, 2000);
     assert.equal(probedCapabilities(storage, "a/fresh")?.capabilities.context, 1000);
   });
@@ -127,9 +98,10 @@ describe("scheduled re-probes", () => {
       "No endpoints found matching your data policy (Free model training).",
     );
     const lines: string[] = [];
+    const { measure } = fakeMeasure(storage, { "a/private": policy });
     const refreshed = await reprobeStale({
       storage,
-      openRouter: fakeOpenRouter({ "a/private": policy }),
+      measure,
       models: ["a/private", "b/ok"],
       logger: createLogger((line) => lines.push(line)),
       now: late,
@@ -160,9 +132,7 @@ describe("models that expire", () => {
       expires: "2026-10-31",
     });
     assert.ok("config" in division);
-    const plain = assignModel(emptySlots, { level: "global" }, "a/b", {
-      lookup,
-    });
+    const plain = assignModel(emptySlots, { level: "global" }, "a/b", { lookup });
     assert.ok("config" in plain);
   });
 });
@@ -204,10 +174,7 @@ describe("unassigning a model", () => {
     };
     const outcome = unassignModel(config, { level: "division", key: "forge" });
     assert.ok("config" in outcome);
-    assert.deepEqual(outcome.config, {
-      ...config,
-      divisions: { atelier: "a/a" },
-    });
+    assert.deepEqual(outcome.config, { ...config, divisions: { atelier: "a/a" } });
     assert.equal(config.divisions.forge, "a/f");
   });
 

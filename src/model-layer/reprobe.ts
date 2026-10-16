@@ -1,15 +1,17 @@
 import type { Logger } from "../runtime/logger.ts";
 import type { Storage } from "../runtime/storage.ts";
 import { dayMs } from "../runtime/time.ts";
-import { saveProbeResults, staleProbes } from "./known-models.ts";
 import { GatewayError } from "./gateway.ts";
-import type { OpenRouter } from "./openrouter.ts";
-import { runProbes } from "./probes.ts";
+import { staleProbes } from "./known-models.ts";
 import { assignedModels, emptySlots, type SlotConfig } from "./slots.ts";
+
+// Probes one model (or every member of a combo) and stores the results. The
+// caller picks the gateway; this module only decides when.
+type Measure = (model: string) => Promise<void>;
 
 type Reprobe = {
   storage: Storage;
-  openRouter: OpenRouter;
+  measure: Measure;
   models: string[];
   logger: Logger;
   now?: number;
@@ -21,7 +23,7 @@ type Reprobe = {
 // as it was. A failure on one model never stops the others.
 export async function reprobeStale({
   storage,
-  openRouter,
+  measure,
   models,
   logger,
   now,
@@ -29,9 +31,7 @@ export async function reprobeStale({
   const refreshed: string[] = [];
   for (const model of staleProbes(storage, models, now)) {
     try {
-      const info = await openRouter.model(model);
-      const results = await runProbes(openRouter.chat, model, info?.context_length ?? 0);
-      saveProbeResults(storage, model, results);
+      await measure(model);
       logger.info("Model re-probed", { model });
       refreshed.push(model);
     } catch (error) {
@@ -45,27 +45,16 @@ export async function reprobeStale({
   return refreshed;
 }
 
-type Schedule = {
-  storage: Storage;
-  openRouterFor: () => Promise<OpenRouter | undefined>;
-  logger: Logger;
-};
+type Schedule = { storage: Storage; measure: Measure; logger: Logger };
 
 // Models in use are measured again once their last probe has aged (PRD §7.6):
 // at start, then daily while AMORA runs. The slots are read each time, because
 // `amora models set` may have changed them from another terminal, and a failed
 // check is logged and tried again the next day. Returns the way to stop it.
-export function scheduleReprobes({ storage, openRouterFor, logger }: Schedule): () => void {
+export function scheduleReprobes({ storage, measure, logger }: Schedule): () => void {
   const check = async () => {
-    const openRouter = await openRouterFor();
-    if (!openRouter) return;
     const slots = storage.getSetting<SlotConfig>("slots") ?? emptySlots;
-    await reprobeStale({
-      storage,
-      openRouter,
-      models: assignedModels(slots),
-      logger,
-    });
+    await reprobeStale({ storage, measure, models: assignedModels(slots), logger });
   };
   const run = () =>
     check().catch((error: unknown) =>
