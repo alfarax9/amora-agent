@@ -9,11 +9,8 @@ import {
   saveProbeResults,
   staleProbes,
 } from "../src/model-layer/known-models.ts";
-import {
-  OpenRouterError,
-  type ChatRequest,
-  type OpenRouter,
-} from "../src/model-layer/openrouter.ts";
+import { GatewayError, type ChatRequest } from "../src/model-layer/gateway.ts";
+import { type OpenRouter } from "../src/model-layer/openrouter.ts";
 import { reprobeStale } from "../src/model-layer/reprobe.ts";
 import {
   assignedModels,
@@ -28,7 +25,11 @@ import { dayMs } from "../src/runtime/time.ts";
 
 const probed = new Date("2026-10-01T00:00:00Z");
 const results = [
-  { capability: "structured_output" as const, result: "json_schema", detail: "old" },
+  {
+    capability: "structured_output" as const,
+    result: "json_schema",
+    detail: "old",
+  },
   { capability: "tool_use" as const, result: "true", detail: "old" },
   { capability: "vision" as const, result: "false", detail: "old" },
   { capability: "context" as const, result: "1000", detail: "old" },
@@ -40,7 +41,11 @@ function tempStorage() {
 
 describe("models in use", () => {
   it("lists each assigned model once", () => {
-    const config = { global: "a/one", divisions: { forge: "a/one" }, workers: { x: "b/two" } };
+    const config = {
+      global: "a/one",
+      divisions: { forge: "a/one" },
+      workers: { x: "b/two" },
+    };
     assert.deepEqual(assignedModels(config), ["a/one", "b/two"]);
     assert.deepEqual(assignedModels(emptySlots), []);
   });
@@ -57,13 +62,17 @@ describe("stale probes", () => {
 });
 
 function fakeOpenRouter(
-  failing: Record<string, OpenRouterError> = {},
+  failing: Record<string, GatewayError> = {},
 ): OpenRouter & { asked: string[] } {
   const asked: string[] = [];
   return {
     asked,
     model: async (id) => ({ id, context_length: 2000 }),
-    keyInfo: async () => ({ label: "k", is_free_tier: false, limit_remaining: null }),
+    keyInfo: async () => ({
+      label: "k",
+      is_free_tier: false,
+      limit_remaining: null,
+    }),
     chat: async (request: ChatRequest) => {
       asked.push(request.model);
       const failure = failing[request.model];
@@ -81,7 +90,9 @@ function fakeOpenRouter(
           ],
         };
       }
-      return { choices: [{ message: { content: request.response_format ? answer : "Red." } }] };
+      return {
+        choices: [{ message: { content: request.response_format ? answer : "Red." } }],
+      };
     },
   };
 }
@@ -111,7 +122,7 @@ describe("scheduled re-probes", () => {
     const storage = tempStorage();
     saveProbeResults(storage, "a/private", results, probed);
     saveProbeResults(storage, "b/ok", results, probed);
-    const policy = new OpenRouterError(
+    const policy = new GatewayError(
       404,
       "No endpoints found matching your data policy (Free model training).",
     );
@@ -149,7 +160,9 @@ describe("models that expire", () => {
       expires: "2026-10-31",
     });
     assert.ok("config" in division);
-    const plain = assignModel(emptySlots, { level: "global" }, "a/b", { lookup });
+    const plain = assignModel(emptySlots, { level: "global" }, "a/b", {
+      lookup,
+    });
     assert.ok("config" in plain);
   });
 });
@@ -191,7 +204,10 @@ describe("unassigning a model", () => {
     };
     const outcome = unassignModel(config, { level: "division", key: "forge" });
     assert.ok("config" in outcome);
-    assert.deepEqual(outcome.config, { ...config, divisions: { atelier: "a/a" } });
+    assert.deepEqual(outcome.config, {
+      ...config,
+      divisions: { atelier: "a/a" },
+    });
     assert.equal(config.divisions.forge, "a/f");
   });
 

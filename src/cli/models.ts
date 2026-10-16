@@ -4,7 +4,8 @@ import {
   probeMaxAgeDays,
   saveProbeResults,
 } from "../model-layer/known-models.ts";
-import { createOpenRouter, OpenRouterError, type OpenRouter } from "../model-layer/openrouter.ts";
+import { GatewayError } from "../model-layer/gateway.ts";
+import { createOpenRouter, type OpenRouter } from "../model-layer/openrouter.ts";
 import { runProbes } from "../model-layer/probes.ts";
 import {
   assignedModels,
@@ -77,7 +78,7 @@ async function measure(
         print(`  The provider is busy (${status}); trying again in ${delayMs / 1000} s.`),
     });
   } catch (error) {
-    if (!(error instanceof OpenRouterError) || !error.dataPolicy) throw error;
+    if (!(error instanceof GatewayError) || !error.dataPolicy) throw error;
     printError(dataPolicyHelp(wasAllowed));
     return undefined;
   }

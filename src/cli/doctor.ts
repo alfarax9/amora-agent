@@ -1,6 +1,7 @@
 import { createServer } from "node:net";
 import { availableParallelism, freemem, totalmem } from "node:os";
-import { createOpenRouter, OpenRouterError } from "../model-layer/openrouter.ts";
+import { GatewayError } from "../model-layer/gateway.ts";
+import { createOpenRouter } from "../model-layer/openrouter.ts";
 import { probeMaxAgeDays, staleProbes } from "../model-layer/known-models.ts";
 import { assignedModels, resolveWorker } from "../model-layer/slots.ts";
 import { dayMs } from "../runtime/time.ts";
@@ -31,10 +32,18 @@ async function checkKeychainAndGateway(context: AppContext): Promise<Check[]> {
     key = await context.secrets.get("openrouter");
   } catch (error) {
     return [
-      { status: "fail", label: "Keychain", detail: `not reachable: ${(error as Error).message}` },
+      {
+        status: "fail",
+        label: "Keychain",
+        detail: `not reachable: ${(error as Error).message}`,
+      },
     ];
   }
-  const keychain: Check = { status: "pass", label: "Keychain", detail: "reachable" };
+  const keychain: Check = {
+    status: "pass",
+    label: "Keychain",
+    detail: "reachable",
+  };
   if (!key) {
     const detail = "not connected; run amora and choose Connect OpenRouter";
     return [keychain, { status: "warn", label: "OpenRouter", detail }];
@@ -49,7 +58,7 @@ async function checkOpenRouter(key: string): Promise<Check> {
     const quota = free ? `, free model requests today: ${free.used} of ${free.limit}` : "";
     return { status: "pass", label: "OpenRouter", detail: `connected${quota}` };
   } catch (error) {
-    if (error instanceof OpenRouterError && error.status === 401) {
+    if (error instanceof GatewayError && error.status === 401) {
       return {
         status: "fail",
         label: "OpenRouter",
@@ -67,7 +76,11 @@ async function checkOpenRouter(key: string): Promise<Check> {
 function checkDefinitions(context: AppContext): Check[] {
   const problems = [...context.manifestErrors, ...context.registryErrors];
   if (problems.length > 0) {
-    return problems.map((detail) => ({ status: "fail" as const, label: "Definitions", detail }));
+    return problems.map((detail) => ({
+      status: "fail" as const,
+      label: "Definitions",
+      detail,
+    }));
   }
   const { version, models } = context.registry;
   const detail = `${context.manifests.length} worker manifests, registry v${version} (${context.registrySource}) with ${models.length} models`;
@@ -78,14 +91,24 @@ function checkDefinitions(context: AppContext): Check[] {
 // runs, that worker just cannot take work until it gets one.
 function checkCapabilities(context: AppContext): Check[] {
   if (context.manifests.length === 0) {
-    return [{ status: "warn", label: "Capabilities", detail: "no worker manifests to check" }];
+    return [
+      {
+        status: "warn",
+        label: "Capabilities",
+        detail: "no worker manifests to check",
+      },
+    ];
   }
   const unresolved = context.manifests
     .map((manifest) => resolveWorker(manifest, context.slots, context.lookup))
     .filter((resolution) => resolution.problems.length > 0);
   if (unresolved.length === 0) {
     return [
-      { status: "pass", label: "Capabilities", detail: "every worker has a model that fits" },
+      {
+        status: "pass",
+        label: "Capabilities",
+        detail: "every worker has a model that fits",
+      },
     ];
   }
   return unresolved.map(({ worker, problems }) => ({
@@ -150,7 +173,11 @@ function checkPort(port: number): Promise<Check> {
 export async function runDoctor(context: AppContext, port = defaultPort): Promise<boolean> {
   const checks: Check[] = [
     checkNode(),
-    { status: "pass", label: "Storage", detail: context.storage.database.location() ?? "open" },
+    {
+      status: "pass",
+      label: "Storage",
+      detail: context.storage.database.location() ?? "open",
+    },
     ...(await checkKeychainAndGateway(context)),
     // The plugin host ships in M3; until then there is nothing to check.
     { status: "pass", label: "Plugins", detail: "none installed" },

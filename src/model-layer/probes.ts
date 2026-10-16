@@ -1,17 +1,10 @@
 import { redactSecrets } from "../runtime/secret-scanner.ts";
 import type { ProbeResult } from "./known-models.ts";
-import {
-  type ChatRequest,
-  type ChatResponse,
-  type OpenRouter,
-  OpenRouterError,
-} from "./openrouter.ts";
+import { type Chat, type ChatRequest, type ChatResponse, GatewayError } from "./gateway.ts";
 
 // Probes measure what a model can do instead of trusting provider claims
 // (PRD §7.6). Each asks a question with one checkable answer, 2 + 3 or the
 // color of a red square, so a pass is unambiguous.
-
-type Chat = OpenRouter["chat"];
 
 // 64×64 solid #FF0000 PNG.
 const redSquare =
@@ -40,7 +33,7 @@ async function attempt(run: () => Promise<ChatResponse>): Promise<Attempt> {
   try {
     return { reply: await run() };
   } catch (error) {
-    const isRefusal = error instanceof OpenRouterError && [400, 404].includes(error.status);
+    const isRefusal = error instanceof GatewayError && [400, 404].includes(error.status);
     if (isRefusal && !error.dataPolicy) return { refusal: error.message };
     throw error;
   }
@@ -196,7 +189,7 @@ function withRetries(
         return await chat(request);
       } catch (error) {
         const isTransient =
-          error instanceof OpenRouterError && transientStatuses.includes(error.status);
+          error instanceof GatewayError && transientStatuses.includes(error.status);
         if (!isTransient) throw error;
         onRetry?.(error.status, delayMs);
         await new Promise((resolve) => setTimeout(resolve, delayMs));

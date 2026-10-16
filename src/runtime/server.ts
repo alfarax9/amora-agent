@@ -1,6 +1,6 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { exchangeCode } from "../model-layer/pkce.ts";
-import type { Fetch } from "../model-layer/openrouter.ts";
+import type { Fetch } from "../model-layer/gateway.ts";
 import type { ConnectFlows } from "./connect.ts";
 import type { Logger } from "./logger.ts";
 import { messagePage, statusPage } from "./pages.ts";

@@ -1,10 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import {
-  createOpenRouter,
-  OpenRouterError,
-  type ChatRequest,
-} from "../src/model-layer/openrouter.ts";
+import { GatewayError, type ChatRequest } from "../src/model-layer/gateway.ts";
+import { createOpenRouter } from "../src/model-layer/openrouter.ts";
 import { runProbes } from "../src/model-layer/probes.ts";
 import { reply } from "./replies.ts";
 
@@ -32,7 +29,7 @@ describe("probes", () => {
     const chat = async (request: ChatRequest) => {
       const format = request.response_format?.type;
       if (format === "json_schema" || Array.isArray(request.messages[0]?.content)) {
-        throw new OpenRouterError(404, "No endpoints found");
+        throw new GatewayError(404, "No endpoints found");
       }
       return format === "json_object" ? reply('{"answer":5}') : reply("I cannot call tools.");
     };
@@ -49,7 +46,7 @@ describe("probes", () => {
 
   it("stops instead of recording a no when the account cannot pay", async () => {
     const chat = async () => {
-      throw new OpenRouterError(402, "No credits");
+      throw new GatewayError(402, "No credits");
     };
     await assert.rejects(runProbes(chat, "a/b", 8000), { status: 402 });
   });
@@ -62,7 +59,7 @@ describe("probes", () => {
       const retries: number[] = [];
       const chat = async (request: ChatRequest) => {
         calls += 1;
-        if (calls <= 2) throw new OpenRouterError(429, "temporarily rate-limited upstream");
+        if (calls <= 2) throw new GatewayError(429, "temporarily rate-limited upstream");
         return request.tools ? reply(null, '{"answer":5}') : reply('{"answer":5}');
       };
       const results = await runProbes(chat, "a/b", 8000, {
@@ -77,7 +74,7 @@ describe("probes", () => {
       let calls = 0;
       const chat = async () => {
         calls += 1;
-        throw new OpenRouterError(429, "temporarily rate-limited upstream");
+        throw new GatewayError(429, "temporarily rate-limited upstream");
       };
       await assert.rejects(runProbes(chat, "a/b", 8000, quickly), { status: 429 });
       assert.equal(calls, 3);
@@ -87,7 +84,7 @@ describe("probes", () => {
       let calls = 0;
       const chat = async () => {
         calls += 1;
-        throw new OpenRouterError(
+        throw new GatewayError(
           404,
           "No endpoints found matching your data policy (Free model training).",
         );
@@ -123,7 +120,7 @@ describe("probes", () => {
         if (!request.tools) return reply('{"answer":5}');
         toolRequests.push(request);
         if ("tool_choice" in request) {
-          throw new OpenRouterError(
+          throw new GatewayError(
             404,
             "No endpoints found that support the provided 'tool_choice' value.",
           );
@@ -141,7 +138,7 @@ describe("probes", () => {
     it("counts a model that cannot be forced to call tools but does call them", async () => {
       const refusal = "No endpoints found that support the provided 'tool_choice' value.";
       const chat = async (request: ChatRequest) => {
-        if (request.tool_choice === "required") throw new OpenRouterError(404, refusal);
+        if (request.tool_choice === "required") throw new GatewayError(404, refusal);
         return request.tools ? reply(null, '{"answer":5}') : reply("Red.");
       };
       const results = await runProbes(chat, "a/b", 8000, quickly);
@@ -177,7 +174,7 @@ describe("probes", () => {
             : "json";
         const message = refusals[kind];
         if (message)
-          throw new OpenRouterError(
+          throw new GatewayError(
             404,
             `${message} To learn more about provider routing, visit: https://x`,
           );
@@ -200,7 +197,7 @@ describe("probes", () => {
       let calls = 0;
       const chat = async () => {
         calls += 1;
-        throw new OpenRouterError(404, "No endpoints found");
+        throw new GatewayError(404, "No endpoints found");
       };
       const results = await runProbes(chat, "a/b", 8000, quickly);
       assert.equal(results[0]?.result, "none");

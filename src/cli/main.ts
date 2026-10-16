@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { parseArgs } from "node:util";
 import packageJson from "../../package.json" with { type: "json" };
-import { OpenRouterError } from "../model-layer/openrouter.ts";
+import { GatewayError } from "../model-layer/gateway.ts";
 import { redactSecrets } from "../runtime/secret-scanner.ts";
 import { type AppContext, defaultPort, openContext } from "./context.ts";
 import { runDoctor } from "./doctor.ts";
@@ -116,7 +116,7 @@ async function main(): Promise<void> {
 }
 
 function describeFailure(error: unknown): string {
-  if (error instanceof OpenRouterError) {
+  if (error instanceof GatewayError) {
     const hint =
       error.status === 429
         ? " Free models share limits and are often busy: wait a minute, or try another model."

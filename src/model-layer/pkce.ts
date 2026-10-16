@@ -1,5 +1,5 @@
 import { createHash, randomBytes } from "node:crypto";
-import { OpenRouterError, type Fetch } from "./openrouter.ts";
+import { GatewayError, type Fetch } from "./gateway.ts";
 
 // OpenRouter's one-click connect (PRD §7.2): OAuth PKCE with a localhost
 // callback, so the user approves AMORA on openrouter.ai and never copies a key.
@@ -40,9 +40,9 @@ export async function exchangeCode(
     body: JSON.stringify({ code, code_verifier: verifier, code_challenge_method: "S256" }),
   });
   if (!response.ok) {
-    throw new OpenRouterError(response.status, "OpenRouter did not accept the authorization code.");
+    throw new GatewayError(response.status, "OpenRouter did not accept the authorization code.");
   }
   const { key } = (await response.json()) as { key?: string };
-  if (!key) throw new OpenRouterError(502, "OpenRouter returned no key.");
+  if (!key) throw new GatewayError(502, "OpenRouter returned no key.");
   return key;
 }

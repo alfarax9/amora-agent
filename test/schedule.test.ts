@@ -4,7 +4,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, it, mock } from "node:test";
 import { saveProbeResults } from "../src/model-layer/known-models.ts";
-import type { ChatRequest, OpenRouter } from "../src/model-layer/openrouter.ts";
+import type { ChatRequest } from "../src/model-layer/gateway.ts";
+import type { OpenRouter } from "../src/model-layer/openrouter.ts";
 import { scheduleReprobes } from "../src/model-layer/reprobe.ts";
 import { createLogger } from "../src/runtime/logger.ts";
 import { openStorage } from "../src/runtime/storage.ts";
@@ -12,7 +13,11 @@ import { dayMs } from "../src/runtime/time.ts";
 
 const start = Date.parse("2026-10-01T00:00:00Z");
 const results = [
-  { capability: "structured_output" as const, result: "json_schema", detail: "old" },
+  {
+    capability: "structured_output" as const,
+    result: "json_schema",
+    detail: "old",
+  },
   { capability: "tool_use" as const, result: "true", detail: "old" },
   { capability: "vision" as const, result: "false", detail: "old" },
   { capability: "context" as const, result: "1000", detail: "old" },
@@ -21,14 +26,22 @@ const results = [
 function passingOpenRouter(): OpenRouter {
   return {
     model: async (id) => ({ id, context_length: 2000 }),
-    keyInfo: async () => ({ label: "k", is_free_tier: false, limit_remaining: null }),
+    keyInfo: async () => ({
+      label: "k",
+      is_free_tier: false,
+      limit_remaining: null,
+    }),
     chat: async (request: ChatRequest) => {
       const answer = '{"answer":5}';
       if (request.tools) {
         const call = { function: { name: "submit_result", arguments: answer } };
-        return { choices: [{ message: { content: null, tool_calls: [call] } }] };
+        return {
+          choices: [{ message: { content: null, tool_calls: [call] } }],
+        };
       }
-      return { choices: [{ message: { content: request.response_format ? answer : "Red." } }] };
+      return {
+        choices: [{ message: { content: request.response_format ? answer : "Red." } }],
+      };
     },
   };
 }
@@ -46,7 +59,11 @@ async function days(count: number): Promise<void> {
 function setup(models: string[]) {
   const storage = openStorage(join(mkdtempSync(join(tmpdir(), "amora-db-")), "amora.db"));
   for (const model of models) saveProbeResults(storage, model, results, new Date(start));
-  storage.setSetting("slots", { divisions: {}, workers: {}, global: models[0] });
+  storage.setSetting("slots", {
+    divisions: {},
+    workers: {},
+    global: models[0],
+  });
   const lines: string[] = [];
   const logger = createLogger((line) => lines.push(line));
   return { storage, logger, lines };
@@ -79,7 +96,10 @@ describe("the daily re-probe schedule, over simulated time", () => {
 
   it("keeps its schedule after a failed check", async () => {
     const { storage, logger, lines } = setup(["a/model"]);
-    mock.timers.enable({ apis: ["setInterval", "Date"], now: start + 7 * dayMs });
+    mock.timers.enable({
+      apis: ["setInterval", "Date"],
+      now: start + 7 * dayMs,
+    });
     let calls = 0;
     const openRouterFor = async () => {
       calls += 1;
@@ -96,7 +116,10 @@ describe("the daily re-probe schedule, over simulated time", () => {
 
   it("does nothing without a connected gateway, and stops when told to", async () => {
     const { storage, logger, lines } = setup(["a/model"]);
-    mock.timers.enable({ apis: ["setInterval", "Date"], now: start + 9 * dayMs });
+    mock.timers.enable({
+      apis: ["setInterval", "Date"],
+      now: start + 9 * dayMs,
+    });
     let checks = 0;
     const openRouterFor = async () => {
       checks += 1;
@@ -115,7 +138,10 @@ describe("the daily re-probe schedule, over simulated time", () => {
   it("picks up a model assigned from another terminal while it runs", async () => {
     const { storage, logger, lines } = setup(["a/first"]);
     saveProbeResults(storage, "b/second", results, new Date(start));
-    mock.timers.enable({ apis: ["setInterval", "Date"], now: start + 9 * dayMs });
+    mock.timers.enable({
+      apis: ["setInterval", "Date"],
+      now: start + 9 * dayMs,
+    });
     const stop = scheduleReprobes({
       storage,
       openRouterFor: async () => passingOpenRouter(),

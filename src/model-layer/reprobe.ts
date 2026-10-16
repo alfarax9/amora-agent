@@ -2,7 +2,8 @@ import type { Logger } from "../runtime/logger.ts";
 import type { Storage } from "../runtime/storage.ts";
 import { dayMs } from "../runtime/time.ts";
 import { saveProbeResults, staleProbes } from "./known-models.ts";
-import { OpenRouterError, type OpenRouter } from "./openrouter.ts";
+import { GatewayError } from "./gateway.ts";
+import type { OpenRouter } from "./openrouter.ts";
 import { runProbes } from "./probes.ts";
 import { assignedModels, emptySlots, type SlotConfig } from "./slots.ts";
 
@@ -34,7 +35,7 @@ export async function reprobeStale({
       logger.info("Model re-probed", { model });
       refreshed.push(model);
     } catch (error) {
-      const needsConsent = error instanceof OpenRouterError && error.dataPolicy;
+      const needsConsent = error instanceof GatewayError && error.dataPolicy;
       const reason = needsConsent
         ? "needs data collection allowed: run amora models probe with --allow-data-collection"
         : String(error);
@@ -59,7 +60,12 @@ export function scheduleReprobes({ storage, openRouterFor, logger }: Schedule): 
     const openRouter = await openRouterFor();
     if (!openRouter) return;
     const slots = storage.getSetting<SlotConfig>("slots") ?? emptySlots;
-    await reprobeStale({ storage, openRouter, models: assignedModels(slots), logger });
+    await reprobeStale({
+      storage,
+      openRouter,
+      models: assignedModels(slots),
+      logger,
+    });
   };
   const run = () =>
     check().catch((error: unknown) =>

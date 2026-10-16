@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { createOpenRouter, OpenRouterError } from "../src/model-layer/openrouter.ts";
+import { GatewayError } from "../src/model-layer/gateway.ts";
+import { createOpenRouter } from "../src/model-layer/openrouter.ts";
 import { authorizationUrl, codeChallenge, exchangeCode } from "../src/model-layer/pkce.ts";
 import { reply } from "./replies.ts";
 
@@ -39,7 +40,7 @@ describe("PKCE", () => {
 
   it("fails when OpenRouter refuses the code", async () => {
     const fakeFetch = (async () => new Response("{}", { status: 403 })) as typeof fetch;
-    await assert.rejects(exchangeCode("c", "v", fakeFetch), OpenRouterError);
+    await assert.rejects(exchangeCode("c", "v", fakeFetch), GatewayError);
   });
 });
 
@@ -105,8 +106,8 @@ describe("OpenRouter client", () => {
     const feature = await refuse("No endpoints found that support tool use.").catch(
       (caught: unknown) => caught,
     );
-    assert.ok(policy instanceof OpenRouterError && policy.dataPolicy);
-    assert.ok(feature instanceof OpenRouterError && !feature.dataPolicy);
+    assert.ok(policy instanceof GatewayError && policy.dataPolicy);
+    assert.ok(feature instanceof GatewayError && !feature.dataPolicy);
   });
 
   it("keeps the provider and its reason when OpenRouter reports an upstream failure", async () => {

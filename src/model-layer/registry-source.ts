@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, renameSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
-import type { Fetch } from "./openrouter.ts";
+import type { Fetch } from "./gateway.ts";
 import { loadRegistry, parseRegistry, type Registry } from "./registry.ts";
 
 // The registry ships with each release and is also fetched while AMORA runs,
