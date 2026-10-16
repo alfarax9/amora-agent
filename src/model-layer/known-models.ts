@@ -1,4 +1,5 @@
-import type { Storage } from "../runtime/storage.ts";
+import { refuseSecrets, type Storage } from "../runtime/storage.ts";
+import { dayMs } from "../runtime/time.ts";
 import type { ModelCapabilities, Registry, StructuredOutput } from "./registry.ts";
 
 export type ProbeResult = {
@@ -15,6 +16,10 @@ export function saveProbeResults(
   results: ProbeResult[],
   probedAt: Date = new Date(),
 ): void {
+  // Scanned up front, so a refused row cannot leave the others half written.
+  for (const { capability, result, detail } of results) {
+    refuseSecrets(`${model} ${capability} ${result} ${detail}`, "probe results");
+  }
   const insert = storage.database.prepare(
     `INSERT INTO model_probes (model, capability, result, detail, probed_at) VALUES (?, ?, ?, ?, ?)
      ON CONFLICT (model, capability) DO UPDATE SET
@@ -53,4 +58,20 @@ export function capabilityLookup(storage: Storage, registry: Registry): Capabili
   return (model) =>
     probedCapabilities(storage, model)?.capabilities ??
     registry.models.find((entry) => entry.model === model)?.capabilities;
+}
+
+export const probeMaxAgeDays = 7;
+
+// Providers change what they serve under a model's name, so a measurement ages.
+// Only models this machine has probed can be stale; one that was never probed
+// is "unprobed", which is a different problem with a different fix.
+export function staleProbes(
+  storage: Storage,
+  models: string[],
+  now: number = Date.now(),
+): string[] {
+  return models.filter((model) => {
+    const probed = probedCapabilities(storage, model);
+    return probed !== undefined && now - Date.parse(probed.probedAt) > probeMaxAgeDays * dayMs;
+  });
 }
