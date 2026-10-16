@@ -14,7 +14,7 @@ export type ModelCapabilities = {
 // One entry of registry/models.yaml (PRD §7.5). Capabilities come from probes,
 // never from provider claims; prices keep their source and start date so past
 // costs can be recomputed.
-type RegistryModel = {
+export type RegistryModel = {
   model: string;
   base_family: string;
   license: string;
