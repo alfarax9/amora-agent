@@ -1,24 +1,17 @@
+import { unmetRequirements } from "../model-layer/capabilities.ts";
+import { comboOf, probedCapabilities, probeMaxAgeDays } from "../model-layer/known-models.ts";
 import {
-  type ProbeResult,
-  probedCapabilities,
-  probeMaxAgeDays,
-  saveProbeResults,
-} from "../model-layer/known-models.ts";
-import { GatewayError } from "../model-layer/gateway.ts";
-import { createOpenRouter, type OpenRouter } from "../model-layer/openrouter.ts";
-import { runProbes } from "../model-layer/probes.ts";
-import {
-  assignedModels,
   assignModel,
   resolveWorker,
   type Resolution,
   type SlotLevel,
   unassignModel,
 } from "../model-layer/slots.ts";
-import { divisions } from "../runtime/manifest-schema.ts";
+import { divisions, type WorkerManifest } from "../runtime/manifest-schema.ts";
 import { dayMs } from "../runtime/time.ts";
 import type { AppContext } from "./context.ts";
 import { print, printError } from "./output.ts";
+import { probeModel } from "./probe.ts";
 
 // Labels from PRD §7.4. Evals arrive later, so nothing is Verified yet: a
 // probed model that fits is Experimental, and an unprobed one is Unverified.
@@ -51,67 +44,6 @@ export function listModels(context: AppContext): void {
   }
 }
 
-function dataPolicyHelp(wasAllowed: boolean): string {
-  const settings =
-    "OpenRouter must also allow free endpoints that may train on inputs: https://openrouter.ai/settings/privacy";
-  if (wasAllowed)
-    return `Even with data collection allowed, OpenRouter found no provider for that model. ${settings}`;
-  return [
-    "That model has no provider that keeps your prompts private, and AMORA denies data collection by default (S10).",
-    "A probe sends only fixed test prompts (2 + 3, and a red square), never your project, so you can allow it for one run:",
-    "  amora models probe <model> --allow-data-collection",
-    settings,
-  ].join("\n");
-}
-
-// A refusal because of the data policy says nothing about the model, so it is
-// explained here and nothing is stored; other failures go to the caller.
-async function measure(
-  openRouter: OpenRouter,
-  model: string,
-  contextLength: number,
-  wasAllowed: boolean,
-): Promise<ProbeResult[] | undefined> {
-  try {
-    return await runProbes(openRouter.chat, model, contextLength, {
-      onRetry: (status, delayMs) =>
-        print(`  The provider is busy (${status}); trying again in ${delayMs / 1000} s.`),
-    });
-  } catch (error) {
-    if (!(error instanceof GatewayError) || !error.dataPolicy) throw error;
-    printError(dataPolicyHelp(wasAllowed));
-    return undefined;
-  }
-}
-
-export async function probeModel(
-  context: AppContext,
-  model: string,
-  allowDataCollection: boolean,
-): Promise<boolean> {
-  const key = await context.secrets.get("openrouter");
-  if (!key) {
-    printError("Connect OpenRouter first: run amora and choose Connect OpenRouter.");
-    return false;
-  }
-  const dataCollection = allowDataCollection ? "allow" : "deny";
-  const openRouter = createOpenRouter(key, { dataCollection });
-  if (allowDataCollection) {
-    print(
-      "Data collection is allowed for this probe only. It sends fixed test prompts, no project data.",
-    );
-  }
-  const info = await openRouter.model(model);
-  if (!info) return (printError(`OpenRouter has no model called ${model}.`), false);
-  print(`Probing ${model}. This sends a few short requests, billed to your OpenRouter account.`);
-  const results = await measure(openRouter, model, info.context_length ?? 0, allowDataCollection);
-  if (!results) return false;
-  saveProbeResults(context.storage, model, results);
-  for (const { capability, result, detail } of results)
-    print(`  ${capability}: ${result} (${detail})`);
-  return true;
-}
-
 function parseTarget(scope: string): { level: SlotLevel; key?: string } | undefined {
   if (scope === "global") return { level: "global" };
   const [level, key] = scope.split(":");
@@ -122,21 +54,24 @@ function parseTarget(scope: string): { level: SlotLevel; key?: string } | undefi
   return undefined;
 }
 
-// Measures every model in use again, whatever its age.
-export async function probeAssigned(
-  context: AppContext,
-  allowDataCollection: boolean,
-): Promise<boolean> {
-  const models = assignedModels(context.slots);
-  if (models.length === 0) {
-    print("No models are assigned yet.");
-    return true;
+// A combo is refused when any member falls short, so name the members. The
+// combo's own context figure stands in for each member's, because a gateway
+// often knows the combo's but not every member's.
+function explainCombo(context: AppContext, model: string, manifest: WorkerManifest): void {
+  const combo = comboOf(context.storage, model);
+  if (!combo) return;
+  printError("A combo can only do what every one of its members can do. Members that fall short:");
+  for (const member of combo.members) {
+    const capabilities = probedCapabilities(context.storage, member)?.capabilities;
+    if (!capabilities) {
+      printError(`  ${member}: not probed yet`);
+      continue;
+    }
+    const asInCombo = { ...capabilities, context: combo.contextLength ?? capabilities.context };
+    for (const problem of unmetRequirements(manifest.requires, asInCombo, manifest.role)) {
+      printError(`  ${member}: ${problem}`);
+    }
   }
-  let allProbed = true;
-  for (const model of models) {
-    allProbed = (await probeModel(context, model, allowDataCollection)) && allProbed;
-  }
-  return allProbed;
 }
 
 export async function setModel(
@@ -164,6 +99,7 @@ export async function setModel(
   });
   if ("problems" in outcome) {
     for (const problem of outcome.problems) printError(problem);
+    if (manifest) explainCombo(context, model, manifest);
     return false;
   }
   context.storage.setSetting("slots", outcome.config);

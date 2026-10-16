@@ -2,10 +2,13 @@
 import { parseArgs } from "node:util";
 import packageJson from "../../package.json" with { type: "json" };
 import { GatewayError } from "../model-layer/gateway.ts";
+import { defaultOmniRouteUrl } from "../model-layer/omniroute.ts";
 import { redactSecrets } from "../runtime/secret-scanner.ts";
 import { type AppContext, defaultPort, openContext } from "./context.ts";
 import { runDoctor } from "./doctor.ts";
-import { listModels, probeAssigned, probeModel, setModel, unsetModel } from "./models.ts";
+import { listModels, setModel, unsetModel } from "./models.ts";
+import { connectOmniRoute } from "./omniroute.ts";
+import { probeAssigned, probeModel } from "./probe.ts";
 import { print, printError } from "./output.ts";
 import { draftEntry } from "./registry.ts";
 import { startAmora } from "./start.ts";
@@ -14,6 +17,7 @@ const usage = `Usage: amora [command] [options]
 
 Commands:
   (none)                          Start the runtime and open the dashboard
+  connect omniroute               Connect a local OmniRoute; the key is typed at a hidden prompt
   doctor                          Check gateways, keys, plugins, capabilities, hardware, and port
   models                          Show which worker uses which model
   models probe <model>            Measure a model's capabilities through OpenRouter (billed to you)
@@ -26,6 +30,7 @@ Commands:
 Options:
   --port <n>               Port to use (default ${defaultPort}); moves to the next free one if taken
   --assigned               With models probe: every model in use
+  --url <url>              With connect omniroute: its API address (default http://localhost:20128/v1)
   --family <name>          Model family for a registry entry (a derived model uses its base's)
   --license <license>      License for a registry entry, from the model card
   --allow-data-collection  Let providers that keep or train on prompts serve one probe (fixed test
@@ -39,6 +44,7 @@ type Flags = {
   assigned: boolean;
   family: string | undefined;
   license: string | undefined;
+  url: string | undefined;
 };
 
 // `undefined` means the arguments did not fit the action, so the usage is shown.
@@ -76,6 +82,9 @@ async function run(command: string | undefined, rest: string[], flags: Flags): P
   if (command === undefined) return (await startAmora(context, flags.port), true);
   if (command === "doctor") return runDoctor(context, flags.port);
   if (command === "models") return runModels(context, rest, flags);
+  if (command === "connect" && rest[0] === "omniroute") {
+    return connectOmniRoute(context, flags.url ?? defaultOmniRouteUrl);
+  }
   if (command === "registry" && rest[0] === "draft" && rest[1]) {
     return draftEntry(context, rest[1], flags);
   }
@@ -90,6 +99,7 @@ async function main(): Promise<void> {
       port: { type: "string", default: String(defaultPort) },
       "allow-data-collection": { type: "boolean", default: false },
       assigned: { type: "boolean", default: false },
+      url: { type: "string" },
       family: { type: "string" },
       license: { type: "string" },
       version: { type: "boolean", default: false },
@@ -111,6 +121,7 @@ async function main(): Promise<void> {
     assigned: values.assigned,
     family: values.family,
     license: values.license,
+    url: values.url,
   };
   if (!(await run(command, rest, flags))) process.exitCode = 1;
 }
