@@ -1,6 +1,8 @@
 import { spawn } from "node:child_process";
 import { createConnectFlows } from "../runtime/connect.ts";
+import { createOpenRouter } from "../model-layer/openrouter.ts";
 import { refreshRegistry } from "../model-layer/registry-source.ts";
+import { scheduleReprobes } from "../model-layer/reprobe.ts";
 import { createLogger, type Logger } from "../runtime/logger.ts";
 import { createSessions } from "../runtime/security.ts";
 import { startRuntime } from "../runtime/server.ts";
@@ -43,6 +45,14 @@ export async function startAmora(context: AppContext, port: number): Promise<voi
     logger,
   });
   refreshRegistryInBackground(context, logger);
+  const stopReprobes = scheduleReprobes({
+    storage: context.storage,
+    openRouterFor: async () => {
+      const key = await context.secrets.get("openrouter");
+      return key ? createOpenRouter(key) : undefined;
+    },
+    logger,
+  });
   const signIn = runtime.signInUrl();
   if (runtime.port !== port) print(`Port ${port} is in use, so AMORA took ${runtime.port}.`);
   print(`AMORA is running at http://127.0.0.1:${runtime.port}`);
@@ -50,6 +60,7 @@ export async function startAmora(context: AppContext, port: number): Promise<voi
   print("Press Ctrl+C to stop.");
   openBrowser(signIn);
   const stop = () => {
+    stopReprobes();
     void runtime.close().then(() => {
       context.storage.close();
       process.exit(0);
