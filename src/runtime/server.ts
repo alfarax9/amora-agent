@@ -35,13 +35,15 @@ type Context = {
 
 type Handler = (context: Context) => void | Promise<void>;
 
-// Nothing on these pages comes from another origin, and the only place a form
-// may lead is OpenRouter's authorization page.
+// Nothing on these pages comes from another origin, and they have no forms.
 const securityHeaders = {
   "Content-Security-Policy":
-    "default-src 'none'; style-src 'unsafe-inline'; form-action 'self' https://openrouter.ai; frame-ancestors 'none'; base-uri 'none'",
+    "default-src 'none'; style-src 'unsafe-inline'; form-action 'none'; frame-ancestors 'none'; base-uri 'none'",
   "X-Content-Type-Options": "nosniff",
-  "Referrer-Policy": "no-referrer",
+  // Not "no-referrer": under that policy browsers send `Origin: null` on
+  // POST requests, and the Origin check (S3) refuses them. "same-origin" keeps
+  // the real Origin on our own requests and sends nothing to other sites.
+  "Referrer-Policy": "same-origin",
   "Cache-Control": "no-store",
 };
 
@@ -66,18 +68,54 @@ const signIn: Handler = ({ response, url, port, deps }) => {
   redirect(response, "/", { "Set-Cookie": sessionCookie(port, sessionId) });
 };
 
-const openRouterCallback: Handler = async ({ response, url, port, deps }) => {
+const noCodeMessage =
+  "OpenRouter did not send an authorization, so AMORA was not connected. If you cancelled, start again from the AMORA tab.";
+const unknownStateMessage =
+  "This connection link expired, was already used, or was started before AMORA restarted. If AMORA is already connected, close this tab. Otherwise start again from the AMORA tab.";
+
+// The reason goes to the runtime log, so a failed connection can be told apart
+// without guessing.
+function refuseCallback(
+  response: ServerResponse,
+  deps: RuntimeDependencies,
+  reason: string,
+  message: string,
+): void {
+  deps.logger.warn("OpenRouter callback refused", { reason });
+  send(response, 400, messagePage("Connection not completed", message));
+}
+
+// This page answers the redirect from openrouter.ai, a cross-site navigation,
+// so the SameSite=Strict session cookie is not sent here or on any redirect
+// that follows. It shows the result instead of sending the user to a page that
+// would ask them to sign in again; the AMORA tab they started from still has
+// its session.
+const openRouterCallback: Handler = async ({ response, url, deps }) => {
+  const state = url.searchParams.get("state") ?? "";
   const code = url.searchParams.get("code");
-  const verifier = deps.flows.finish(url.searchParams.get("state") ?? "");
-  if (!code || !verifier) {
-    const message = "OpenRouter was not connected. Start again from the AMORA page.";
-    return send(response, 400, messagePage("Connection not completed", message));
+  if (deps.flows.wasConnected(state)) {
+    const message =
+      "This link was already used, so nothing changed. Close this tab and reload the AMORA tab.";
+    return send(response, 200, messagePage("OpenRouter is already connected", message));
   }
-  const key = await exchangeCode(code, verifier, deps.fetchImpl);
+  if (!code) return refuseCallback(response, deps, "no authorization code", noCodeMessage);
+  const verifier = deps.flows.finish(state);
+  if (!verifier)
+    return refuseCallback(response, deps, "unknown or expired state", unknownStateMessage);
+  let key: string;
+  try {
+    key = await exchangeCode(code, verifier, deps.fetchImpl);
+  } catch (error) {
+    deps.logger.warn("OpenRouter key exchange failed", { reason: String(error) });
+    const message =
+      "OpenRouter did not accept the authorization. It may have expired; connect again from the AMORA tab.";
+    return send(response, 502, messagePage("Connection not completed", message));
+  }
   await deps.secrets.set("openrouter", key);
+  deps.flows.markConnected(state);
   deps.logger.info("OpenRouter connected", { key: maskSecret(key) });
-  // The session cookie belongs to 127.0.0.1, and the callback came to localhost.
-  redirect(response, `http://${bindAddress}:${port}/`);
+  const message = `Key ${maskSecret(key)} is in your keychain. Close this tab and reload the AMORA tab.`;
+  send(response, 200, messagePage("OpenRouter connected", message));
 };
 
 const home: Handler = async ({ response, deps }) => {
@@ -105,7 +143,10 @@ const publicRoutes: Record<string, Handler> = {
 const sessionRoutes: Record<string, Handler> = {
   "GET /": home,
   "GET /api/status": status,
-  "POST /api/connect/openrouter": connectOpenRouter,
+  // A link, opened in a new tab so the AMORA tab keeps its session. A GET is
+  // safe here: it needs the SameSite=Strict session, which other sites cannot
+  // send, and it only starts a flow that expires unused after ten minutes.
+  "GET /connect/openrouter": connectOpenRouter,
 };
 
 async function route(context: Context): Promise<void> {
