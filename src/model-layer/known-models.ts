@@ -30,10 +30,9 @@ export function saveProbeResults(
   }
 }
 
-export function probedCapabilities(
-  storage: Storage,
-  model: string,
-): { capabilities: ModelCapabilities; probedAt: string } | undefined {
+type Probed = { capabilities: ModelCapabilities; probedAt: string };
+
+function memberCapabilities(storage: Storage, model: string): Probed | undefined {
   const rows = storage.database
     .prepare("SELECT capability, result, probed_at FROM model_probes WHERE model = ?")
     .all(model) as { capability: string; result: string; probed_at: string }[];
@@ -50,6 +49,46 @@ export function probedCapabilities(
   };
   const probedAt = rows.map((row) => row.probed_at).sort()[0] ?? "";
   return { capabilities, probedAt };
+}
+
+// A combo as AMORA last read it: its members, by full model id, and the
+// gateway's own figure for its context length.
+export type ComboRecord = { members: string[]; contextLength: number | null; strategy: string };
+
+export function saveCombo(storage: Storage, id: string, combo: ComboRecord): void {
+  const combos = storage.getSetting<Record<string, ComboRecord>>("combos") ?? {};
+  storage.setSetting("combos", { ...combos, [id]: combo });
+}
+
+export function comboOf(storage: Storage, id: string): ComboRecord | undefined {
+  return storage.getSetting<Record<string, ComboRecord>>("combos")?.[id];
+}
+
+const strength: Record<StructuredOutput, number> = { none: 0, json_mode: 1, json_schema: 2 };
+
+// A combo can fall back to any of its members, so it can only do what every
+// member can do. One member that was never probed makes the whole combo
+// unknown, so a worker never gets a combo on the strength of part of it.
+function comboCapabilities(storage: Storage, combo: ComboRecord): Probed | undefined {
+  const measured = combo.members.map((member) => memberCapabilities(storage, member));
+  const members = measured.filter((member): member is Probed => member !== undefined);
+  if (members.length === 0 || members.length < measured.length) return undefined;
+  const all = members.map((member) => member.capabilities);
+  const weakest = all.reduce((low, next) =>
+    strength[next.structured_output] < strength[low.structured_output] ? next : low,
+  );
+  const capabilities: ModelCapabilities = {
+    vision: all.every((member) => member.vision),
+    tool_use: all.every((member) => member.tool_use),
+    structured_output: weakest.structured_output,
+    context: combo.contextLength ?? Math.min(...all.map((member) => member.context)),
+  };
+  return { capabilities, probedAt: members.map((member) => member.probedAt).sort()[0] ?? "" };
+}
+
+export function probedCapabilities(storage: Storage, model: string): Probed | undefined {
+  const combo = comboOf(storage, model);
+  return combo ? comboCapabilities(storage, combo) : memberCapabilities(storage, model);
 }
 
 // The user's own probes win over the registry: they were measured on the
