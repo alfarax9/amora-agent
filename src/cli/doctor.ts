@@ -1,7 +1,9 @@
 import { createServer } from "node:net";
 import { availableParallelism, freemem, totalmem } from "node:os";
 import { createOpenRouter, OpenRouterError } from "../model-layer/openrouter.ts";
-import { resolveWorker } from "../model-layer/slots.ts";
+import { probeMaxAgeDays, staleProbes } from "../model-layer/known-models.ts";
+import { assignedModels, resolveWorker } from "../model-layer/slots.ts";
+import { dayMs } from "../runtime/time.ts";
 import { bindAddress } from "../runtime/security.ts";
 import { type AppContext, defaultPort } from "./context.ts";
 import { print } from "./output.ts";
@@ -93,6 +95,36 @@ function checkCapabilities(context: AppContext): Check[] {
   }));
 }
 
+function checkProbes(context: AppContext): Check {
+  const assigned = assignedModels(context.slots);
+  const stale = staleProbes(context.storage, assigned);
+  if (stale.length > 0) {
+    const detail = `${stale.join(", ")} last probed over ${probeMaxAgeDays} days ago; run amora models probe --assigned`;
+    return { status: "warn", label: "Probes", detail };
+  }
+  const detail =
+    assigned.length === 0
+      ? "no models assigned yet"
+      : `no assigned model has a probe older than ${probeMaxAgeDays} days`;
+  return { status: "pass", label: "Probes", detail };
+}
+
+const expiryWarningDays = 30;
+
+// A model that disappears takes its workers with it, so the ones in use are
+// flagged a month ahead.
+function checkExpiry(context: AppContext): Check[] {
+  return assignedModels(context.slots).flatMap((model) => {
+    const expires = context.registry.models.find((entry) => entry.model === model)?.expires;
+    if (!expires) return [];
+    const days = Math.ceil((Date.parse(expires) - Date.now()) / dayMs);
+    if (days > expiryWarningDays) return [];
+    const detail =
+      days < 0 ? `${model} expired on ${expires}` : `${model} expires on ${expires} (${days} days)`;
+    return [{ status: "warn" as const, label: "Expiry", detail }];
+  });
+}
+
 function checkHardware(): Check {
   const gib = (bytes: number) => (bytes / 1024 ** 3).toFixed(1);
   const detail = `${availableParallelism()} CPU threads, ${gib(freemem())} of ${gib(totalmem())} GiB memory free`;
@@ -124,6 +156,8 @@ export async function runDoctor(context: AppContext, port = defaultPort): Promis
     { status: "pass", label: "Plugins", detail: "none installed" },
     ...checkDefinitions(context),
     ...checkCapabilities(context),
+    checkProbes(context),
+    ...checkExpiry(context),
     checkHardware(),
     await checkPort(port),
   ];
