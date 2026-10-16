@@ -2,6 +2,7 @@ import { mkdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
+import { findSecrets } from "./secret-scanner.ts";
 
 // AMORA_HOME exists so tests and second installs can keep separate state.
 export function dataDirectory(environment: NodeJS.ProcessEnv = process.env): string {
@@ -25,6 +26,20 @@ const migrations = [
    )`,
 ];
 
+// S6: nothing is written to the database before it has been scanned. Secrets
+// belong in the keychain, so a value that looks like one is refused outright
+// rather than stored redacted: a redacted copy would still mean a key was on its
+// way to disk. The message names the kind, never the value. Handoffs and chat
+// messages go through this too once they are stored.
+export function refuseSecrets(text: string, where: string): void {
+  const [found] = findSecrets(text);
+  if (found) {
+    throw new Error(
+      `Refusing to store a ${found.name} in ${where}. Secrets belong in the keychain.`,
+    );
+  }
+}
+
 export type Storage = {
   getSetting<T>(key: string): T | undefined;
   setSetting(key: string, value: unknown): void;
@@ -46,7 +61,9 @@ export function openStorage(path: string): Storage {
       return row ? (JSON.parse(row.value) as T) : undefined;
     },
     setSetting(key, value) {
-      write.run(key, JSON.stringify(value));
+      const text = JSON.stringify(value);
+      refuseSecrets(text, `setting "${key}"`);
+      write.run(key, text);
     },
     database,
     close: () => database.close(),
