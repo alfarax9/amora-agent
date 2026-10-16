@@ -23,8 +23,8 @@ function page(title: string, body: string): string {
   main { max-width: 36rem; margin: 15vh auto; padding: 0 1.5rem; }
   h1 { color: #fff; font-size: 1.5rem; }
   code { font-family: ui-monospace, monospace; color: #fff; }
-  button { background: #2563eb; color: #fff; border: 0; border-radius: 999px; padding: .6rem 1.2rem; font: inherit; cursor: pointer; }
-  button:focus-visible { outline: 2px solid #60a5fa; outline-offset: 2px; }
+  .button { display: inline-block; background: #2563eb; color: #fff; border-radius: 999px; padding: .6rem 1.2rem; text-decoration: none; }
+  .button:focus-visible { outline: 2px solid #60a5fa; outline-offset: 2px; }
 </style>
 </head>
 <body><main>${body}</main></body>
@@ -39,7 +39,8 @@ export function statusPage(openRouter: { maskedKey?: string }): string {
   const gateway = openRouter.maskedKey
     ? `<p>OpenRouter is connected (key <code>${escapeHtml(openRouter.maskedKey)}</code>).</p>`
     : `<p>No model gateway is connected yet.</p>
-<form method="post" action="/api/connect/openrouter"><button type="submit">Connect OpenRouter</button></form>`;
+<p>OpenRouter opens in a new tab. When it says you are connected, come back here and reload.</p>
+<p><a class="button" href="/connect/openrouter" target="_blank" rel="noopener">Connect OpenRouter</a></p>`;
   return page(
     "Runtime",
     `<h1>AMORA is running</h1>
