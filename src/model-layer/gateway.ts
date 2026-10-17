@@ -10,7 +10,7 @@ type ContentPart =
 
 export type ChatRequest = {
   model: string;
-  messages: { role: "system" | "user"; content: string | ContentPart[] }[];
+  messages: { role: "system" | "user" | "assistant"; content: string | ContentPart[] }[];
   max_tokens?: number;
   response_format?: Record<string, unknown>;
   tools?: Record<string, unknown>[];
@@ -24,7 +24,10 @@ export type ChatResponse = {
       tool_calls?: { function: { name: string; arguments: string } }[];
     };
   }[];
-  usage?: { cost?: number };
+  // The model that actually answered, which for a combo is the member it fell
+  // back to, not the combo's name.
+  model?: string;
+  usage?: { cost?: number; prompt_tokens?: number; completion_tokens?: number };
 };
 
 export type Chat = (request: ChatRequest) => Promise<ChatResponse>;
