@@ -15,6 +15,8 @@ import type { AppContext } from "./context.ts";
 export type MeasureOptions = {
   allowDataCollection: boolean;
   onRetry?: (status: number, delayMs: number) => void;
+  // Called before each member of a combo, which can take minutes in all.
+  onMember?: (member: string, position: number, total: number) => void;
 };
 
 export type Measured = { model: string; results: ProbeResult[] }[];
@@ -80,7 +82,8 @@ async function measureOmniRoute(context: AppContext, name: string, options: Meas
   const other = combo.members.find((member) => member.kind !== "model");
   if (other) throw new Error(`${name} has a ${other.kind} member, which AMORA cannot probe yet.`);
   const measured: Measured = [];
-  for (const member of combo.members) {
+  for (const [index, member] of combo.members.entries()) {
+    options.onMember?.(member.model, index + 1, combo.members.length);
     measured.push(await measureMember(context, client, models, member.model, options));
   }
   saveCombo(context.storage, omniRouteId(name), {

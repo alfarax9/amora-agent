@@ -58,11 +58,13 @@ export async function probeModel(
   announce(model, allowDataCollection);
   const onRetry = (status: number, delayMs: number) =>
     print(`  The provider is busy (${status}); trying again in ${delayMs / 1000} s.`);
+  const onMember = (member: string, position: number, total: number) =>
+    print(`  Measuring ${member} (${position} of ${total})...`);
   try {
     printMeasured(
       context,
       model,
-      await measureModel(context, model, { allowDataCollection, onRetry }),
+      await measureModel(context, model, { allowDataCollection, onRetry, onMember }),
     );
     return true;
   } catch (error) {
