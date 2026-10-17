@@ -80,6 +80,27 @@ describe("probes", () => {
       assert.equal(calls, 3);
     });
 
+    it("waits as long as the gateway asks, but never more than a minute", async (t) => {
+      t.mock.timers.enable({ apis: ["setTimeout"] });
+      let calls = 0;
+      const waits: number[] = [];
+      const chat = async (request: ChatRequest) => {
+        calls += 1;
+        if (calls === 1) throw new GatewayError(429, "cooling down", 34_000);
+        if (calls === 2) throw new GatewayError(429, "cooling down", 600_000);
+        return request.tools ? reply(null, '{"answer":5}') : reply('{"answer":5}');
+      };
+      const results = await runProbes(chat, "a/b", 8000, {
+        ...quickly,
+        onRetry: (_status, delayMs) => {
+          waits.push(delayMs);
+          queueMicrotask(() => t.mock.timers.tick(delayMs));
+        },
+      });
+      assert.deepEqual(waits, [34_000, 60_000]);
+      assert.equal(results[0]?.result, "json_schema");
+    });
+
     it("never records a data policy refusal as a missing capability", async () => {
       let calls = 0;
       const chat = async () => {

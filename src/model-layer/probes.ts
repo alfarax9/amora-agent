@@ -173,6 +173,10 @@ async function probeVision(chat: Chat, model: string): Promise<ProbeResult> {
 // again a couple of times before giving up.
 const transientStatuses = [429, 502, 503];
 const defaultRetryDelaysMs = [4000, 12000];
+// A gateway that says how long to wait knows better than a fixed delay (an
+// OmniRoute cooldown lasts about half a minute), but a probe must not stall
+// for long, so its wish is capped.
+const maxRetryWaitMs = 60_000;
 
 type RetryOptions = {
   retryDelaysMs?: number[];
@@ -191,8 +195,9 @@ function withRetries(
         const isTransient =
           error instanceof GatewayError && transientStatuses.includes(error.status);
         if (!isTransient) throw error;
-        onRetry?.(error.status, delayMs);
-        await new Promise((resolve) => setTimeout(resolve, delayMs));
+        const waitMs = Math.min(Math.max(delayMs, error.retryAfterMs ?? 0), maxRetryWaitMs);
+        onRetry?.(error.status, waitMs);
+        await new Promise((resolve) => setTimeout(resolve, waitMs));
       }
     }
     return chat(request);
