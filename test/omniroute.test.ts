@@ -104,6 +104,29 @@ describe("OmniRoute client", () => {
     );
   });
 
+  it("says which address gave no answer in time", async () => {
+    const fakeFetch = (async () => {
+      throw new DOMException("The operation was aborted due to timeout", "TimeoutError");
+    }) as typeof fetch;
+    const client = createOmniRoute("http://localhost:20128/v1", "k", { fetchImpl: fakeFetch });
+    await assert.rejects(client.chat({ model: "a/b", messages: [] }), {
+      message: "No answer from http://localhost:20128/v1/chat/completions within 120 s.",
+    });
+  });
+
+  it("keeps how long a cooling-down model asks to wait", async () => {
+    const fakeFetch = (async () =>
+      Response.json(
+        { error: { message: "All credentials are cooling down", code: "model_cooldown" } },
+        { status: 429, headers: { "Retry-After": "34" } },
+      )) as typeof fetch;
+    const client = createOmniRoute("http://localhost:20128/v1", "k", { fetchImpl: fakeFetch });
+    await assert.rejects(client.chat({ model: "a/b", messages: [] }), {
+      status: 429,
+      retryAfterMs: 34_000,
+    });
+  });
+
   it("reads a context length only when OmniRoute knows it", () => {
     const models = [
       { id: "a", context_length: 200000 },

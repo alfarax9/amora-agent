@@ -37,11 +37,25 @@ export type Chat = (request: ChatRequest) => Promise<ChatResponse>;
 export class GatewayError extends Error {
   readonly status: number;
   readonly dataPolicy: boolean;
-  constructor(status: number, message: string) {
+  // How long the gateway asked to wait before trying again, when it said.
+  readonly retryAfterMs: number | undefined;
+  constructor(status: number, message: string, retryAfterMs?: number) {
     super(message);
     this.status = status;
     this.dataPolicy = status === 404 && /data policy/i.test(message);
+    this.retryAfterMs = retryAfterMs;
   }
+}
+
+// OmniRoute answers a model whose credentials are cooling down with a 429 and
+// a Retry-After in seconds; HTTP also allows a date there.
+function retryAfterMs(headers: Headers): number | undefined {
+  const value = headers.get("retry-after");
+  if (value === null) return undefined;
+  const seconds = Number(value);
+  if (Number.isFinite(seconds) && seconds >= 0) return seconds * 1000;
+  const date = Date.parse(value);
+  return Number.isNaN(date) ? undefined : Math.max(0, date - Date.now());
 }
 
 // Models are named per gateway: `omniroute:<name>` for OmniRoute, a bare id for
@@ -92,6 +106,20 @@ type Caller = <T>(path: string, init?: RequestInit) => Promise<T>;
 // Long enough for a short probe answer from a slow free model.
 const requestTimeoutMs = 120_000;
 
+// A gateway that never answers, such as a mistyped address or OmniRoute holding
+// a request while every credential of the model cools down, must not leave a
+// probe or a connect waiting forever, and the error has to say what timed out.
+async function fetchWithin(fetchImpl: Fetch, url: string, init: RequestInit): Promise<Response> {
+  try {
+    return await fetchImpl(url, { signal: AbortSignal.timeout(requestTimeoutMs), ...init });
+  } catch (error) {
+    if (!(error instanceof Error && error.name === "TimeoutError")) throw error;
+    throw new Error(`No answer from ${url} within ${requestTimeoutMs / 1000} s.`, {
+      cause: error,
+    });
+  }
+}
+
 export function createCaller(options: {
   baseUrl: string;
   apiKey: string;
@@ -100,10 +128,7 @@ export function createCaller(options: {
 }): Caller {
   const { baseUrl, apiKey, fetchImpl, headers = {} } = options;
   return async <T>(path: string, init: RequestInit = {}): Promise<T> => {
-    const response = await fetchImpl(`${baseUrl}${path}`, {
-      // A gateway that never answers, such as a mistyped address, must not
-      // leave a probe or a connect waiting forever.
-      signal: AbortSignal.timeout(requestTimeoutMs),
+    const response = await fetchWithin(fetchImpl, `${baseUrl}${path}`, {
       ...init,
       headers: {
         Authorization: `Bearer ${apiKey}`,
@@ -111,7 +136,10 @@ export function createCaller(options: {
         ...headers,
       },
     });
-    if (!response.ok) throw new GatewayError(response.status, await errorMessage(response));
+    if (!response.ok) {
+      const message = await errorMessage(response);
+      throw new GatewayError(response.status, message, retryAfterMs(response.headers));
+    }
     const body = (await response.json()) as T & ErrorBody;
     // A failure upstream can arrive as HTTP 200 with an error and no choices,
     // for instance when the provider ran out of capacity after the request was
