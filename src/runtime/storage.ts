@@ -24,13 +24,46 @@ const migrations = [
      probed_at TEXT NOT NULL,
      PRIMARY KEY (model, capability)
    )`,
+  `CREATE TABLE tasks (
+     id TEXT PRIMARY KEY,
+     brief TEXT NOT NULL,
+     status TEXT NOT NULL,
+     budget_usd REAL NOT NULL,
+     spent_usd REAL NOT NULL,
+     plan TEXT,
+     step INTEGER NOT NULL,
+     attempt INTEGER NOT NULL,
+     feedback TEXT NOT NULL,
+     reason TEXT,
+     created_at TEXT NOT NULL,
+     updated_at TEXT NOT NULL
+   )`,
+  `CREATE TABLE handoffs (
+     id INTEGER PRIMARY KEY AUTOINCREMENT,
+     task_id TEXT NOT NULL REFERENCES tasks (id),
+     sender TEXT NOT NULL,
+     receiver TEXT NOT NULL,
+     contract TEXT NOT NULL,
+     validation TEXT NOT NULL,
+     gate TEXT NOT NULL,
+     gate_reason TEXT NOT NULL,
+     model TEXT NOT NULL,
+     answered_by TEXT NOT NULL,
+     attempt INTEGER NOT NULL,
+     tokens_in INTEGER NOT NULL,
+     tokens_out INTEGER NOT NULL,
+     cost_usd REAL NOT NULL,
+     content TEXT NOT NULL,
+     artifacts TEXT NOT NULL,
+     created_at TEXT NOT NULL
+   )`,
 ];
 
 // S6: nothing is written to the database before it has been scanned. Secrets
 // belong in the keychain, so a value that looks like one is refused outright
 // rather than stored redacted: a redacted copy would still mean a key was on its
-// way to disk. The message names the kind, never the value. Handoffs and chat
-// messages go through this too once they are stored.
+// way to disk. The message names the kind, never the value. Tasks and handoffs
+// go through this too, and chat messages must when they are stored.
 export function refuseSecrets(text: string, where: string): void {
   const [found] = findSecrets(text);
   if (found) {
