@@ -1,0 +1,28 @@
+{
+  "description": "The Planner / Decomposer's plan: which workers run, in order, and the estimated cost.",
+  "type": "object",
+  "properties": {
+    "summary": {
+      "type": "string",
+      "description": "One or two sentences on what will be delivered."
+    },
+    "steps": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "worker": {
+            "type": "string",
+            "description": "A worker id from the roster you were given."
+          },
+          "goal": { "type": "string", "description": "What this worker must deliver in this step." }
+        },
+        "required": ["worker", "goal"],
+        "additionalProperties": false
+      }
+    },
+    "estimate_usd": { "type": "number", "description": "Estimated cost of the whole plan in USD." }
+  },
+  "required": ["summary", "steps", "estimate_usd"],
+  "additionalProperties": false
+}

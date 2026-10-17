@@ -1,0 +1,14 @@
+{
+  "description": "A reviewer's verdict on another worker's output.",
+  "type": "object",
+  "properties": {
+    "verdict": { "type": "string", "enum": ["pass", "fail"] },
+    "findings": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "What must change for the work to pass; empty when it passes."
+    }
+  },
+  "required": ["verdict", "findings"],
+  "additionalProperties": false
+}
