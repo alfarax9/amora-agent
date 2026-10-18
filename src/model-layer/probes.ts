@@ -1,6 +1,13 @@
 import { redactSecrets } from "../runtime/secret-scanner.ts";
 import type { ProbeResult } from "./known-models.ts";
-import { type Chat, type ChatRequest, type ChatResponse, GatewayError } from "./gateway.ts";
+import {
+  type Chat,
+  type ChatRequest,
+  type ChatResponse,
+  GatewayError,
+  type RetryOptions,
+  withRetries,
+} from "./gateway.ts";
 
 // Probes measure what a model can do instead of trusting provider claims
 // (PRD §7.6). Each asks a question with one checkable answer, 2 + 3 or the
@@ -164,43 +171,6 @@ async function probeVision(chat: Chat, model: string): Promise<ProbeResult> {
     capability: "vision",
     result: String(passed),
     detail: passed ? "named the color" : refusalDetail(response, answered),
-  };
-}
-
-// Free models are often busy: a 429 is the provider rate limiting the model
-// for a moment, and 502 and 503 are the provider failing for a moment. None of
-// them says anything about what the model can do, so each call waits and tries
-// again a couple of times before giving up.
-const transientStatuses = [429, 502, 503];
-const defaultRetryDelaysMs = [4000, 12000];
-// A gateway that says how long to wait knows better than a fixed delay (an
-// OmniRoute cooldown lasts about half a minute), but a probe must not stall
-// for long, so its wish is capped.
-const maxRetryWaitMs = 60_000;
-
-type RetryOptions = {
-  retryDelaysMs?: number[];
-  onRetry?: (status: number, delayMs: number) => void;
-};
-
-function withRetries(
-  chat: Chat,
-  { retryDelaysMs = defaultRetryDelaysMs, onRetry }: RetryOptions,
-): Chat {
-  return async (request) => {
-    for (const delayMs of retryDelaysMs) {
-      try {
-        return await chat(request);
-      } catch (error) {
-        const isTransient =
-          error instanceof GatewayError && transientStatuses.includes(error.status);
-        if (!isTransient) throw error;
-        const waitMs = Math.min(Math.max(delayMs, error.retryAfterMs ?? 0), maxRetryWaitMs);
-        onRetry?.(error.status, waitMs);
-        await new Promise((resolve) => setTimeout(resolve, waitMs));
-      }
-    }
-    return chat(request);
   };
 }
 
