@@ -34,7 +34,13 @@ jobs:
       - run: npm run lint
       - run: npm run format:check
       - run: npm run knip
-      - run: npm test
+      # The same run as npm test, plus annotations for failing tests, which can
+      # be read on the run's checks without access to the job log.
+      - run: >-
+          node --test --test-force-exit
+          --test-reporter=spec --test-reporter-destination=stdout
+          --test-reporter=./test/github-annotations.ts --test-reporter-destination=stdout
+          "test/**/*.test.ts"
       - name: CLI starts
         run: |
           node src/cli/main.ts --version
