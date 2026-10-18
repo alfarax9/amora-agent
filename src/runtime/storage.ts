@@ -57,13 +57,23 @@ const migrations = [
      artifacts TEXT NOT NULL,
      created_at TEXT NOT NULL
    )`,
+  `CREATE TABLE task_messages (
+     id INTEGER PRIMARY KEY AUTOINCREMENT,
+     task_id TEXT NOT NULL REFERENCES tasks (id),
+     author TEXT NOT NULL,
+     text TEXT NOT NULL,
+     created_at TEXT NOT NULL
+   )`,
+  // The project folder a task works on; workers change a copy of it, and the
+  // owner's folder only when they complete the task.
+  `ALTER TABLE tasks ADD COLUMN project TEXT`,
 ];
 
 // S6: nothing is written to the database before it has been scanned. Secrets
 // belong in the keychain, so a value that looks like one is refused outright
 // rather than stored redacted: a redacted copy would still mean a key was on its
-// way to disk. The message names the kind, never the value. Tasks and handoffs
-// go through this too, and chat messages must when they are stored.
+// way to disk. The message names the kind, never the value. Tasks, handoffs,
+// and chat messages go through this too.
 export function refuseSecrets(text: string, where: string): void {
   const [found] = findSecrets(text);
   if (found) {
