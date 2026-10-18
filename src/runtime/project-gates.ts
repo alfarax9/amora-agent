@@ -82,7 +82,7 @@ const outputTail = 3000;
 
 // Model-written code runs here, so it gets the least it needs: no keys from
 // the environment, the workspace as its folder, and a time limit.
-function cleanEnvironment(): NodeJS.ProcessEnv {
+export function cleanEnvironment(): NodeJS.ProcessEnv {
   // Where programs and temporary files are, and what Windows needs to run npm.cmd.
   const keep = ["PATH", "Path", "HOME", "TMPDIR", "USERPROFILE", "APPDATA", "TEMP", "TMP"];
   keep.push("SystemRoot", "windir", "ComSpec", "PATHEXT");
