@@ -7,6 +7,7 @@ import { redactSecrets } from "../runtime/secret-scanner.ts";
 import { type AppContext, defaultPort, openContext } from "./context.ts";
 import { runDoctor } from "./doctor.ts";
 import { runBudget } from "./budget.ts";
+import { runEval } from "./eval.ts";
 import { listModels, setFamily, setModel, unsetModel } from "./models.ts";
 import { connectOmniRoute } from "./omniroute.ts";
 import { probeAssigned, probeModel } from "./probe.ts";
@@ -25,6 +26,8 @@ Commands:
   budget --daily <usd>            Set the daily limit across all tasks (needed before a first task)
   project [path]                  Show or set the project folder new tasks work on
   privacy                         Show whether OpenRouter providers may keep or train on prompts
+  eval                            Run the benchmark set through AMORA and one strong agent, and
+                                  report success and cost per successful task (calls your models)
   connect omniroute               Connect a local OmniRoute; the key is typed at a hidden prompt
   doctor                          Check gateways, keys, plugins, capabilities, hardware, and port
   models                          Show which worker uses which model
@@ -43,6 +46,10 @@ Options:
   --port <n>               Port to use (default ${defaultPort}); moves to the next free one if taken
   --assigned               With models probe: every model in use
   --daily <usd>            With budget: the daily limit in USD
+  --brief <id>             With eval: run only this brief (repeatable)
+  --system <name>          With eval: both (default), amora, or baseline
+  --baseline-model <id>    With eval: the baseline's model (default: the global model)
+  --budget <usd>           With eval: each AMORA task's budget (default 1)
   --allow-data-collection  With privacy: let providers that keep or train on prompts serve
                            tasks in this AMORA home; --deny-data-collection turns it off
   --url <url>              With connect omniroute: its API address (default http://localhost:20128/v1)
@@ -62,6 +69,10 @@ type Flags = {
   url: string | undefined;
   daily: string | undefined;
   denyDataCollection: boolean;
+  briefs: string[];
+  system: string;
+  baselineModel: string | undefined;
+  budget: string;
 };
 
 function privacyChoice(flags: Flags): "allow" | "deny" | undefined {
@@ -110,6 +121,12 @@ const commands: Record<string, Command> = {
   doctor: (context, _args, flags) => runDoctor(context, flags.port),
   models: (context, args, flags) => runModels(context, args, flags),
   project: async (context, args) => (args.length <= 1 ? runProject(context, args[0]) : undefined),
+  eval: async (context, args, flags) => {
+    const budgetUsd = Number(flags.budget);
+    if (args.length > 0 || !(budgetUsd > 0)) return undefined;
+    const { briefs, system, baselineModel } = flags;
+    return runEval(context, { briefs, system, baselineModel, budgetUsd });
+  },
   privacy: async (context, args, flags) =>
     args.length === 0 ? runPrivacy(context, privacyChoice(flags)) : undefined,
   budget: async (context, args, flags) =>
@@ -131,22 +148,25 @@ async function run(command: string | undefined, rest: string[], flags: Flags): P
   return false;
 }
 
+const options = {
+  port: { type: "string", default: String(defaultPort) },
+  "allow-data-collection": { type: "boolean", default: false },
+  "deny-data-collection": { type: "boolean", default: false },
+  assigned: { type: "boolean", default: false },
+  url: { type: "string" },
+  daily: { type: "string" },
+  brief: { type: "string", multiple: true },
+  system: { type: "string", default: "both" },
+  "baseline-model": { type: "string" },
+  budget: { type: "string", default: "1" },
+  family: { type: "string" },
+  license: { type: "string" },
+  version: { type: "boolean", default: false },
+  help: { type: "boolean", default: false },
+} as const;
+
 async function main(): Promise<void> {
-  const { values, positionals } = parseArgs({
-    allowPositionals: true,
-    options: {
-      port: { type: "string", default: String(defaultPort) },
-      "allow-data-collection": { type: "boolean", default: false },
-      "deny-data-collection": { type: "boolean", default: false },
-      assigned: { type: "boolean", default: false },
-      url: { type: "string" },
-      daily: { type: "string" },
-      family: { type: "string" },
-      license: { type: "string" },
-      version: { type: "boolean", default: false },
-      help: { type: "boolean", default: false },
-    },
-  });
+  const { values, positionals } = parseArgs({ allowPositionals: true, options });
   if (values.help) return print(usage);
   if (values.version) return print(packageJson.version);
   const port = Number(values.port);
@@ -165,6 +185,10 @@ async function main(): Promise<void> {
     url: values.url,
     daily: values.daily,
     denyDataCollection: values["deny-data-collection"],
+    briefs: values.brief ?? [],
+    system: values.system,
+    baselineModel: values["baseline-model"],
+    budget: values.budget,
   };
   if (!(await run(command, rest, flags))) process.exitCode = 1;
 }

@@ -81,6 +81,20 @@ describe("CLI: budget and model families", () => {
     assert.equal(run(["models", "price", "omniroute:a/claude", "-1", "0"]).code, 1);
   });
 
+  it("checks an eval before it calls any model", () => {
+    const noModel = run(["eval", "--system", "baseline"]);
+    assert.equal(noModel.code, 1);
+    assert.match(noModel.out, /Name the baseline's model/);
+    const fresh = { AMORA_HOME: mkdtempSync(join(tmpdir(), "amora-cli-")) };
+    const noLimit = run(["eval", "--system", "amora"], fresh);
+    assert.equal(noLimit.code, 1);
+    assert.match(noLimit.out, /AMORA's tasks need a daily limit first/);
+    run(["budget", "--daily", "1"]);
+    const unknown = run(["eval", "--system", "amora", "--brief", "nope"]);
+    assert.equal(unknown.code, 1);
+    assert.match(unknown.out, /No brief is named nope\. Briefs: contact, discount, faq/);
+  });
+
   it("refuses an AMORA_HOME that is set but empty", () => {
     const empty = run(["budget"], { AMORA_HOME: "" });
     assert.equal(empty.code, 1);
