@@ -127,6 +127,7 @@ function script(): Record<string, unknown[]> {
       {
         ...code("Tests for the acceptance criteria.", [file("tests/pricing.test.js", tests)]),
         covers: ["Three plans are shown.", "A free plan shows Free."],
+        defects: [],
       },
     ],
     review_v1: [{ verdict: "pass", findings: [] }],

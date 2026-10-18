@@ -38,8 +38,27 @@
         "type": "string"
       },
       "description": "Anything the next worker or the owner must know; empty when there is nothing."
+    },
+    "defects": {
+      "type": "array",
+      "description": "Defects in earlier workers' code that your tests expose: the file at fault and what is wrong. Empty when the code is right.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "file": {
+            "type": "string",
+            "description": "The file at fault, relative to the project root."
+          },
+          "problem": {
+            "type": "string",
+            "description": "What the code does wrong, and what it should do instead."
+          }
+        },
+        "required": ["file", "problem"],
+        "additionalProperties": false
+      }
     }
   },
-  "required": ["summary", "covers", "files", "notes"],
+  "required": ["summary", "covers", "files", "notes", "defects"],
   "additionalProperties": false
 }

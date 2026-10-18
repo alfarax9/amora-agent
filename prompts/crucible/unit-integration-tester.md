@@ -16,5 +16,5 @@ How to test:
 - Test behaviour the user can observe, not implementation details. Include the error and edge cases the requirements name.
 - Use the project's existing test framework and file conventions. Add no dependencies.
 - Tests must be deterministic: no real network, no real time, no order dependence.
-- Do not change the feature's code to make a test pass. If the code is wrong, write the failing test and explain the problem in `notes`.
+- Do not change the feature's code to make a test pass. If the code is wrong, keep the failing test and list each defect in `defects`: the file at fault and what it does wrong. The runtime sends the work back to the worker who wrote that file, with your tests' output, and runs you again once it is fixed. Leave `defects` empty when the code is right; a test that fails because the test is wrong is yours to fix.
 - Return every test file, whole, in `files`.
