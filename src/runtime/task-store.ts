@@ -21,6 +21,7 @@ export type Task = {
   // The last gate's findings, sent with the next attempt of the same step.
   feedback: string[];
   reason?: string;
+  project?: string;
   createdAt: string;
   updatedAt: string;
 };
@@ -57,6 +58,7 @@ type TaskRow = {
   attempt: number;
   feedback: string;
   reason: string | null;
+  project: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -73,12 +75,19 @@ function toTask(row: TaskRow): Task {
     attempt: row.attempt,
     feedback: JSON.parse(row.feedback) as string[],
     ...(row.reason === null ? {} : { reason: row.reason }),
+    ...(row.project === null ? {} : { project: row.project }),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
 }
 
-export function createTask(storage: Storage, brief: string, budgetUsd: number, now = new Date()) {
+export function createTask(
+  storage: Storage,
+  brief: string,
+  budgetUsd: number,
+  now = new Date(),
+  project?: string,
+) {
   refuseSecrets(brief, "a task brief");
   const at = now.toISOString();
   const task: Task = {
@@ -90,15 +99,17 @@ export function createTask(storage: Storage, brief: string, budgetUsd: number, n
     step: 0,
     attempt: 0,
     feedback: [],
+    ...(project === undefined ? {} : { project }),
     createdAt: at,
     updatedAt: at,
   };
   storage.database
     .prepare(
       `INSERT INTO tasks (id, brief, status, budget_usd, spent_usd, plan, step, attempt, feedback,
-       reason, created_at, updated_at) VALUES (?, ?, ?, ?, 0, NULL, 0, 0, '[]', NULL, ?, ?)`,
+       reason, project, created_at, updated_at)
+       VALUES (?, ?, ?, ?, 0, NULL, 0, 0, '[]', NULL, ?, ?, ?)`,
     )
-    .run(task.id, brief, task.status, budgetUsd, at, at);
+    .run(task.id, brief, task.status, budgetUsd, project ?? null, at, at);
   return task;
 }
 
@@ -217,4 +228,28 @@ export function spentSince(storage: Storage, since: Date): number {
     .prepare("SELECT COALESCE(SUM(cost_usd), 0) AS total FROM handoffs WHERE created_at >= ?")
     .get(since.toISOString()) as { total: number };
   return row.total;
+}
+
+// The chat transcript of a task (PRD §8 rule 4): what the owner asked and
+// decided, and what the agency answered, so every decision has a record.
+export type Message = { author: "owner" | "agency"; text: string; createdAt: string };
+
+export function addMessage(
+  storage: Storage,
+  taskId: string,
+  author: Message["author"],
+  text: string,
+  now = new Date(),
+): void {
+  refuseSecrets(text, "a chat message");
+  storage.database
+    .prepare("INSERT INTO task_messages (task_id, author, text, created_at) VALUES (?, ?, ?, ?)")
+    .run(taskId, author, text, now.toISOString());
+}
+
+export function listMessages(storage: Storage, taskId: string): Message[] {
+  const rows = storage.database
+    .prepare("SELECT author, text, created_at FROM task_messages WHERE task_id = ? ORDER BY id")
+    .all(taskId) as { author: Message["author"]; text: string; created_at: string }[];
+  return rows.map(({ author, text, created_at }) => ({ author, text, createdAt: created_at }));
 }
