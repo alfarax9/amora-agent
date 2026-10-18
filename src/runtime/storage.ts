@@ -4,9 +4,13 @@ import { dirname, join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { findSecrets } from "./secret-scanner.ts";
 
-// AMORA_HOME exists so tests and second installs can keep separate state.
+// AMORA_HOME exists so tests and second installs can keep separate state. Set
+// but empty, it is refused: read as unset it would write to the owner's real
+// ~/.amora, and read as a path it would write into the current folder.
 export function dataDirectory(environment: NodeJS.ProcessEnv = process.env): string {
-  return environment.AMORA_HOME ?? join(homedir(), ".amora");
+  const home = environment.AMORA_HOME;
+  if (home === "") throw new Error("AMORA_HOME is set but empty; unset it or give it a folder.");
+  return home ?? join(homedir(), ".amora");
 }
 
 // Each entry runs once, in order, and the count of applied entries is the
