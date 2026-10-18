@@ -23,6 +23,8 @@ export type Task = {
   attempt: number;
   // The last gate's findings, sent with the next attempt of the same step.
   feedback: string[];
+  // How often a test run sent the work back to an earlier step; capped.
+  returns: number;
   reason?: string;
   project?: string;
   createdAt: string;
@@ -60,6 +62,7 @@ type TaskRow = {
   step: number;
   attempt: number;
   feedback: string;
+  returns: number;
   reason: string | null;
   project: string | null;
   created_at: string;
@@ -77,6 +80,7 @@ function toTask(row: TaskRow): Task {
     step: row.step,
     attempt: row.attempt,
     feedback: JSON.parse(row.feedback) as string[],
+    returns: row.returns,
     ...(row.reason === null ? {} : { reason: row.reason }),
     ...(row.project === null ? {} : { project: row.project }),
     createdAt: row.created_at,
@@ -102,6 +106,7 @@ export function createTask(
     step: 0,
     attempt: 0,
     feedback: [],
+    returns: 0,
     ...(project === undefined ? {} : { project }),
     createdAt: at,
     updatedAt: at,
@@ -134,7 +139,7 @@ export function saveTask(storage: Storage, task: Task, now = new Date()): Task {
   storage.database
     .prepare(
       `UPDATE tasks SET status = ?, budget_usd = ?, spent_usd = ?, plan = ?, step = ?, attempt = ?,
-       feedback = ?, reason = ?, updated_at = ? WHERE id = ?`,
+       feedback = ?, returns = ?, reason = ?, updated_at = ? WHERE id = ?`,
     )
     .run(
       saved.status,
@@ -144,6 +149,7 @@ export function saveTask(storage: Storage, task: Task, now = new Date()): Task {
       saved.step,
       saved.attempt,
       feedback,
+      saved.returns,
       saved.reason ?? null,
       saved.updatedAt,
       saved.id,

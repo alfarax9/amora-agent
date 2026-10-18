@@ -71,6 +71,8 @@ const migrations = [
   // The project folder a task works on; workers change a copy of it, and the
   // owner's folder only when they complete the task.
   `ALTER TABLE tasks ADD COLUMN project TEXT`,
+  // How often a test run sent the task's work back to an earlier step.
+  `ALTER TABLE tasks ADD COLUMN returns INTEGER NOT NULL DEFAULT 0`,
 ];
 
 // S6: nothing is written to the database before it has been scanned. Secrets
