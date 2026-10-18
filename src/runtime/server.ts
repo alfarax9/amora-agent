@@ -3,9 +3,11 @@ import { exchangeCode } from "../model-layer/pkce.ts";
 import type { Fetch } from "../model-layer/gateway.ts";
 import type { ConnectFlows } from "./connect.ts";
 import type { Logger } from "./logger.ts";
-import { messagePage, statusPage } from "./pages.ts";
+import { dashboardPage, messagePage } from "./pages.ts";
 import { maskSecret } from "./secret-scanner.ts";
 import type { SecretStore } from "./secrets.ts";
+import { handleTaskApi, type TaskDesk } from "./task-routes.ts";
+import { dashboardScript } from "./dashboard-files.ts";
 import {
   bindAddress,
   readCookie,
@@ -21,6 +23,8 @@ export type RuntimeDependencies = {
   secrets: SecretStore;
   logger: Logger;
   fetchImpl?: Fetch;
+  // The agency chat; without it the runtime only connects gateways.
+  tasks?: TaskDesk;
 };
 
 export type Runtime = { port: number; signInUrl(): string; close(): Promise<void> };
@@ -118,9 +122,27 @@ const openRouterCallback: Handler = async ({ response, url, deps }) => {
   send(response, 200, messagePage("OpenRouter connected", message));
 };
 
+// The dashboard page runs its own script, served from this origin, which
+// talks only to this origin; nothing else may load or connect.
+const dashboardSecurity = {
+  "Content-Security-Policy":
+    "default-src 'none'; script-src 'self'; connect-src 'self'; style-src 'unsafe-inline'; form-action 'none'; frame-ancestors 'none'; base-uri 'none'",
+};
+
 const home: Handler = async ({ response, deps }) => {
   const key = await deps.secrets.get("openrouter");
-  send(response, 200, statusPage(key ? { maskedKey: maskSecret(key) } : {}));
+  const page = dashboardPage({
+    ...(key ? { maskedKey: maskSecret(key) } : {}),
+    chat: deps.tasks !== undefined,
+  });
+  send(response, 200, page, dashboardSecurity);
+};
+
+const script: Handler = ({ response, url }) => {
+  const body = dashboardScript(url.pathname);
+  if (body === undefined)
+    return send(response, 404, messagePage("Not found", "There is no page here."));
+  send(response, 200, body, { "Content-Type": "text/javascript; charset=utf-8" });
 };
 
 const status: Handler = async ({ response, deps }) => {
@@ -149,6 +171,15 @@ const sessionRoutes: Record<string, Handler> = {
   "GET /connect/openrouter": connectOpenRouter,
 };
 
+async function taskApi(context: Context): Promise<boolean> {
+  const { request, response, url, deps } = context;
+  if (!deps.tasks || !url.pathname.startsWith("/api/")) return false;
+  const reply = await handleTaskApi(deps.tasks, request, url.pathname);
+  if (!reply) return false;
+  send(response, reply.status, JSON.stringify(reply.body));
+  return true;
+}
+
 async function route(context: Context): Promise<void> {
   const { request, response, port, deps } = context;
   const rejection = rejectForeignRequest(request.headers, port);
@@ -156,14 +187,19 @@ async function route(context: Context): Promise<void> {
   const key = `${request.method} ${context.url.pathname}`;
   const publicHandler = publicRoutes[key];
   if (publicHandler) return publicHandler(context);
-  const handler = sessionRoutes[key];
-  if (!handler) return send(response, 404, messagePage("Not found", "There is no page here."));
   const sessionId = readCookie(request.headers.cookie, sessionCookieName(port));
   if (!deps.sessions.isValid(sessionId)) {
     const message = "Open the sign-in link that amora printed in your terminal.";
     return send(response, 401, messagePage("Sign in first", message));
   }
-  return handler(context);
+  const handler = sessionRoutes[key];
+  if (handler) return handler(context);
+  // dashboard-files.ts lists the only scripts served under this path.
+  if (request.method === "GET" && context.url.pathname.startsWith("/dashboard/")) {
+    return script(context);
+  }
+  if (await taskApi(context)) return;
+  send(response, 404, messagePage("Not found", "There is no page here."));
 }
 
 function listen(port: number, deps: RuntimeDependencies): Promise<Server> {
