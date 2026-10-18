@@ -1,0 +1,177 @@
+import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
+import { mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { describe, it } from "node:test";
+import { fileURLToPath } from "node:url";
+import { agencyFor } from "../src/cli/agency.ts";
+import type { AppContext } from "../src/cli/context.ts";
+import { checkBudget } from "../src/cli/doctor.ts";
+import { priceOf } from "../src/cli/prices.ts";
+import { saveCombo } from "../src/model-layer/known-models.ts";
+import { memoryStore } from "../src/runtime/secrets.ts";
+import { setup } from "./agency.ts";
+
+describe("CLI: budget and model families", () => {
+  const cli = fileURLToPath(new URL("../src/cli/main.ts", import.meta.url));
+  const home = mkdtempSync(join(tmpdir(), "amora-cli-"));
+  const run = (args: string[], env: Record<string, string> = { AMORA_HOME: home }) => {
+    try {
+      return {
+        code: 0,
+        out: execFileSync("node", [cli, ...args], {
+          env: { ...process.env, ...env },
+          encoding: "utf8",
+          stdio: "pipe",
+        }),
+      };
+    } catch (error) {
+      const failed = error as { status: number; stdout: string; stderr: string };
+      return { code: failed.status, out: `${failed.stdout}${failed.stderr}` };
+    }
+  };
+
+  it("sets and shows the daily limit, and refuses one that is not above 0", () => {
+    assert.match(run(["budget"]).out, /No daily limit is set yet/);
+    assert.equal(run(["budget", "--daily", "0"]).code, 1);
+    assert.match(run(["budget", "--daily", "2.5"]).out, /Daily limit set to \$2.50/);
+    assert.match(run(["budget"]).out, /Daily limit \$2.50; spent today \$0.00/);
+  });
+
+  it("records a family the registry does not know, and leaves the registry's alone", () => {
+    assert.match(
+      run(["models", "family", "omniroute:a/claude", "claude"]).out,
+      /now in the claude family/,
+    );
+    assert.equal(run(["models", "family", "omniroute:a/claude", "Claude"]).code, 1);
+    assert.match(
+      run(["models", "family", "poolside/laguna-xs-2.1:free", "x"]).out,
+      /registry already says/,
+    );
+  });
+
+  it("sets the project folder only to one with a package.json, and names missing scripts", () => {
+    assert.match(run(["project"]).out, /No project folder yet/);
+    const empty = mkdtempSync(join(tmpdir(), "amora-empty-"));
+    assert.equal(run(["project", empty]).code, 1);
+    const fixture = fileURLToPath(new URL("fixtures/pricing-site", import.meta.url));
+    const set = run(["project", fixture]);
+    assert.match(set.out, /New tasks work on .*pricing-site/);
+    assert.doesNotMatch(set.out, /has no/);
+    assert.match(run(["project"]).out, /New tasks work on .*pricing-site/);
+  });
+
+  it("denies OpenRouter data collection until the owner allows it, and says what that means", () => {
+    assert.match(
+      run(["privacy"]).out,
+      /deny providers that keep or train on prompts \(the default\)/,
+    );
+    const allowed = run(["privacy", "--allow-data-collection"]).out;
+    assert.match(allowed, /carry your briefs and your project's files/);
+    assert.match(run(["privacy"]).out, /may now serve/);
+    assert.match(run(["privacy", "--deny-data-collection"]).out, /\(the default\)/);
+  });
+
+  it("records a price AMORA cannot look up, and refuses a negative one", () => {
+    assert.match(
+      run(["models", "price", "omniroute:a/claude", "0", "0"]).out,
+      /costs \$0 in and \$0 out per million tokens/,
+    );
+    assert.equal(run(["models", "price", "omniroute:a/claude", "-1", "0"]).code, 1);
+  });
+
+  it("refuses an AMORA_HOME that is set but empty", () => {
+    const empty = run(["budget"], { AMORA_HOME: "" });
+    assert.equal(empty.code, 1);
+    assert.match(empty.out, /AMORA_HOME is set but empty/);
+  });
+});
+
+describe("doctor: daily limit", () => {
+  it("warns until a daily limit is set", () => {
+    const { storage } = setup({});
+    assert.equal(checkBudget({ storage }).status, "warn");
+    storage.setSetting("budgets", { dailyUsd: 2 });
+    assert.deepEqual(checkBudget({ storage }), {
+      status: "pass",
+      label: "Budget",
+      detail: "daily limit $2.00",
+    });
+  });
+});
+
+describe("task requests to OpenRouter", () => {
+  it("deny data collection unless the owner allowed it for this home (S10)", async (t) => {
+    const { storage } = setup({});
+    const secrets = memoryStore();
+    await secrets.set("openrouter", `sk-or-v1-${"f".repeat(64)}`);
+    const sent: { provider?: { data_collection?: string } }[] = [];
+    t.mock.method(globalThis, "fetch", async (_url: string, init: RequestInit) => {
+      sent.push(JSON.parse(String(init.body)) as (typeof sent)[number]);
+      return Response.json({ choices: [{ message: { content: "{}" } }] });
+    });
+    const context = { storage, secrets, manifests: [], contracts: [] } as unknown as AppContext;
+    const ask = async () => {
+      const { chat, name } = await agencyFor(context).connect("vendor/model:free");
+      await chat({ model: name, messages: [] });
+    };
+    await ask();
+    storage.setSetting("privacy", { openRouterDataCollection: "allow" });
+    await ask();
+    assert.deepEqual(
+      sent.map((body) => body.provider?.data_collection),
+      ["deny", "allow"],
+    );
+  });
+});
+
+describe("model prices", () => {
+  const registry = {
+    version: 1,
+    models: [{ model: "a/listed", pricing: { per_million: { input: 1, output: 2 } } }],
+  };
+
+  async function priced(model: string, stated: Record<string, unknown> = {}) {
+    const { storage } = setup({});
+    storage.setSetting("prices", stated);
+    saveCombo(storage, "omniroute:mix", {
+      members: ["omniroute:a/x", "a/listed"],
+      contextLength: null,
+      strategy: "priority",
+    });
+    const secrets = memoryStore();
+    await secrets.set("openrouter", `sk-or-v1-${"f".repeat(64)}`);
+    const context = { storage, secrets, registry } as unknown as AppContext;
+    return priceOf(context, model);
+  }
+
+  it("takes the owner's price first, then the registry, then OpenRouter's free naming and list", async (t) => {
+    t.mock.method(globalThis, "fetch", async () =>
+      Response.json({
+        data: [{ id: "b/paid", pricing: { prompt: "0.000003", completion: "0.000015" } }],
+      }),
+    );
+    const one = { inputPerMillion: 9, outputPerMillion: 9 };
+    assert.deepEqual(await priced("a/listed", { "a/listed": one }), one);
+    assert.deepEqual(await priced("a/listed"), { inputPerMillion: 1, outputPerMillion: 2 });
+    assert.deepEqual(await priced("c/model:free"), { inputPerMillion: 0, outputPerMillion: 0 });
+    const paid = await priced("b/paid");
+    assert.ok(
+      paid &&
+        Math.abs(paid.inputPerMillion - 3) < 1e-9 &&
+        Math.abs(paid.outputPerMillion - 15) < 1e-9,
+    );
+    assert.equal(await priced("b/unknown"), undefined);
+  });
+
+  it("never guesses an OmniRoute price, and prices a combo at its dearest member", async () => {
+    assert.equal(await priced("omniroute:a/x"), undefined);
+    assert.equal(await priced("omniroute:mix"), undefined);
+    const stated = { "omniroute:a/x": { inputPerMillion: 0, outputPerMillion: 5 } };
+    assert.deepEqual(await priced("omniroute:mix", stated), {
+      inputPerMillion: 1,
+      outputPerMillion: 5,
+    });
+  });
+});

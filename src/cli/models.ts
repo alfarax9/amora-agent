@@ -123,3 +123,26 @@ export function unsetModel(context: AppContext, scope: string): boolean {
   print(`${scope} no longer has a model of its own (it was ${outcome.removed}).`);
   return true;
 }
+
+// The different-family rule (PRD §6.3) needs every model's base family. The
+// registry states it for the models it lists; for others the owner does, from
+// the model card, because a derived model carries its base model's family.
+export function setFamily(context: AppContext, model: string, family: string): boolean {
+  if (!/^[a-z0-9][a-z0-9._-]*$/.test(family)) {
+    printError(`"${family}" is not a family name; use lowercase, such as claude, gemini, or qwen.`);
+    return false;
+  }
+  const listed = context.registry.models.find((entry) => entry.model === model);
+  if (listed) {
+    printError(`The registry already says ${model} is ${listed.base_family}; that one is used.`);
+    return false;
+  }
+  if (comboOf(context.storage, model)) {
+    printError(`${model} is a combo; set the family of each member instead.`);
+    return false;
+  }
+  const families = context.storage.getSetting<Record<string, string>>("families") ?? {};
+  context.storage.setSetting("families", { ...families, [model]: family });
+  print(`${model} is now in the ${family} family, for the different-family rule.`);
+  return true;
+}

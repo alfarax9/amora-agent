@@ -6,9 +6,13 @@ import { defaultOmniRouteUrl } from "../model-layer/omniroute.ts";
 import { redactSecrets } from "../runtime/secret-scanner.ts";
 import { type AppContext, defaultPort, openContext } from "./context.ts";
 import { runDoctor } from "./doctor.ts";
-import { listModels, setModel, unsetModel } from "./models.ts";
+import { runBudget } from "./budget.ts";
+import { listModels, setFamily, setModel, unsetModel } from "./models.ts";
 import { connectOmniRoute } from "./omniroute.ts";
 import { probeAssigned, probeModel } from "./probe.ts";
+import { setPrice } from "./prices.ts";
+import { runPrivacy } from "./privacy.ts";
+import { runProject } from "./project.ts";
 import { print, printError } from "./output.ts";
 import { draftEntry } from "./registry.ts";
 import { startAmora } from "./start.ts";
@@ -17,6 +21,10 @@ const usage = `Usage: amora [command] [options]
 
 Commands:
   (none)                          Start the runtime and open the dashboard
+  budget                          Show the daily spending limit and today's spend
+  budget --daily <usd>            Set the daily limit across all tasks (needed before a first task)
+  project [path]                  Show or set the project folder new tasks work on
+  privacy                         Show whether OpenRouter providers may keep or train on prompts
   connect omniroute               Connect a local OmniRoute; the key is typed at a hidden prompt
   doctor                          Check gateways, keys, plugins, capabilities, hardware, and port
   models                          Show which worker uses which model
@@ -25,11 +33,18 @@ Commands:
   models set <scope> <model>      Assign a model, probing it first if it is new; scope is global,
                                   division:<name>, or worker:<id>
   models unset <scope>            Remove an assignment, so that level falls back to the one above
+  models family <model> <family>  State a model's base family for the different-family rule, when
+                                  the registry does not list it
+  models price <model> <in> <out> State a model's price in USD per million tokens, when AMORA cannot
+                                  look it up (0 for a subscription such as OmniRoute's providers)
   registry draft <model>          Print a registry entry for a probed model (needs --family, --license)
 
 Options:
   --port <n>               Port to use (default ${defaultPort}); moves to the next free one if taken
   --assigned               With models probe: every model in use
+  --daily <usd>            With budget: the daily limit in USD
+  --allow-data-collection  With privacy: let providers that keep or train on prompts serve
+                           tasks in this AMORA home; --deny-data-collection turns it off
   --url <url>              With connect omniroute: its API address (default http://localhost:20128/v1)
   --family <name>          Model family for a registry entry (a derived model uses its base's)
   --license <license>      License for a registry entry, from the model card
@@ -45,7 +60,14 @@ type Flags = {
   family: string | undefined;
   license: string | undefined;
   url: string | undefined;
+  daily: string | undefined;
+  denyDataCollection: boolean;
 };
+
+function privacyChoice(flags: Flags): "allow" | "deny" | undefined {
+  if (flags.denyDataCollection) return "deny";
+  return flags.allowDataCollection ? "allow" : undefined;
+}
 
 // `undefined` means the arguments did not fit the action, so the usage is shown.
 type ModelsAction = (
@@ -62,6 +84,10 @@ const modelsActions: Record<string, ModelsAction> = {
   set: async (context, [scope, model], flags) =>
     scope && model ? setModel(context, scope, model, flags.allowDataCollection) : undefined,
   unset: async (context, [scope]) => (scope ? unsetModel(context, scope) : undefined),
+  family: async (context, [model, family]) =>
+    model && family ? setFamily(context, model, family) : undefined,
+  price: async (context, [model, input, output]) =>
+    model && input && output ? setPrice(context, model, input, output) : undefined,
 };
 
 async function runModels(
@@ -77,17 +103,30 @@ async function runModels(
   return false;
 }
 
+// `undefined` means the arguments did not fit the command, so the usage is shown.
+type Command = (context: AppContext, args: string[], flags: Flags) => Promise<boolean | undefined>;
+
+const commands: Record<string, Command> = {
+  doctor: (context, _args, flags) => runDoctor(context, flags.port),
+  models: (context, args, flags) => runModels(context, args, flags),
+  project: async (context, args) => (args.length <= 1 ? runProject(context, args[0]) : undefined),
+  privacy: async (context, args, flags) =>
+    args.length === 0 ? runPrivacy(context, privacyChoice(flags)) : undefined,
+  budget: async (context, args, flags) =>
+    args.length === 0 ? runBudget(context, flags.daily) : undefined,
+  connect: async (context, [target], flags) =>
+    target === "omniroute"
+      ? connectOmniRoute(context, flags.url ?? defaultOmniRouteUrl)
+      : undefined,
+  registry: async (context, [action, model], flags) =>
+    action === "draft" && model ? draftEntry(context, model, flags) : undefined,
+};
+
 async function run(command: string | undefined, rest: string[], flags: Flags): Promise<boolean> {
   const context = openContext();
   if (command === undefined) return (await startAmora(context, flags.port), true);
-  if (command === "doctor") return runDoctor(context, flags.port);
-  if (command === "models") return runModels(context, rest, flags);
-  if (command === "connect" && rest[0] === "omniroute") {
-    return connectOmniRoute(context, flags.url ?? defaultOmniRouteUrl);
-  }
-  if (command === "registry" && rest[0] === "draft" && rest[1]) {
-    return draftEntry(context, rest[1], flags);
-  }
+  const outcome = command in commands ? await commands[command]?.(context, rest, flags) : undefined;
+  if (outcome !== undefined) return outcome;
   printError(usage);
   return false;
 }
@@ -98,8 +137,10 @@ async function main(): Promise<void> {
     options: {
       port: { type: "string", default: String(defaultPort) },
       "allow-data-collection": { type: "boolean", default: false },
+      "deny-data-collection": { type: "boolean", default: false },
       assigned: { type: "boolean", default: false },
       url: { type: "string" },
+      daily: { type: "string" },
       family: { type: "string" },
       license: { type: "string" },
       version: { type: "boolean", default: false },
@@ -122,6 +163,8 @@ async function main(): Promise<void> {
     family: values.family,
     license: values.license,
     url: values.url,
+    daily: values.daily,
+    denyDataCollection: values["deny-data-collection"],
   };
   if (!(await run(command, rest, flags))) process.exitCode = 1;
 }

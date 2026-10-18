@@ -9,6 +9,7 @@ import { bindAddress } from "../runtime/security.ts";
 import { type AppContext, defaultPort } from "./context.ts";
 import { omniRouteClient } from "./measure.ts";
 import { print } from "./output.ts";
+import { openRouterDataCollection } from "./privacy.ts";
 
 type Status = "pass" | "warn" | "fail";
 type Check = { status: Status; label: string; detail: string };
@@ -178,6 +179,25 @@ function checkPort(port: number): Promise<Check> {
   });
 }
 
+// Not a failure: AMORA runs without one, but no task can be approved yet.
+export function checkBudget(context: Pick<AppContext, "storage">): Check {
+  const daily = context.storage.getSetting<{ dailyUsd: number }>("budgets")?.dailyUsd;
+  return daily === undefined
+    ? { status: "warn", label: "Budget", detail: "no daily limit yet: amora budget --daily <usd>" }
+    : { status: "pass", label: "Budget", detail: `daily limit $${daily.toFixed(2)}` };
+}
+
+// Allowed is the owner's choice, so it warns rather than fails.
+function checkPrivacy(context: AppContext): Check {
+  return openRouterDataCollection(context) === "allow"
+    ? {
+        status: "warn",
+        label: "Privacy",
+        detail: "OpenRouter providers may keep or train on prompts",
+      }
+    : { status: "pass", label: "Privacy", detail: "OpenRouter denies data collection (S10)" };
+}
+
 export async function runDoctor(context: AppContext, port = defaultPort): Promise<boolean> {
   const checks: Check[] = [
     checkNode(),
@@ -190,6 +210,8 @@ export async function runDoctor(context: AppContext, port = defaultPort): Promis
     ...checkCapabilities(context),
     checkProbes(context),
     ...checkExpiry(context),
+    checkBudget(context),
+    checkPrivacy(context),
     checkHardware(),
     await checkPort(port),
   ];
