@@ -1,0 +1,6 @@
+{
+  "id": "tax",
+  "project": "cart",
+  "held_out": true,
+  "brief": "Export totalWithTax(cart, rate) from src/tax.js: the cart's subtotal plus tax at the given rate (0.2 means 20%), rounded to cents. Items marked taxExempt: true are not taxed. Add tests for it."
+}

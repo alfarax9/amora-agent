@@ -1,0 +1,6 @@
+{
+  "id": "newsletter",
+  "project": "landing-page",
+  "held_out": false,
+  "brief": "Add a newsletter signup section to the landing page rendered by src/page.js: a form with a labelled email field and a subscribe button. Put an exported validateEmail(email) function in src/newsletter.js that returns true for a valid address and false for an empty or malformed one. Add tests for it."
+}

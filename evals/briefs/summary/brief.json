@@ -1,0 +1,6 @@
+{
+  "id": "summary",
+  "project": "cart",
+  "held_out": true,
+  "brief": "Export cartSummary(cart) from src/summary.js that describes the cart in one line, such as \"3 items, $27.50\": the number of units (\"1 item\" when there is one), then the subtotal with two decimals. An empty cart gives \"Your cart is empty\". Add tests for it."
+}

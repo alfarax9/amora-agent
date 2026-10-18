@@ -1,0 +1,6 @@
+{
+  "id": "quantity-limit",
+  "project": "cart",
+  "held_out": true,
+  "brief": "Limit each cart line to at most 10 units: addItem in src/cart.js caps a line's quantity at 10. Also export setQuantity(cart, sku, quantity) from src/cart.js, which sets a line's quantity (also capped at 10), removes the line when the quantity is 0, and throws a RangeError for a negative or non-integer quantity. Neither function changes the cart it is given. Add tests for it."
+}

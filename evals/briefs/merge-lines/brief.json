@@ -1,0 +1,6 @@
+{
+  "id": "merge-lines",
+  "project": "cart",
+  "held_out": true,
+  "brief": "Change addItem in src/cart.js so that adding an item whose sku is already in the cart increases that line's quantity instead of adding a second line. The cart given to addItem must stay unchanged. Add tests for it."
+}

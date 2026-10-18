@@ -1,0 +1,6 @@
+{
+  "id": "contact",
+  "project": "landing-page",
+  "held_out": true,
+  "brief": "Add a contact form to the landing page rendered by src/page.js with labelled name, email, and message fields. Export validateContact({ name, email, message }) from src/contact.js: it returns an object of error messages keyed by field, and an empty object when everything is valid. The name is required, the email must look like an email address, and the message needs at least 10 characters. Add tests for it."
+}

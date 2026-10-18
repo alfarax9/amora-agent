@@ -1,0 +1,6 @@
+{
+  "id": "footer",
+  "project": "landing-page",
+  "held_out": true,
+  "brief": "Add a footer to the landing page rendered by src/page.js: a nav labelled \"Footer\" with links to /privacy, /terms, and /contact, and a copyright line with the year. renderPage takes the year as an option, renderPage(sections, { year }), so the page can be tested; renderPage() with no arguments must keep working. Add tests for it."
+}

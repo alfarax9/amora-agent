@@ -1,0 +1,6 @@
+{
+  "id": "pricing",
+  "project": "landing-page",
+  "held_out": false,
+  "brief": "Add a pricing section to the landing page: three plans (Starter: free, Team: $12 per month, Business: $30 per month), each showing its name and price, rendered by src/page.js. Add tests for it."
+}

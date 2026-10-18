@@ -28,6 +28,7 @@ export default defineConfig([
       globals: { document: "readonly", fetch: "readonly", setInterval: "readonly" },
     },
   },
-  // A separate project that tests run tasks against, with its own checks.
-  globalIgnores(["node_modules/**", "test/fixtures/**"]),
+  // Separate projects that tests and the benchmark run tasks against, with their
+  // own checks, and the benchmark's hidden tests.
+  globalIgnores(["node_modules/**", "test/fixtures/**", "evals/**"]),
 ]);

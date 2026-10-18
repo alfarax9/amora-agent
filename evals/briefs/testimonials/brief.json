@@ -1,0 +1,6 @@
+{
+  "id": "testimonials",
+  "project": "landing-page",
+  "held_out": true,
+  "brief": "Add a testimonials section to the landing page rendered by src/page.js with exactly three customer quotes. Each quote is a blockquote with a cite element naming the customer. Add tests for it."
+}

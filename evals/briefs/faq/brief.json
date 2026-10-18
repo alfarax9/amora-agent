@@ -1,0 +1,6 @@
+{
+  "id": "faq",
+  "project": "landing-page",
+  "held_out": true,
+  "brief": "Add an FAQ section to the landing page rendered by src/page.js with at least three questions. Each question is a button that controls its answer with aria-expanded and aria-controls, and every answer is hidden by default. Export toggleFaq(open, index) from src/faq.js: given an array of open flags, it returns a new array with the flag at index flipped and leaves the given array unchanged. Add tests for it."
+}

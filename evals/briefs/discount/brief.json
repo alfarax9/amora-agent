@@ -1,0 +1,6 @@
+{
+  "id": "discount",
+  "project": "cart",
+  "held_out": true,
+  "brief": "Export applyDiscount(cart, code) from src/discount.js that returns the cart's total after a discount code, rounded to cents. SAVE10 takes 10% off the subtotal; FLAT5 takes $5 off but never below 0; any other code throws an Error whose message is \"Unknown code\". Add tests for it."
+}
