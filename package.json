@@ -17,7 +17,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "knip": "knip",
-    "test": "node --test --test-reporter=spec \"test/**/*.test.ts\""
+    "test": "node --test --test-force-exit --test-reporter=spec \"test/**/*.test.ts\""
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

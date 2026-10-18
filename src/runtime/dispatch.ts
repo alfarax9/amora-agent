@@ -12,7 +12,8 @@ import {
   spentSince,
   type Task,
 } from "./task-store.ts";
-import { projectView } from "./workspace.ts";
+import { type SendBack, sendBackTarget } from "./send-back.ts";
+import { type FileChange, projectView } from "./workspace.ts";
 
 // Dispatching a running task one step at a time, and every rule that stops it:
 // pause, the task's budget, the daily limit, a blocked gate, and too many
@@ -142,7 +143,6 @@ function delivered(desk: Desk, task: Task) {
 // returned work for leaving them out.
 function stepInput(desk: Desk, task: Task, step: PlanStep) {
   const workspace = taskWorkspace(desk.agency, task);
-  const roleOf = (id: string) => desk.agency.manifests.find((manifest) => manifest.id === id)?.role;
   const manifest = desk.agency.manifests.find(({ id }) => id === step.worker);
   const area = manifest ? scopesOf(manifest) : [];
   const inArea = (path: string) => area.some((scope) => matchesScope(path, scope));
@@ -153,7 +153,7 @@ function stepInput(desk: Desk, task: Task, step: PlanStep) {
     goal: step.goal,
     area,
     earlier: delivered(desk, task),
-    later: later.map(({ worker, goal }) => ({ worker: roleOf(worker) ?? worker, goal })),
+    later: later.map(({ worker, goal }) => ({ worker: roleOf(desk, worker), goal })),
     ...(workspace ? { project: projectView(workspace, inArea) } : {}),
     feedback: task.feedback,
   };
@@ -162,6 +162,43 @@ function stepInput(desk: Desk, task: Task, step: PlanStep) {
 function attemptsFor(desk: Desk, workerId: string): number {
   const manifest = desk.agency.manifests.find(({ id }) => id === workerId);
   return Math.max(1, manifest?.budget.max_retries ?? 1);
+}
+
+function roleOf(desk: Desk, workerId: string): string {
+  return desk.agency.manifests.find(({ id }) => id === workerId)?.role ?? workerId;
+}
+
+// What the code worker hears when its work comes back: the defects, the test
+// run's output, and the tests themselves, which it may not change.
+function returnedFeedback(tester: string, back: SendBack, outcome: TurnOutcome): string[] {
+  const tests = (outcome.output as { files?: FileChange[] } | undefined)?.files ?? [];
+  return [
+    `${tester}'s tests fail on your code. Fix the code so they pass; the tests stay as they are.`,
+    ...back.defects.map(({ file, problem }) => `${file}: ${problem}`),
+    ...outcome.findings,
+    ...tests.map(({ path, content }) => `Test file ${path}:\n${content.slice(0, 4000)}`),
+  ];
+}
+
+// Sends the work back to the step that wrote the faulty code; the steps after
+// it run again on the fixed code. A task does this at most as often as the
+// failing worker may attempt its own step, then asks the owner.
+function sendBack(desk: Desk, task: Task, step: PlanStep, back: SendBack, outcome: TurnOutcome) {
+  const tester = roleOf(desk, step.worker);
+  const files = [...new Set(back.defects.map(({ file }) => file))].join(", ");
+  if (task.returns >= attemptsFor(desk, step.worker)) {
+    const reason = `${tester} still finds defects in ${files} after the work went back ${task.returns} times. ${describe(outcome)}`;
+    return (move(desk, task, "awaiting_decision", reason), false);
+  }
+  say(
+    desk,
+    task.id,
+    "agency",
+    `${tester} found a defect in ${files}; the work goes back to ${roleOf(desk, back.worker)}.`,
+  );
+  const feedback = returnedFeedback(tester, back, outcome);
+  save(desk, { ...task, step: back.step, attempt: 0, returns: task.returns + 1, feedback });
+  return true;
 }
 
 // Applies a finished step to the task as it is now, which may have been
@@ -177,6 +214,9 @@ function settle(desk: Desk, id: string, step: PlanStep, outcome: TurnOutcome): b
   if (outcome.result === "blocked") {
     return (move(desk, task, "awaiting_decision", outcome.reason), false);
   }
+  const handoffs = listHandoffs(desk.agency.storage, id);
+  const back = task.plan && sendBackTarget(task.plan, task.step, handoffs, outcome);
+  if (back) return sendBack(desk, task, step, back, outcome);
   // The reason names the check that failed; the findings say what it found.
   const feedback = [outcome.reason, ...outcome.findings];
   const failed = { ...task, attempt: task.attempt + 1, feedback };

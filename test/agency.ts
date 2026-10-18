@@ -76,6 +76,8 @@ type Options = {
   builderGate?: WorkerManifest["quality_gate"];
   builderNeeds?: string;
   builder?: Partial<WorkerManifest>;
+  // More workers after the builder, the checker, and the planner.
+  extra?: WorkerManifest[];
   // USD per million tokens, in and out, for every model.
   pricePerMillion?: number;
   costPerCall?: number;
@@ -111,6 +113,7 @@ export function setup(script: Script, options: Options = {}) {
         output_contract: "review.v1",
         requires: { ...manifest("x").requires, reviewer_family_rule: "different" },
       }),
+      ...(options.extra ?? []),
     ],
     contracts: [...builtIn, ...noteContract()],
     readPrompt: (worker) => `You are ${worker.role}.`,

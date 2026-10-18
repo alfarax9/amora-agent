@@ -63,7 +63,35 @@ test("shows a free plan as Free and others per month with two decimals", () => {
 
 // Replies per contract, in order. The Slice / Markup Engineer's first try
 // does not parse, so the project's own typecheck sends it back.
-function script(): Record<string, unknown[]> {
+// The Logic Developer's first price formatting drops the decimals, so the
+// Tester's test fails on it and the work goes back.
+const buggyPrice = `export function formatPrice(amount) {
+  return amount === 0 ? "Free" : \`$\${amount} per month\`;
+}
+`;
+
+const suite = (defects: unknown[]) => ({
+  ...code("Tests for the acceptance criteria.", [file("tests/pricing.test.js", tests)]),
+  covers: ["Three plans are shown.", "A free plan shows Free."],
+  defects,
+});
+
+const priceDefect = {
+  file: "src/price.js",
+  problem: 'formatPrice(12) gives "$12 per month"; it must give "$12.00 per month".',
+};
+
+function codeChanges(bug: boolean): unknown[] {
+  const once = [
+    code("Price formatting.", [file("src/price.js", price)]),
+    code("Plan data.", [file("src/plans.js", plans)]),
+    code("Nothing to optimise; the section renders once.", []),
+  ];
+  if (!bug) return once;
+  return [code("Price formatting.", [file("src/price.js", buggyPrice)]), ...once.slice(1), ...once];
+}
+
+function script(bug = false): Record<string, unknown[]> {
   return {
     plan_v1: [
       {
@@ -118,24 +146,14 @@ function script(): Record<string, unknown[]> {
         components: [{ name: "Pricing", path: "src/pricing.js", covers: "Plan card" }],
       },
     ],
-    code_change_v1: [
-      code("Price formatting.", [file("src/price.js", price)]),
-      code("Plan data.", [file("src/plans.js", plans)]),
-      code("Nothing to optimise; the section renders once.", []),
-    ],
-    test_suite_v1: [
-      {
-        ...code("Tests for the acceptance criteria.", [file("tests/pricing.test.js", tests)]),
-        covers: ["Three plans are shown.", "A free plan shows Free."],
-        defects: [],
-      },
-    ],
+    code_change_v1: codeChanges(bug),
+    test_suite_v1: bug ? [suite([priceDefect]), suite([])] : [suite([])],
     review_v1: [{ verdict: "pass", findings: [] }],
   };
 }
 
-function agencyFor(storage: ReturnType<typeof openStorage>) {
-  const queues = script();
+function agencyFor(storage: ReturnType<typeof openStorage>, bug: boolean) {
+  const queues = script(bug);
   const requests: ChatRequest[] = [];
   const chat = async (request: ChatRequest): Promise<ChatResponse> => {
     requests.push(request);
@@ -169,12 +187,12 @@ function agencyFor(storage: ReturnType<typeof openStorage>) {
   return { agency, requests };
 }
 
-async function runTask() {
+async function runTask(bug = false) {
   const project = mkdtempSync(join(tmpdir(), "amora-project-"));
   cpSync(fixture, project, { recursive: true });
   const storage = openStorage(join(mkdtempSync(join(tmpdir(), "amora-db-")), "amora.db"));
   storage.setSetting("budgets", { dailyUsd: 5 });
-  const { agency, requests } = agencyFor(storage);
+  const { agency, requests } = agencyFor(storage, bug);
   const orchestrator = createOrchestrator(agency, { logger: createLogger(() => undefined) });
   const { id } = orchestrator.create("Add a pricing section with three plans.", 1, project);
   await orchestrator.settled(id);
@@ -240,4 +258,40 @@ describe("thin path, end to end on a fixture project", () => {
     assert.match(report, new RegExp(`^Wrote 4 files to .*: ${written.join(", ")}$`));
     assert.match(npmTest(run.project), /pass 3/);
   });
+
+  // A loop with no limit would hang here instead of failing.
+  it(
+    "sends a bug the Tester's tests find back to the Logic Developer, who fixes it",
+    { timeout: 60_000 },
+    async () => {
+      const run = await runTask(true);
+      const finished = getTask(run.storage, run.id);
+      assert.match(finished?.reason ?? "", /Every step passed its gate/, finished?.reason);
+      const code = ["fe-logic-developer", "fe-api-integration", "fe-performance"];
+      const sequence = listHandoffs(run.storage, run.id)
+        .filter(({ sender }) => [...code, "unit-integration-tester"].includes(sender))
+        .map(({ sender, gate }) => `${sender} ${gate}`);
+      const round = (tester: string) => [...code.map((worker) => `${worker} passed`), tester];
+      assert.deepEqual(sequence, [
+        ...round("unit-integration-tester failed"),
+        ...round("unit-integration-tester passed"),
+      ]);
+      // Only the step that wrote the faulty file and the ones after it run again.
+      const passed = (sender: string) =>
+        listHandoffs(run.storage, run.id).filter((h) => h.sender === sender && h.gate === "passed");
+      for (const earlier of ["product-manager", "ux-architect", "fe-slice-engineer"]) {
+        assert.equal(passed(earlier).length, 1, earlier);
+      }
+      const report =
+        "Unit & Integration Tester found a defect in src/price.js; the work goes back to Logic Developer.";
+      assert.ok(listMessages(run.storage, run.id).some(({ text }) => text === report));
+      const fix = run.requests.find((request) =>
+        String(request.messages[1]?.content).includes("src/price.js: formatPrice(12) gives"),
+      );
+      assert.ok(fix, "the Logic Developer heard about the defect");
+      run.orchestrator.decide(run.id, { action: "complete" });
+      assert.match(readFileSync(join(run.project, "src", "price.js"), "utf8"), /toFixed\(2\)/);
+      assert.match(npmTest(run.project), /pass 3/);
+    },
+  );
 });
