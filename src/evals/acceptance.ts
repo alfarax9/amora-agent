@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import { basename, sep } from "node:path";
 import { cleanEnvironment } from "../runtime/project-gates.ts";
 import { redactSecrets } from "../runtime/secret-scanner.ts";
 
@@ -18,9 +19,12 @@ export function runAcceptance(
   timeoutMs = 60_000,
 ): Promise<Acceptance> {
   return new Promise((resolve) => {
+    // `node --test` reads its arguments as glob patterns, where a Windows
+    // backslash is an escape, so the path goes in with forward slashes.
+    const pattern = testFile.split(sep).join("/");
     const child = spawn(
       process.execPath,
-      ["--test", "--test-force-exit", "--test-reporter=tap", testFile],
+      ["--test", "--test-force-exit", "--test-reporter=tap", pattern],
       { env: { ...cleanEnvironment(), PROJECT: project }, timeout: timeoutMs },
     );
     let output = "";
@@ -28,10 +32,11 @@ export function runAcceptance(
     child.stderr.on("data", (chunk: Buffer) => (output += chunk.toString()));
     child.on("close", () => {
       // A file that runs no tests is reported as one passing test named after
-      // the file, which says nothing about the brief; it counts as a failure,
-      // as does output with no results at all.
-      const escaped = testFile.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-      const empty = new RegExp(`^ok \\d+ - ${escaped}$`, "m").test(output);
+      // the file (matched by name: each platform prints the path its own way),
+      // which says nothing about the brief; it counts as a failure, as does
+      // output with no results at all.
+      const escaped = basename(testFile).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const empty = new RegExp(`^ok \\d+ - .*[\\\\/]${escaped}$`, "m").test(output);
       const passed = empty ? 0 : count(output, "pass");
       const failed = empty ? 1 : count(output, "fail") || (passed === 0 ? 1 : 0);
       resolve({ passed, failed, output: redactSecrets(output).slice(-3000) });
