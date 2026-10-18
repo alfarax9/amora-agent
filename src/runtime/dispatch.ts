@@ -1,8 +1,10 @@
-import { type Agency, perform, type TurnOutcome } from "./agency.ts";
+import { type Agency, perform, taskWorkspace, type TurnOutcome } from "./agency.ts";
 import type { Logger } from "./logger.ts";
+import { matchesScope, scopesOf } from "./project-gates.ts";
 import { redactSecrets } from "./secret-scanner.ts";
 import { assertMove, type TaskStatus } from "./task-states.ts";
 import {
+  addMessage,
   getTask,
   listHandoffs,
   type PlanStep,
@@ -10,6 +12,7 @@ import {
   spentSince,
   type Task,
 } from "./task-store.ts";
+import { projectView } from "./workspace.ts";
 
 // Dispatching a running task one step at a time, and every rule that stops it:
 // pause, the task's budget, the daily limit, a blocked gate, and too many
@@ -19,8 +22,9 @@ export type Desk = {
   agency: Agency;
   logger: Logger;
   now: () => Date;
-  // Tasks whose dispatch loop is running, so a task never runs twice at once.
-  active: Set<string>;
+  // Each task's background work, chained, so a task never runs twice at once
+  // and work started while earlier work finishes is not lost.
+  work: Map<string, Promise<void>>;
 };
 
 // A refusal is meant for the owner, as is; any other error is a bug.
@@ -42,11 +46,43 @@ export function save(desk: Desk, task: Task): Task {
   return saveTask(desk.agency.storage, task, desk.now());
 }
 
+export function say(desk: Desk, id: string, author: "owner" | "agency", text: string): void {
+  addMessage(desk.agency.storage, id, author, text, desk.now());
+}
+
+// What the agency tells the owner when a task reaches a state; moves the owner
+// started themselves, such as approving, need no answer.
+const announcements: Partial<Record<TaskStatus, string>> = {
+  awaiting_plan_approval: "The plan is ready for your approval.",
+  completed: "The task is complete.",
+  cancelled: "The task was cancelled.",
+};
+
 export function move(desk: Desk, task: Task, status: TaskStatus, reason?: string): Task {
   assertMove(task.status, status);
   const next: Task = { ...task, status };
   delete next.reason;
-  return save(desk, reason ? { ...next, reason } : next);
+  const saved = save(desk, reason ? { ...next, reason } : next);
+  const text = reason ?? announcements[status];
+  if (text) say(desk, task.id, "agency", text);
+  return saved;
+}
+
+// Runs a task's work in the background after any work already running for it.
+// A bug inside is logged, never left as an unhandled rejection.
+export function startWork(desk: Desk, id: string, job: () => Promise<unknown>): void {
+  const previous = desk.work.get(id) ?? Promise.resolve();
+  const next = previous
+    .then(job)
+    .then(() => undefined)
+    .catch((error: unknown) => {
+      const reason = redactSecrets(error instanceof Error ? error.message : String(error));
+      desk.logger.error("Task work failed", { task: id, reason });
+    });
+  desk.work.set(id, next);
+  void next.then(() => {
+    if (desk.work.get(id) === next) desk.work.delete(id);
+  });
 }
 
 export function dailyLimit(desk: Desk): number | undefined {
@@ -87,21 +123,38 @@ function stopReason(desk: Desk, task: Task): { status: TaskStatus; reason: strin
   return undefined;
 }
 
-// What a step's worker sees: the brief, its goal, what earlier steps
-// delivered, and the findings of its own last failed attempt.
-function stepInput(desk: Desk, task: Task, step: PlanStep) {
+function delivered(desk: Desk, task: Task) {
   const done = new Set(task.plan?.steps.slice(0, task.step).map((earlier) => earlier.worker));
-  const delivered = new Map<string, unknown>();
+  const outputs = new Map<string, unknown>();
   for (const handoff of listHandoffs(desk.agency.storage, task.id)) {
     if (handoff.gate === "passed" && done.has(handoff.sender)) {
-      delivered.set(handoff.sender, handoff.content);
+      outputs.set(handoff.sender, handoff.content);
     }
   }
+  return [...outputs].map(([worker, output]) => ({ worker, output }));
+}
+
+// What a step's worker sees: the brief, its goal, the paths it may write, what
+// earlier steps delivered and what later steps will, the project as it stands
+// in the task's workspace, and the findings of its own last failed attempt.
+// The first real run showed why `area` and `later` matter: without them,
+// workers wrote the tests the plan gave to the Tester, and the reviewer
+// returned work for leaving them out.
+function stepInput(desk: Desk, task: Task, step: PlanStep) {
+  const workspace = taskWorkspace(desk.agency, task);
+  const roleOf = (id: string) => desk.agency.manifests.find((manifest) => manifest.id === id)?.role;
+  const manifest = desk.agency.manifests.find(({ id }) => id === step.worker);
+  const area = manifest ? scopesOf(manifest) : [];
+  const inArea = (path: string) => area.some((scope) => matchesScope(path, scope));
+  const later = (task.plan?.steps ?? []).slice(task.step + 1);
   return {
     brief: task.brief,
     plan: task.plan?.summary,
     goal: step.goal,
-    earlier: [...delivered].map(([worker, output]) => ({ worker, output })),
+    area,
+    earlier: delivered(desk, task),
+    later: later.map(({ worker, goal }) => ({ worker: roleOf(worker) ?? worker, goal })),
+    ...(workspace ? { project: projectView(workspace, inArea) } : {}),
     feedback: task.feedback,
   };
 }
@@ -124,7 +177,9 @@ function settle(desk: Desk, id: string, step: PlanStep, outcome: TurnOutcome): b
   if (outcome.result === "blocked") {
     return (move(desk, task, "awaiting_decision", outcome.reason), false);
   }
-  const failed = { ...task, attempt: task.attempt + 1, feedback: outcome.findings };
+  // The reason names the check that failed; the findings say what it found.
+  const feedback = [outcome.reason, ...outcome.findings];
+  const failed = { ...task, attempt: task.attempt + 1, feedback };
   if (failed.attempt < attemptsFor(desk, step.worker)) return (save(desk, failed), true);
   const reason = `${step.worker} did not pass its gate after ${failed.attempt} attempts. ${describe(outcome)}`;
   return (move(desk, failed, "awaiting_decision", reason), false);
@@ -151,13 +206,9 @@ async function advance(desk: Desk, id: string): Promise<boolean> {
 }
 
 export async function drive(desk: Desk, id: string): Promise<void> {
-  if (desk.active.has(id)) return;
-  desk.active.add(id);
   try {
     while (await advance(desk, id));
   } catch (error) {
     stopAfterError(desk, id, "running", error);
-  } finally {
-    desk.active.delete(id);
   }
 }

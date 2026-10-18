@@ -7,7 +7,10 @@ import type { TaskStatus } from "./task-states.ts";
 // reviewer's findings can all carry a key someone pasted.
 
 export type PlanStep = { worker: string; goal: string };
-export type Plan = { summary: string; steps: PlanStep[]; estimate_usd: number };
+// Computed by the runtime from model prices, never by a model: `unpriced`
+// names the models whose price nobody knows yet.
+export type Estimate = { usd: number; unpriced: string[] };
+export type Plan = { summary: string; steps: PlanStep[]; estimate?: Estimate };
 
 export type Task = {
   id: string;

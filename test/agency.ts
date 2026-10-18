@@ -7,8 +7,13 @@ import type { Agency } from "../src/runtime/agency.ts";
 import { loadContracts } from "../src/runtime/contracts.ts";
 import { createLogger } from "../src/runtime/logger.ts";
 import type { WorkerManifest } from "../src/runtime/manifest-schema.ts";
-import { createOrchestrator } from "../src/runtime/orchestrator.ts";
-import { openStorage } from "../src/runtime/storage.ts";
+import {
+  createOrchestrator,
+  type Decision,
+  type Orchestrator,
+} from "../src/runtime/orchestrator.ts";
+import { openStorage, type Storage } from "../src/runtime/storage.ts";
+import { getTask, listTasks } from "../src/runtime/task-store.ts";
 
 // A small agency for orchestrator tests: a planner, a builder whose gate asks
 // a reviewer, and a reviewer marked ≠, all answering from scripted replies.
@@ -58,10 +63,9 @@ function noteContract() {
 // is, anything else as JSON; an Error is thrown.
 export type Script = Record<string, unknown[]>;
 
-export const plan = (steps: string[], estimate = 0.1) => ({
+export const plan = (steps: string[]) => ({
   summary: "Deliver the feature.",
   steps: steps.map((worker) => ({ worker, goal: `Goal for ${worker}` })),
-  estimate_usd: estimate,
 });
 
 export const passing = { verdict: "pass", findings: [] };
@@ -70,6 +74,10 @@ export const failing = (finding: string) => ({ verdict: "fail", findings: [findi
 type Options = {
   families?: Record<string, string>;
   builderGate?: WorkerManifest["quality_gate"];
+  builderNeeds?: string;
+  builder?: Partial<WorkerManifest>;
+  // USD per million tokens, in and out, for every model.
+  pricePerMillion?: number;
   costPerCall?: number;
   dailyUsd?: number;
 };
@@ -95,7 +103,9 @@ export function setup(script: Script, options: Options = {}) {
     manifests: [
       manifest("planner-decomposer", { output_contract: "plan.v1" }),
       manifest("builder", {
+        input_contract: options.builderNeeds ?? "brief.v1",
         quality_gate: options.builderGate ?? ["schema_valid", { reviewed_by: "checker" }],
+        ...options.builder,
       }),
       manifest("checker", {
         output_contract: "review.v1",
@@ -113,7 +123,38 @@ export function setup(script: Script, options: Options = {}) {
     }),
     families: (model) => (families[model] ? [families[model]] : undefined),
     connect: async (model) => ({ chat, name: model }),
+    workspaces: mkdtempSync(join(tmpdir(), "amora-workspaces-")),
+    retryDelaysMs: [0, 0],
+    price: async (model) =>
+      model.startsWith("fake/")
+        ? {
+            inputPerMillion: options.pricePerMillion ?? 0,
+            outputPerMillion: options.pricePerMillion ?? 0,
+          }
+        : undefined,
   };
-  const orchestrator = createOrchestrator(agency, { logger: createLogger(() => undefined) });
-  return { storage, requests, orchestrator, agency };
+  const runtime = createOrchestrator(agency, { logger: createLogger(() => undefined) });
+  return { storage, requests, orchestrator: waitingFor(runtime, storage), runtime, agency };
+}
+
+// The orchestrator answers at once and works in the background; tests mostly
+// want the task as it is once that work is done.
+function waitingFor(runtime: Orchestrator, storage: Storage) {
+  const after = async (id: string) => {
+    await runtime.settled(id);
+    const task = getTask(storage, id);
+    if (!task) throw new Error(`task ${id} is gone`);
+    return task;
+  };
+  return {
+    ...runtime,
+    submit: async (brief: string, budgetUsd: number) => after(runtime.create(brief, budgetUsd).id),
+    approve: async (id: string) => (await runtime.approve(id), after(id)),
+    revise: async (id: string, feedback: string) => (runtime.revise(id, feedback), after(id)),
+    decide: async (id: string, decision: Decision) => (runtime.decide(id, decision), after(id)),
+    resumeAll: async () => {
+      runtime.resumeAll();
+      await Promise.all(listTasks(storage).map((task) => runtime.settled(task.id)));
+    },
+  };
 }

@@ -1,5 +1,5 @@
 {
-  "description": "The Planner / Decomposer's plan: which workers run, in order, and the estimated cost.",
+  "description": "The Planner / Decomposer's plan: which workers run, and in what order. The runtime computes its cost from each worker's model price.",
   "type": "object",
   "properties": {
     "summary": {
@@ -15,14 +15,16 @@
             "type": "string",
             "description": "A worker id from the roster you were given."
           },
-          "goal": { "type": "string", "description": "What this worker must deliver in this step." }
+          "goal": {
+            "type": "string",
+            "description": "What this worker must deliver in this step."
+          }
         },
         "required": ["worker", "goal"],
         "additionalProperties": false
       }
-    },
-    "estimate_usd": { "type": "number", "description": "Estimated cost of the whole plan in USD." }
+    }
   },
-  "required": ["summary", "steps", "estimate_usd"],
+  "required": ["summary", "steps"],
   "additionalProperties": false
 }

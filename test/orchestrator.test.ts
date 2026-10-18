@@ -9,7 +9,7 @@ const brief = "Add a pricing card to the landing page.";
 
 async function planned(...args: Parameters<typeof setup>) {
   const world = setup(...args);
-  const task = await world.orchestrator.plan(world.orchestrator.create(brief, 1).id);
+  const task = await world.orchestrator.submit(brief, 1);
   return { ...world, task };
 }
 
@@ -49,9 +49,32 @@ describe("orchestrator: the thin path from brief to completed task", () => {
   it("refuses approval without a daily budget, or with an estimate above the task's budget", async () => {
     const unset = await planned({ plan_v1: [plan(["builder"])] });
     await assert.rejects(unset.orchestrator.approve(unset.task.id), Refusal);
-    const costly = await planned({ plan_v1: [plan(["builder"], 3)] }, { dailyUsd: 5 });
-    await assert.rejects(costly.orchestrator.approve(costly.task.id), /estimated at \$3.00/);
+    // One builder call and one review, 16,000 tokens each at $100 per million.
+    const costly = await planned(
+      { plan_v1: [plan(["builder"])] },
+      { dailyUsd: 5, pricePerMillion: 100 },
+    );
+    assert.deepEqual(costly.task.plan?.estimate, { usd: 3.2, unpriced: [] });
+    await assert.rejects(costly.orchestrator.approve(costly.task.id), /estimated at \$3.20/);
     assert.equal(getTask(costly.storage, costly.task.id)?.status, "awaiting_plan_approval");
+  });
+
+  it("computes the estimate in code and refuses a plan whose models have no known price", async () => {
+    const world = await planned(
+      { plan_v1: [plan(["builder"])], note_v1: [{ text: "v" }] },
+      { dailyUsd: 5 },
+    );
+    world.agency.price = async () => undefined;
+    await assert.rejects(
+      world.orchestrator.approve(world.task.id),
+      /No price is known for fake\/alpha, fake\/beta, so the plan has no estimate. State each with: amora models price/,
+    );
+    world.agency.price = async () => ({ inputPerMillion: 0, outputPerMillion: 0 });
+    assert.equal((await world.runtime.approve(world.task.id)).status, "running");
+    assert.deepEqual(getTask(world.storage, world.task.id)?.plan?.estimate, {
+      usd: 0,
+      unpriced: [],
+    });
   });
 
   it("sends a plan naming an unknown worker back to the Planner, then waits for the owner", async () => {
@@ -61,6 +84,29 @@ describe("orchestrator: the thin path from brief to completed task", () => {
     assert.match(
       String(requests[1]?.messages.at(-1)?.content),
       /"ghost" is not one of the workers/,
+    );
+  });
+
+  it("refuses a plan that runs a worker before anything delivers what it needs", async () => {
+    const { task, requests } = await planned(
+      { plan_v1: [plan(["builder"])] },
+      { builderNeeds: "design_spec.v1" },
+    );
+    assert.equal(task.status, "awaiting_decision");
+    assert.match(
+      String(requests[1]?.messages.at(-1)?.content),
+      /builder needs design_spec.v1, which no earlier step delivers/,
+    );
+  });
+
+  it("offers the Planner what each worker needs and delivers, and no reviewers", async () => {
+    const { requests } = await planned({ plan_v1: [plan(["builder"])] });
+    const input = JSON.parse(String(requests[0]?.messages[1]?.content)) as {
+      workers: { id: string; needs: string; delivers: string }[];
+    };
+    assert.deepEqual(
+      input.workers.map(({ id, needs, delivers }) => [id, needs, delivers]),
+      [["builder", "brief.v1", "note.v1"]],
     );
   });
 
@@ -140,11 +186,20 @@ describe("orchestrator: gates and attempts", () => {
   it("blocks a gate check AMORA cannot run instead of passing it", async () => {
     const { orchestrator, task } = await planned(
       { plan_v1: [plan(["builder"])], note_v1: [{ text: "v" }] },
-      { dailyUsd: 5, builderGate: ["schema_valid", "lint_and_typecheck_pass"] },
+      { dailyUsd: 5, builderGate: ["schema_valid", { visual_diff_below: 0.03 }] },
     );
     const stopped = await orchestrator.approve(task.id);
     assert.equal(stopped.status, "awaiting_decision");
-    assert.match(stopped.reason ?? "", /cannot run the check lint_and_typecheck_pass yet/);
+    assert.match(stopped.reason ?? "", /cannot run the check visual_diff_below yet/);
+  });
+
+  it("blocks project checks when the task has no project folder", async () => {
+    const { orchestrator, task } = await planned(
+      { plan_v1: [plan(["builder"])], note_v1: [{ text: "v" }] },
+      { dailyUsd: 5, builderGate: ["schema_valid", "lint_and_typecheck_pass"] },
+    );
+    const stopped = await orchestrator.approve(task.id);
+    assert.match(stopped.reason ?? "", /This task has no project folder: amora project <path>/);
   });
 });
 
@@ -152,7 +207,7 @@ describe("orchestrator: budgets, pause, and failures", () => {
   it("stops at the task's budget before the next step", async () => {
     const { orchestrator, storage, task } = await planned(
       {
-        plan_v1: [plan(["builder", "builder"], 0.5)],
+        plan_v1: [plan(["builder", "builder"])],
         note_v1: [{ text: "v" }],
         review_v1: [passing],
       },
@@ -167,7 +222,7 @@ describe("orchestrator: budgets, pause, and failures", () => {
   it("stops when today's spend across tasks reaches the daily limit", async () => {
     const { orchestrator, task } = await planned(
       {
-        plan_v1: [plan(["builder", "builder"], 0.5)],
+        plan_v1: [plan(["builder", "builder"])],
         note_v1: [{ text: "v" }],
         review_v1: [passing],
       },
@@ -208,7 +263,7 @@ describe("orchestrator: budgets, pause, and failures", () => {
       () => world.orchestrator.create(`use ${key}`, 1),
       /Refusing to store a OpenRouter key/,
     );
-    const task = await world.orchestrator.plan(world.orchestrator.create(brief, 1).id);
+    const task = await world.orchestrator.submit(brief, 1);
     const stopped = await world.orchestrator.approve(task.id);
     assert.match(stopped.reason ?? "", /Refusing to store a OpenRouter key/);
     assert.ok(!JSON.stringify(listHandoffs(world.storage, task.id)).includes(key));

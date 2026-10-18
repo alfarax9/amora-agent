@@ -1,13 +1,17 @@
 import { familyProblem, type FamilyLookup } from "../model-layer/families.ts";
-import type { Chat } from "../model-layer/gateway.ts";
+import { type Chat, withRetries } from "../model-layer/gateway.ts";
 import type { CapabilityLookup } from "../model-layer/known-models.ts";
 import { resolveWorker, type SlotConfig } from "../model-layer/slots.ts";
 import type { Contract } from "./contracts.ts";
-import { type CheckOutcome, type CheckRunner, runGate } from "./gates.ts";
+import type { Price } from "./estimate.ts";
+import { join } from "node:path";
+import { type CheckOutcome, runGate } from "./gates.ts";
 import type { WorkerManifest } from "./manifest-schema.ts";
+import { projectGate } from "./project-gates.ts";
 import type { Storage } from "./storage.ts";
 import { recordHandoff, type Task } from "./task-store.ts";
 import { callWorker, type WorkerCall, type WorkerReply } from "./worker-runner.ts";
+import { openWorkspace } from "./workspace.ts";
 
 // Runs one worker's turn: finds its model through its slot, calls it, puts the
 // answer through the worker's quality gate, and records every handoff,
@@ -23,7 +27,22 @@ export type Agency = {
   families: FamilyLookup;
   // The chat function for a model id, and the name that gateway knows it by.
   connect(model: string): Promise<{ chat: Chat; name: string }>;
+  // Where each task's copy of its project lives.
+  workspaces: string;
+  // A model's price per million tokens, or nothing when nobody knows it.
+  price(model: string): Promise<Price | undefined>;
+  // Waits before retrying a busy provider; tests pass zeros.
+  retryDelaysMs?: number[];
 };
+
+// The task's copy of its project, made on first use, or nothing when the task
+// has no project folder.
+export function taskWorkspace(agency: Agency, task: Task): string | undefined {
+  if (!task.project) return undefined;
+  const workspace = join(agency.workspaces, task.id);
+  openWorkspace(task.project, workspace);
+  return workspace;
+}
 
 type Ready = { manifest: WorkerManifest; model: string; call: Omit<WorkerCall, "input"> };
 
@@ -37,7 +56,10 @@ async function prepare(agency: Agency, workerId: string): Promise<Ready | { prob
   }
   const contract = agency.contracts.find(({ id }) => id === manifest.output_contract);
   if (!contract) return { problem: `The contract ${manifest.output_contract} is missing.` };
-  const { chat, name } = await agency.connect(resolution.model);
+  const connected = await agency.connect(resolution.model);
+  const delays = agency.retryDelaysMs ? { retryDelaysMs: agency.retryDelaysMs } : {};
+  const chat = withRetries(connected.chat, delays);
+  const { name } = connected;
   const prompt = agency.readPrompt(manifest);
   const structured = capabilities.structured_output;
   return {
@@ -66,7 +88,14 @@ function describe(outcome: CheckOutcome): string {
   return [outcome.reason, ...outcome.findings.map((finding) => `- ${finding}`)].join("\n");
 }
 
-function record(agency: Agency, turn: Turn, ready: Ready, reply: WorkerReply, gate: CheckOutcome) {
+function record(
+  agency: Agency,
+  turn: Turn,
+  ready: Ready,
+  reply: WorkerReply,
+  gate: CheckOutcome,
+  artifacts: string[] = [],
+) {
   recordHandoff(agency.storage, {
     taskId: turn.task.id,
     sender: ready.manifest.id,
@@ -82,7 +111,7 @@ function record(agency: Agency, turn: Turn, ready: Ready, reply: WorkerReply, ga
     tokensOut: reply.tokensOut,
     costUsd: reply.costUsd,
     content: reply.output ?? null,
-    artifacts: [],
+    artifacts,
   });
 }
 
@@ -127,6 +156,45 @@ async function review(
   return { ...outcome, costUsd: reply.costUsd };
 }
 
+// Runs the gate: the project checks on the task's workspace, the schema
+// check callWorker already did, and any reviewer. Files stay in the workspace
+// only when every check passed.
+async function judge(agency: Agency, turn: Turn, ready: Ready, reply: WorkerReply) {
+  if (reply.validation === "invalid") {
+    const reason = `The output did not match ${ready.call.contract.id}.`;
+    const gate: CheckOutcome = { result: "failed", reason, findings: reply.problems };
+    return { gate, artifacts: [], reviewCost: 0, reviews: [] };
+  }
+  const project = projectGate(taskWorkspace(agency, turn.task), ready.manifest, reply.output);
+  let reviewCost = 0;
+  const reviews: (() => void)[] = [];
+  let gate: CheckOutcome;
+  try {
+    gate = await runGate(ready.manifest.quality_gate, {
+      ...project.runners,
+      schema_valid: async () => ({ result: "passed", reason: "", findings: [] }),
+      reviewed_by: async (reviewerId) => {
+        const outcome = await review(
+          agency,
+          turn,
+          ready,
+          reply.output,
+          String(reviewerId),
+          reviews,
+        );
+        reviewCost += outcome.costUsd;
+        return outcome;
+      },
+    });
+  } catch (error) {
+    // A check that could not finish, such as a reviewer that timed out, must
+    // not leave unrecorded files behind for the next attempt to build on.
+    project.finish(false);
+    throw error;
+  }
+  return { gate, artifacts: project.finish(gate.result === "passed"), reviewCost, reviews };
+}
+
 export async function perform(agency: Agency, turn: Turn): Promise<TurnOutcome> {
   const ready = await prepare(agency, turn.worker);
   if ("problem" in ready) return { ...blocked(ready.problem), costUsd: 0 };
@@ -135,26 +203,8 @@ export async function perform(agency: Agency, turn: Turn): Promise<TurnOutcome> 
     input: turn.input,
     ...(turn.check ? { check: turn.check } : {}),
   });
-  let reviewCost = 0;
-  const reviews: (() => void)[] = [];
-  const runners: Record<string, CheckRunner> = {
-    // callWorker has already held the output against its contract.
-    schema_valid: async () => ({ result: "passed", reason: "", findings: [] }),
-    reviewed_by: async (reviewerId) => {
-      const outcome = await review(agency, turn, ready, reply.output, String(reviewerId), reviews);
-      reviewCost += outcome.costUsd;
-      return outcome;
-    },
-  };
-  const gate: CheckOutcome =
-    reply.validation === "invalid"
-      ? {
-          result: "failed",
-          reason: `The output did not match ${ready.call.contract.id}.`,
-          findings: reply.problems,
-        }
-      : await runGate(ready.manifest.quality_gate, runners);
-  record(agency, turn, ready, reply, gate);
+  const { gate, artifacts, reviewCost, reviews } = await judge(agency, turn, ready, reply);
+  record(agency, turn, ready, reply, gate, artifacts);
   for (const write of reviews) write();
   return { ...gate, output: reply.output, costUsd: reply.costUsd + reviewCost };
 }
