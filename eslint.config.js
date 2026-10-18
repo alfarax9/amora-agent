@@ -21,5 +21,13 @@ export default defineConfig([
     files: ["test/**/*.ts"],
     rules: { "max-lines-per-function": "off" },
   },
-  globalIgnores(["node_modules/**"]),
+  {
+    // The dashboard's scripts run in the browser, not in Node.
+    files: ["src/dashboard/**/*.js"],
+    languageOptions: {
+      globals: { document: "readonly", fetch: "readonly", setInterval: "readonly" },
+    },
+  },
+  // A separate project that tests run tasks against, with its own checks.
+  globalIgnores(["node_modules/**", "test/fixtures/**"]),
 ]);
