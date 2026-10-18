@@ -20,9 +20,14 @@ export type OmniRoute = {
 export function createOmniRoute(
   baseUrl: string,
   apiKey: string,
-  { fetchImpl = fetch }: { fetchImpl?: Fetch } = {},
+  { fetchImpl = fetch, timeoutMs }: { fetchImpl?: Fetch; timeoutMs?: number } = {},
 ): OmniRoute {
-  const call = createCaller({ baseUrl: baseUrl.replace(/\/+$/, ""), apiKey, fetchImpl });
+  const call = createCaller({
+    baseUrl: baseUrl.replace(/\/+$/, ""),
+    apiKey,
+    fetchImpl,
+    ...(timeoutMs ? { timeoutMs } : {}),
+  });
   return {
     chat: (request) => call("/chat/completions", { method: "POST", body: JSON.stringify(request) }),
     models: async () => (await call<{ data?: OmniRouteModel[] }>("/models")).data ?? [],

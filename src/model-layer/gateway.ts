@@ -106,21 +106,27 @@ async function errorMessage(response: Response): Promise<string> {
 
 type Caller = <T>(path: string, init?: RequestInit) => Promise<T>;
 
-// Long enough for a short probe answer from a slow free model.
-const requestTimeoutMs = 120_000;
+// Long enough for a short probe answer from a slow free model. Work replies,
+// whole files from a reasoning model, take longer; their caller says how long.
+const defaultTimeoutMs = 120_000;
 
-// A gateway that never answers, such as a mistyped address or OmniRoute holding
-// a request while every credential of the model cools down, must not leave a
-// probe or a connect waiting forever, and the error has to say what timed out.
-async function fetchWithin(fetchImpl: Fetch, url: string, init: RequestInit): Promise<Response> {
-  try {
-    return await fetchImpl(url, { signal: AbortSignal.timeout(requestTimeoutMs), ...init });
-  } catch (error) {
-    if (!(error instanceof Error && error.name === "TimeoutError")) throw error;
-    throw new Error(`No answer from ${url} within ${requestTimeoutMs / 1000} s.`, {
-      cause: error,
-    });
+async function request<T>(fetchImpl: Fetch, url: string, init: RequestInit, timeoutMs: number) {
+  const response = await fetchImpl(url, { signal: AbortSignal.timeout(timeoutMs), ...init });
+  if (!response.ok) {
+    const message = await errorMessage(response);
+    throw new GatewayError(response.status, message, retryAfterMs(response.headers));
   }
+  const body = (await response.json()) as T & ErrorBody;
+  // A failure upstream can arrive as HTTP 200 with an error and no choices,
+  // for instance when the provider ran out of capacity after the request was
+  // accepted. It is an error like any other. Its code says whether it is worth
+  // trying again, when it is a number; some gateways put a word there.
+  if (body.error) {
+    const code = body.error.code;
+    const status = typeof code === "number" ? code : 502;
+    throw new GatewayError(status, describeError(body.error, "upstream error"));
+  }
+  return body;
 }
 
 export function createCaller(options: {
@@ -128,31 +134,63 @@ export function createCaller(options: {
   apiKey: string;
   fetchImpl: Fetch;
   headers?: Record<string, string>;
+  timeoutMs?: number;
 }): Caller {
-  const { baseUrl, apiKey, fetchImpl, headers = {} } = options;
+  const { baseUrl, apiKey, fetchImpl, headers = {}, timeoutMs = defaultTimeoutMs } = options;
   return async <T>(path: string, init: RequestInit = {}): Promise<T> => {
-    const response = await fetchWithin(fetchImpl, `${baseUrl}${path}`, {
-      ...init,
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-        ...headers,
-      },
-    });
-    if (!response.ok) {
-      const message = await errorMessage(response);
-      throw new GatewayError(response.status, message, retryAfterMs(response.headers));
+    const url = `${baseUrl}${path}`;
+    const auth = { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" };
+    try {
+      return await request<T>(
+        fetchImpl,
+        url,
+        { ...init, headers: { ...auth, ...headers } },
+        timeoutMs,
+      );
+    } catch (error) {
+      // A gateway that never answers, or stops halfway through its answer,
+      // must not leave AMORA waiting forever, and the error has to say what
+      // timed out. The limit covers reading the reply, not only its headers.
+      if (!(error instanceof Error && error.name === "TimeoutError")) throw error;
+      throw new Error(`No answer from ${url} within ${timeoutMs / 1000} s.`, { cause: error });
     }
-    const body = (await response.json()) as T & ErrorBody;
-    // A failure upstream can arrive as HTTP 200 with an error and no choices,
-    // for instance when the provider ran out of capacity after the request was
-    // accepted. It is an error like any other. Its code says whether it is worth
-    // trying again, when it is a number; some gateways put a word there.
-    if (body.error) {
-      const code = body.error.code;
-      const status = typeof code === "number" ? code : 502;
-      throw new GatewayError(status, describeError(body.error, "upstream error"));
+  };
+}
+
+// Free models are often busy: a 429 is the provider rate limiting the model
+// for a moment, and 500, 502, and 503 are the provider failing for a moment
+// (the first real run met a 500 from a free model's provider). None of them
+// says anything about the model or the work, so probes and workers alike wait
+// and try again a couple of times before giving up.
+const transientStatuses = [429, 500, 502, 503];
+const defaultRetryDelaysMs = [4000, 12000];
+// A gateway that says how long to wait knows better than a fixed delay (an
+// OmniRoute cooldown lasts about half a minute), but a call must not stall
+// for long, so its wish is capped.
+const maxRetryWaitMs = 60_000;
+
+export type RetryOptions = {
+  retryDelaysMs?: number[];
+  onRetry?: (status: number, delayMs: number) => void;
+};
+
+export function withRetries(
+  chat: Chat,
+  { retryDelaysMs = defaultRetryDelaysMs, onRetry }: RetryOptions,
+): Chat {
+  return async (request) => {
+    for (const delayMs of retryDelaysMs) {
+      try {
+        return await chat(request);
+      } catch (error) {
+        const isTransient =
+          error instanceof GatewayError && transientStatuses.includes(error.status);
+        if (!isTransient) throw error;
+        const waitMs = Math.min(Math.max(delayMs, error.retryAfterMs ?? 0), maxRetryWaitMs);
+        onRetry?.(error.status, waitMs);
+        await new Promise((resolve) => setTimeout(resolve, waitMs));
+      }
     }
-    return body;
+    return chat(request);
   };
 }

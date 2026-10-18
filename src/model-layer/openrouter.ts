@@ -19,7 +19,7 @@ type KeyInfo = {
 
 type DataCollection = "deny" | "allow";
 
-type ClientOptions = { fetchImpl?: Fetch; dataCollection?: DataCollection };
+type ClientOptions = { fetchImpl?: Fetch; dataCollection?: DataCollection; timeoutMs?: number };
 
 export type OpenRouter = {
   chat: Chat;
@@ -29,13 +29,14 @@ export type OpenRouter = {
 
 export function createOpenRouter(
   apiKey: string,
-  { fetchImpl = fetch, dataCollection = "deny" }: ClientOptions = {},
+  { fetchImpl = fetch, dataCollection = "deny", timeoutMs }: ClientOptions = {},
 ): OpenRouter {
   const call = createCaller({
     baseUrl: apiBase,
     apiKey,
     fetchImpl,
     headers: { "X-Title": "AMORA" },
+    ...(timeoutMs ? { timeoutMs } : {}),
   });
   return {
     // Prompts never go to providers that may store or train on them unless

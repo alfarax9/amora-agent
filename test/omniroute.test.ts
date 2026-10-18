@@ -114,6 +114,22 @@ describe("OmniRoute client", () => {
     });
   });
 
+  it("says which address stopped answering halfway through its reply", async () => {
+    const fakeFetch = (async () => ({
+      ok: true,
+      json: async () => {
+        throw new DOMException("The operation was aborted due to timeout", "TimeoutError");
+      },
+    })) as unknown as typeof fetch;
+    const client = createOmniRoute("http://localhost:20128/v1", "k", {
+      fetchImpl: fakeFetch,
+      timeoutMs: 300_000,
+    });
+    await assert.rejects(client.chat({ model: "a/b", messages: [] }), {
+      message: "No answer from http://localhost:20128/v1/chat/completions within 300 s.",
+    });
+  });
+
   it("keeps how long a cooling-down model asks to wait", async () => {
     const fakeFetch = (async () =>
       Response.json(
@@ -171,7 +187,9 @@ describe("combo list", () => {
 });
 
 describe("combos: every member must meet the worker's requirements", () => {
-  const [slice] = loadManifests(fileURLToPath(new URL("../workers", import.meta.url))).items;
+  const slice = loadManifests(fileURLToPath(new URL("../workers", import.meta.url))).items.find(
+    ({ id }) => id === "fe-slice-engineer",
+  );
   if (!slice) throw new Error("the example manifest did not load");
   const members = ["omniroute:antigravity/gemini-flash", "omniroute:antigravity/gpt-oss-120b"];
   const record = { members, contextLength: 131072, strategy: "priority" };
