@@ -1,5 +1,8 @@
 import { spawn } from "node:child_process";
 import { createConnectFlows } from "../runtime/connect.ts";
+import { createOrchestrator } from "../runtime/orchestrator.ts";
+import type { TaskDesk } from "../runtime/task-routes.ts";
+import { agencyFor } from "./agency.ts";
 import { refreshRegistry } from "../model-layer/registry-source.ts";
 import { scheduleReprobes } from "../model-layer/reprobe.ts";
 import { createLogger, type Logger } from "../runtime/logger.ts";
@@ -8,6 +11,7 @@ import { startRuntime } from "../runtime/server.ts";
 import type { AppContext } from "./context.ts";
 import { measureModel } from "./measure.ts";
 import { print } from "./output.ts";
+import { projectPath } from "./project.ts";
 
 // Opening the browser is a convenience: when it fails (no desktop, SSH
 // session), the printed link still works.
@@ -36,6 +40,13 @@ function refreshRegistryInBackground(context: AppContext, logger: Logger): void 
     );
 }
 
+function taskDesk(context: AppContext, logger: Logger): TaskDesk {
+  const orchestrator = createOrchestrator(agencyFor(context), { logger });
+  orchestrator.recoverInterrupted();
+  const roles = Object.fromEntries(context.manifests.map(({ id, role }) => [id, role]));
+  return { orchestrator, storage: context.storage, roles, project: () => projectPath(context) };
+}
+
 export async function startAmora(context: AppContext, port: number): Promise<void> {
   const logger = createLogger();
   const runtime = await startRuntime(port, {
@@ -43,6 +54,7 @@ export async function startAmora(context: AppContext, port: number): Promise<voi
     flows: createConnectFlows(),
     secrets: context.secrets,
     logger,
+    tasks: taskDesk(context, logger),
   });
   refreshRegistryInBackground(context, logger);
   // Background re-probes never allow data collection; that is chosen per run.
