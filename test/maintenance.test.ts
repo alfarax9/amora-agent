@@ -138,7 +138,9 @@ describe("models that expire", () => {
 });
 
 describe("unassigning a model", () => {
-  const [slice] = loadManifests(fileURLToPath(new URL("../workers", import.meta.url))).items;
+  const slice = loadManifests(fileURLToPath(new URL("../workers", import.meta.url))).items.find(
+    ({ id }) => id === "fe-slice-engineer",
+  );
   if (!slice) throw new Error("the example manifest did not load");
   const capable = {
     vision: true,

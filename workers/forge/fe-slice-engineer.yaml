@@ -1,12 +1,12 @@
-# From PRD §6.1. The prompt, contracts, and gate checks it names arrive with
-# the thin path in M1; M0 uses this manifest for loading and model slots.
+# From PRD §6.1. The visual diff and accessibility score checks return with a
+# browser in a later milestone (see docs/decisions.md, M1 slice 2).
 id: fe-slice-engineer
 division: forge
 sub_division: frontend
 wave: 1
 role: Slice / Markup Engineer
 mission: Turn approved designs into components that match the project's codebase.
-requires:
+requires: # minimum brain requirements
   vision: true
   tool_use: true
   structured_output: false
@@ -14,20 +14,19 @@ requires:
   reviewer_family_rule: none
 model_slot: fe-slice-engineer
 prompt: prompts/forge/fe-slice-engineer.md
-prompt_variants:
-  qwen: prompts/forge/fe-slice-engineer.qwen.md
 plugins:
   - design_source
-  - filesystem: { scope: "src/components/**" }
+  - filesystem: { scope: "src/**" }
   - browser_screenshot
 memory: { project: true, global_patterns: true }
 input_contract: design_spec.v1
 output_contract: component_pkg.v1
 quality_gate:
+  - schema_valid
+  - files_in_scope
   - lint_and_typecheck_pass
-  - visual_diff_below: 0.03
-  - a11y_score_at_least: 90
+  - { reviewed_by: reality-checker }
 permissions:
   shell: [npm, npx]
   network: false
-budget: { max_usd_per_task: 0.50, max_retries: 3 }
+budget: { max_usd_per_task: 0.5, max_retries: 3 }

@@ -1,0 +1,23 @@
+id: ux-architect
+division: atelier
+wave: 1
+role: UX Architect
+mission: Specify the screens, components, states, copy, and interactions that meet the requirements.
+requires: # minimum brain requirements
+  vision: false
+  tool_use: false
+  structured_output: true
+  min_context: 32000
+  reviewer_family_rule: none
+model_slot: ux-architect
+prompt: prompts/atelier/ux-architect.md
+plugins: []
+memory: { project: true, global_patterns: true }
+input_contract: requirements.v1
+output_contract: design_spec.v1
+quality_gate:
+  - schema_valid
+permissions:
+  shell: []
+  network: false
+budget: { max_usd_per_task: 0.3, max_retries: 3 }

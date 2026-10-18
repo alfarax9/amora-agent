@@ -1,0 +1,23 @@
+id: product-manager
+division: compass
+wave: 1
+role: Product Manager
+mission: Turn the brief into user stories with acceptance criteria that can be tested.
+requires: # minimum brain requirements
+  vision: false
+  tool_use: false
+  structured_output: true
+  min_context: 32000
+  reviewer_family_rule: none
+model_slot: product-manager
+prompt: prompts/compass/product-manager.md
+plugins: []
+memory: { project: true, global_patterns: true }
+input_contract: brief.v1
+output_contract: requirements.v1
+quality_gate:
+  - schema_valid
+permissions:
+  shell: []
+  network: false
+budget: { max_usd_per_task: 0.2, max_retries: 3 }

@@ -1,0 +1,28 @@
+id: fe-api-integration
+division: forge
+sub_division: frontend
+wave: 1
+role: API & Integration Specialist
+mission: "Connect the feature to its data: requests, responses, loading and error handling."
+requires: # minimum brain requirements
+  vision: false
+  tool_use: true
+  structured_output: true
+  min_context: 32000
+  reviewer_family_rule: none
+model_slot: fe-api-integration
+prompt: prompts/forge/fe-api-integration.md
+plugins:
+  - filesystem: { scope: "src/**" }
+memory: { project: true, global_patterns: true }
+input_contract: component_pkg.v1
+output_contract: code_change.v1
+quality_gate:
+  - schema_valid
+  - files_in_scope
+  - lint_and_typecheck_pass
+  - { reviewed_by: reality-checker }
+permissions:
+  shell: [npm, npx]
+  network: false
+budget: { max_usd_per_task: 0.4, max_retries: 3 }

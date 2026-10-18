@@ -1,0 +1,23 @@
+id: reality-checker
+division: crucible
+wave: 1
+role: Reality Checker
+mission: Check that delivered work does what it claims, against the brief and the requirements, before it moves on.
+requires: # minimum brain requirements
+  vision: false
+  tool_use: false
+  structured_output: true
+  min_context: 64000
+  reviewer_family_rule: different
+model_slot: reality-checker
+prompt: prompts/crucible/reality-checker.md
+plugins: []
+memory: { project: true, global_patterns: true }
+input_contract: review_request.v1
+output_contract: review.v1
+quality_gate:
+  - schema_valid
+permissions:
+  shell: []
+  network: false
+budget: { max_usd_per_task: 0.3, max_retries: 3 }

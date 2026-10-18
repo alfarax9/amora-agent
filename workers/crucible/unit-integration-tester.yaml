@@ -1,0 +1,28 @@
+id: unit-integration-tester
+division: crucible
+wave: 1
+role: Unit & Integration Tester
+mission: Write unit and integration tests that check every acceptance criterion against the delivered code.
+requires: # minimum brain requirements
+  vision: false
+  tool_use: true
+  structured_output: true
+  min_context: 64000
+  reviewer_family_rule: none
+model_slot: unit-integration-tester
+prompt: prompts/crucible/unit-integration-tester.md
+plugins:
+  - filesystem: { scope: "src/**" }
+  - filesystem: { scope: "tests/**" }
+memory: { project: true, global_patterns: true }
+input_contract: code_change.v1
+output_contract: test_suite.v1
+quality_gate:
+  - schema_valid
+  - files_in_scope
+  - tests_pass
+  - { reviewed_by: reality-checker }
+permissions:
+  shell: [npm, npx]
+  network: false
+budget: { max_usd_per_task: 0.4, max_retries: 3 }

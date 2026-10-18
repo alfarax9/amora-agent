@@ -18,7 +18,9 @@ import { assignModel, emptySlots, resolveWorker } from "../src/model-layer/slots
 import { loadManifests } from "../src/runtime/manifests.ts";
 import { openStorage } from "../src/runtime/storage.ts";
 
-const [slice] = loadManifests(fileURLToPath(new URL("../workers", import.meta.url))).items;
+const slice = loadManifests(fileURLToPath(new URL("../workers", import.meta.url))).items.find(
+  ({ id }) => id === "fe-slice-engineer",
+);
 if (!slice) throw new Error("the example manifest did not load");
 
 const capable: ModelCapabilities = {

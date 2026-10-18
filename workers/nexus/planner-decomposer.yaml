@@ -1,0 +1,23 @@
+id: planner-decomposer
+division: nexus
+wave: 1
+role: Planner / Decomposer
+mission: Turn the owner's brief into an ordered plan of workers with an estimated cost.
+requires: # minimum brain requirements
+  vision: false
+  tool_use: false
+  structured_output: true
+  min_context: 32000
+  reviewer_family_rule: none
+model_slot: planner-decomposer
+prompt: prompts/nexus/planner-decomposer.md
+plugins: []
+memory: { project: true, global_patterns: true }
+input_contract: brief.v1
+output_contract: plan.v1
+quality_gate:
+  - schema_valid
+permissions:
+  shell: []
+  network: false
+budget: { max_usd_per_task: 0.2, max_retries: 3 }

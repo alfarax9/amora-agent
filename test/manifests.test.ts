@@ -21,11 +21,12 @@ function workersWith(files: Record<string, string>): string {
 }
 
 describe("manifest loader", () => {
-  it("loads the PRD example manifest", () => {
+  it("loads the thin-path workers, the PRD example among them", () => {
     const { items, errors } = loadManifests(fileURLToPath(new URL("../workers", import.meta.url)));
     assert.deepEqual(errors, []);
-    assert.equal(items[0]?.id, "fe-slice-engineer");
-    assert.equal(items[0]?.requires.vision, true);
+    assert.equal(items.length, 9);
+    const slice = items.find(({ id }) => id === "fe-slice-engineer");
+    assert.equal(slice?.requires.vision, true);
   });
 
   it("reports every problem with the file and field", () => {
@@ -57,6 +58,14 @@ describe("manifest loader", () => {
       workersWith({ "forge/a.yaml": example, "forge/b.yaml": example }),
     );
     assert.deepEqual(errors, ['worker id "fe-slice-engineer" is used by more than one manifest']);
+  });
+
+  it("reports a YAML mistake for its file and keeps loading the others", () => {
+    const { items, errors } = loadManifests(
+      workersWith({ "forge/a.yaml": example, "forge/bad.yaml": "mission: one: two\n" }),
+    );
+    assert.equal(items.length, 1);
+    assert.match(errors[0] ?? "", /^forge\/bad.yaml: /);
   });
 
   it("treats a missing workers folder as empty", () => {

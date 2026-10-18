@@ -1,0 +1,28 @@
+id: fe-logic-developer
+division: forge
+sub_division: frontend
+wave: 1
+role: Logic Developer
+mission: Add the state, behaviour, and validation the components need, following the project's patterns.
+requires: # minimum brain requirements
+  vision: false
+  tool_use: true
+  structured_output: false
+  min_context: 128000
+  reviewer_family_rule: none
+model_slot: fe-logic-developer
+prompt: prompts/forge/fe-logic-developer.md
+plugins:
+  - filesystem: { scope: "src/**" }
+memory: { project: true, global_patterns: true }
+input_contract: component_pkg.v1
+output_contract: code_change.v1
+quality_gate:
+  - schema_valid
+  - files_in_scope
+  - lint_and_typecheck_pass
+  - { reviewed_by: reality-checker }
+permissions:
+  shell: [npm, npx]
+  network: false
+budget: { max_usd_per_task: 0.5, max_retries: 3 }
