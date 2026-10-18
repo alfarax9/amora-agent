@@ -18,7 +18,15 @@ export function loadManifests(root: string): LoadResult<WorkerManifest> {
   for (const file of yamlFiles(root)) {
     // Forward slashes on every platform, so messages and tests read the same.
     const name = relative(root, file).split(sep).join("/");
-    const data: unknown = parse(readFileSync(file, "utf8"));
+    let data: unknown;
+    try {
+      data = parse(readFileSync(file, "utf8"));
+    } catch (error) {
+      // A YAML mistake in one manifest is reported like any other problem,
+      // instead of stopping every command that loads the workers.
+      errors.push(`${name}: ${(error as Error).message.split("\n")[0] ?? "is not valid YAML"}`);
+      continue;
+    }
     const problems = checkManifest(data, file);
     if (problems.length > 0) errors.push(...problems.map((problem) => `${name}: ${problem}`));
     else items.push(data as WorkerManifest);
