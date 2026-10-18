@@ -8,6 +8,9 @@ export type CheckOutcome = {
   result: "passed" | "failed" | "blocked";
   reason: string;
   findings: string[];
+  // Which check stopped the gate, so the orchestrator can tell a failing test
+  // run apart from any other failure.
+  check?: string;
 };
 
 export type CheckRunner = (options: unknown) => Promise<CheckOutcome>;
@@ -32,7 +35,7 @@ export async function runGate(
       return { result: "blocked", reason: `AMORA cannot run the check ${name} yet.`, findings: [] };
     }
     const outcome = await run(options);
-    if (outcome.result !== "passed") return outcome;
+    if (outcome.result !== "passed") return { ...outcome, check: name };
     passed.push(name);
   }
   return { result: "passed", reason: `Passed: ${passed.join(", ")}.`, findings: [] };
