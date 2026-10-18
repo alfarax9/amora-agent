@@ -1,0 +1,9 @@
+{
+  "description": "What the owner asked for, as typed in the agency chat.",
+  "type": "object",
+  "properties": {
+    "brief": { "type": "string", "description": "The owner's request." }
+  },
+  "required": ["brief"],
+  "additionalProperties": false
+}

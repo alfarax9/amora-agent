@@ -1,0 +1,34 @@
+{
+  "description": "The Product Manager's requirements for one feature.",
+  "type": "object",
+  "properties": {
+    "feature": { "type": "string", "description": "The feature in one sentence." },
+    "user_stories": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "story": {
+            "type": "string",
+            "description": "As a <user>, I want <goal>, so that <reason>."
+          },
+          "acceptance_criteria": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Checkable statements; each one can be tested."
+          }
+        },
+        "required": ["story", "acceptance_criteria"],
+        "additionalProperties": false
+      }
+    },
+    "out_of_scope": { "type": "array", "items": { "type": "string" } },
+    "open_questions": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Questions for the owner; empty when there are none."
+    }
+  },
+  "required": ["feature", "user_stories", "out_of_scope", "open_questions"],
+  "additionalProperties": false
+}

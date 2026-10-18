@@ -1,0 +1,19 @@
+{
+  "description": "What a reviewer receives: the request a worker answered, which worker answered it, and the work.",
+  "type": "object",
+  "properties": {
+    "request": {
+      "type": "object",
+      "description": "The input the reviewed worker was given."
+    },
+    "reviewing": {
+      "type": "string",
+      "description": "The role of the worker whose work this is."
+    },
+    "work": {
+      "description": "The reviewed worker's output, as it passed its own contract."
+    }
+  },
+  "required": ["request", "reviewing", "work"],
+  "additionalProperties": false
+}

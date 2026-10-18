@@ -21,7 +21,17 @@ if (!review) throw new Error("review.v1 did not load");
 describe("contracts", () => {
   it("load from contracts/ without errors", () => {
     assert.deepEqual(errors, []);
-    assert.deepEqual(contracts.map(({ id }) => id).sort(), ["plan.v1", "review.v1"]);
+    assert.deepEqual(contracts.map(({ id }) => id).sort(), [
+      "brief.v1",
+      "code_change.v1",
+      "component_pkg.v1",
+      "design_spec.v1",
+      "plan.v1",
+      "requirements.v1",
+      "review.v1",
+      "review_request.v1",
+      "test_suite.v1",
+    ]);
   });
 
   it("refuse fields a contract does not have, naming where", () => {

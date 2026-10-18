@@ -1,0 +1,52 @@
+{
+  "description": "The UX Architect's specification: screens, components, their states, and interactions.",
+  "type": "object",
+  "properties": {
+    "screens": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "purpose": { "type": "string" },
+          "layout": {
+            "type": "string",
+            "description": "Structure from top to bottom, and how it changes on small screens."
+          },
+          "components": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": { "type": "string" },
+                "purpose": { "type": "string" },
+                "states": {
+                  "type": "array",
+                  "items": { "type": "string" },
+                  "description": "Every state, such as empty, loading, error, disabled."
+                },
+                "content": {
+                  "type": "array",
+                  "items": { "type": "string" },
+                  "description": "The exact copy the component shows."
+                }
+              },
+              "required": ["name", "purpose", "states", "content"],
+              "additionalProperties": false
+            }
+          },
+          "interactions": { "type": "array", "items": { "type": "string" } }
+        },
+        "required": ["name", "purpose", "layout", "components", "interactions"],
+        "additionalProperties": false
+      }
+    },
+    "accessibility": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Requirements such as focus order, labels, and contrast."
+    }
+  },
+  "required": ["screens", "accessibility"],
+  "additionalProperties": false
+}

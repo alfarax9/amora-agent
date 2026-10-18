@@ -1,0 +1,58 @@
+{
+  "description": "The Slice / Markup Engineer's components, built from the design specification.",
+  "type": "object",
+  "properties": {
+    "summary": {
+      "type": "string",
+      "description": "What changed and why, in a few sentences."
+    },
+    "components": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "covers": {
+            "type": "string",
+            "description": "The design_spec component or screen it implements."
+          }
+        },
+        "required": ["name", "path", "covers"],
+        "additionalProperties": false
+      }
+    },
+    "files": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "description": "Relative to the project root, with forward slashes."
+          },
+          "content": {
+            "type": "string",
+            "description": "The whole file as it should be written."
+          }
+        },
+        "required": ["path", "content"],
+        "additionalProperties": false
+      },
+      "description": "Every file to create or replace."
+    },
+    "notes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Anything the next worker or the owner must know; empty when there is nothing."
+    }
+  },
+  "required": ["summary", "components", "files", "notes"],
+  "additionalProperties": false
+}
