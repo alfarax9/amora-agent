@@ -96,12 +96,12 @@ async function checkOmniRoute(context: AppContext): Promise<Check> {
 }
 
 function checkDefinitions(context: AppContext): Check[] {
-  const problems = [...context.manifestErrors, ...context.registryErrors];
+  const problems = [...context.definitionErrors, ...context.registryErrors];
   if (problems.length > 0) {
     return problems.map((detail) => ({ status: "fail" as const, label: "Definitions", detail }));
   }
   const { version, models } = context.registry;
-  const detail = `${context.manifests.length} worker manifests, registry v${version} (${context.registrySource}) with ${models.length} models`;
+  const detail = `${context.manifests.length} worker manifests, ${context.contracts.length} contracts, registry v${version} (${context.registrySource}) with ${models.length} models`;
   return [{ status: "pass", label: "Definitions", detail }];
 }
 
