@@ -54,8 +54,10 @@ export type Orchestrator = {
 // that produce something, with what each needs and delivers so it can order
 // them.
 function roster(agency: Agency) {
+  const offered = (id: string) => agency.offered?.includes(id) ?? true;
   return agency.manifests
     .filter(({ id, output_contract }) => id !== plannerId && output_contract !== "review.v1")
+    .filter(({ id }) => offered(id))
     .map(({ id, role, mission, input_contract, output_contract }) => ({
       id,
       role,

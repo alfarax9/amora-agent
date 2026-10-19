@@ -11,7 +11,7 @@ import {
   listMessages,
   saveTask,
 } from "../src/runtime/task-store.ts";
-import { passing, plan, setup } from "./agency.ts";
+import { manifest, passing, plan, setup } from "./agency.ts";
 
 const brief = "Add a pricing card to the landing page.";
 
@@ -137,6 +137,21 @@ describe("orchestrator: what a step's worker is told", () => {
     assert.deepEqual(first.later, [{ worker: "Role builder", goal: "Goal for builder" }]);
     const second = JSON.parse(builderInputs.at(-1) ?? "{}") as { later: unknown[] };
     assert.deepEqual(second.later, []);
+  });
+});
+
+describe("orchestrator: roster profiles", () => {
+  it("offers the Planner only the workers of the agency's profile", async () => {
+    const world = setup({ plan_v1: [plan(["builder"])] }, { extra: [manifest("other")] });
+    world.agency.offered = ["builder"];
+    await world.orchestrator.submit(brief, 1);
+    const input = JSON.parse(String(world.requests[0]?.messages[1]?.content)) as {
+      workers: { id: string }[];
+    };
+    assert.deepEqual(
+      input.workers.map(({ id }) => id),
+      ["builder"],
+    );
   });
 });
 

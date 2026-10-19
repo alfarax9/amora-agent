@@ -8,6 +8,14 @@ import type { WorkerManifest } from "./manifest-schema.ts";
 
 export const plannerId = "planner-decomposer";
 
+// Named sets of workers the Planner may use; reviewers work through gates and
+// are never offered. "slim" came from the first benchmark, where the full
+// chain of specialists lost to one agent (docs/decisions.md).
+export const rosterProfiles: Record<string, string[] | undefined> = {
+  full: undefined,
+  slim: ["fe-engineer", "unit-integration-tester"],
+};
+
 // What the owner typed. Every other input is something an earlier worker
 // delivered.
 export const briefContract = "brief.v1";
@@ -73,6 +81,16 @@ export function rosterProblems(
       (problem) => `workers/${manifest.division}/${manifest.id}.yaml: ${problem}`,
     ),
   );
+  for (const [profile, ids] of Object.entries(rosterProfiles)) {
+    for (const id of ids ?? []) {
+      const worker = manifests.find((manifest) => manifest.id === id);
+      if (!worker || worker.output_contract === "review.v1") {
+        problems.push(
+          `Roster profile ${profile} names ${id}, which is not a worker the Planner can use.`,
+        );
+      }
+    }
+  }
   if (manifests.length > 0 && !manifests.some(({ id }) => id === plannerId)) {
     problems.push(`No ${plannerId} manifest: every task starts with the Planner / Decomposer.`);
   }

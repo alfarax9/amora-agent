@@ -33,6 +33,8 @@ export type Agency = {
   price(model: string): Promise<Price | undefined>;
   // Waits before retrying a busy provider; tests pass zeros.
   retryDelaysMs?: number[];
+  // The workers the Planner may use (see rosterProfiles); all when absent.
+  offered?: string[];
 };
 
 // The task's copy of its project, made on first use, or nothing when the task
