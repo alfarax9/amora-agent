@@ -15,4 +15,11 @@ export function el(tag, attributes = {}, ...children) {
   return node;
 }
 
-export const usd = (amount) => `$${Number(amount).toFixed(2)}`;
+// The same rule as src/runtime/money.ts: cents, or the first two significant
+// digits of an amount below one cent, so "$0.00" never hides it.
+export function usd(amount) {
+  const value = Number(amount);
+  if (value === 0 || Math.abs(value) >= 0.01) return `$${value.toFixed(2)}`;
+  const decimals = 1 - Math.floor(Math.log10(Math.abs(value)));
+  return `$${value.toFixed(decimals).replace(/0+$/, "")}`;
+}
