@@ -47,7 +47,11 @@ function taskDesk(context: AppContext, logger: Logger): TaskDesk {
   return { orchestrator, storage: context.storage, roles, project: () => projectPath(context) };
 }
 
-export async function startAmora(context: AppContext, port: number): Promise<void> {
+export async function startAmora(
+  context: AppContext,
+  port: number,
+  { open = true }: { open?: boolean } = {},
+): Promise<void> {
   const logger = createLogger();
   const runtime = await startRuntime(port, {
     sessions: createSessions(),
@@ -70,7 +74,8 @@ export async function startAmora(context: AppContext, port: number): Promise<voi
   print(`AMORA is running at http://127.0.0.1:${runtime.port}`);
   print(`Sign in (one-time link): ${signIn}`);
   print("Press Ctrl+C to stop.");
-  openBrowser(signIn);
+  // Without a browser (SSH, a script), the printed link is how to sign in.
+  if (open) openBrowser(signIn);
   const stop = () => {
     stopReprobes();
     void runtime.close().then(() => {
