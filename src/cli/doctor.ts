@@ -10,6 +10,7 @@ import { type AppContext, defaultPort } from "./context.ts";
 import { omniRouteClient } from "./measure.ts";
 import { print } from "./output.ts";
 import { openRouterDataCollection } from "./privacy.ts";
+import { rosterProfile } from "./profile.ts";
 
 type Status = "pass" | "warn" | "fail";
 type Check = { status: Status; label: string; detail: string };
@@ -187,6 +188,11 @@ export function checkBudget(context: Pick<AppContext, "storage">): Check {
     : { status: "pass", label: "Budget", detail: `daily limit $${daily.toFixed(2)}` };
 }
 
+function checkRoster(context: AppContext): Check {
+  const profile = rosterProfile(context);
+  return { status: "pass", label: "Roster", detail: `new tasks plan with the ${profile} roster` };
+}
+
 // Allowed is the owner's choice, so it warns rather than fails.
 function checkPrivacy(context: AppContext): Check {
   return openRouterDataCollection(context) === "allow"
@@ -212,6 +218,7 @@ export async function runDoctor(context: AppContext, port = defaultPort): Promis
     ...checkExpiry(context),
     checkBudget(context),
     checkPrivacy(context),
+    checkRoster(context),
     checkHardware(),
     await checkPort(port),
   ];

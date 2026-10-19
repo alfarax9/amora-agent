@@ -13,6 +13,7 @@ import { connectOmniRoute } from "./omniroute.ts";
 import { probeAssigned, probeModel } from "./probe.ts";
 import { setPrice } from "./prices.ts";
 import { runPrivacy } from "./privacy.ts";
+import { runRoster } from "./profile.ts";
 import { runProject } from "./project.ts";
 import { print, printError } from "./output.ts";
 import { draftEntry } from "./registry.ts";
@@ -25,6 +26,7 @@ Commands:
   budget                          Show the daily spending limit and today's spend
   budget --daily <usd>            Set the daily limit across all tasks (needed before a first task)
   project [path]                  Show or set the project folder new tasks work on
+  roster [slim|full]              Show or choose the workers new tasks plan with (default: slim)
   privacy                         Show whether OpenRouter providers may keep or train on prompts
   eval                            Run the benchmark set through AMORA and one strong agent, and
                                   report success and cost per successful task (calls your models)
@@ -122,6 +124,7 @@ const commands: Record<string, Command> = {
   doctor: (context, _args, flags) => runDoctor(context, flags.port),
   models: (context, args, flags) => runModels(context, args, flags),
   project: async (context, args) => (args.length <= 1 ? runProject(context, args[0]) : undefined),
+  roster: async (context, args) => (args.length <= 1 ? runRoster(context, args[0]) : undefined),
   eval: async (context, args, flags) => {
     const budgetUsd = Number(flags.budget);
     if (args.length > 0 || !(budgetUsd > 0)) return undefined;

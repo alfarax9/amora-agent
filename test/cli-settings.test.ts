@@ -95,6 +95,24 @@ describe("CLI: budget and model families", () => {
     assert.match(unknown.out, /No brief is named nope\. Briefs: contact, discount, faq/);
   });
 
+  it("plans new tasks with the slim roster unless the owner chooses the full one", async () => {
+    const fresh = { AMORA_HOME: mkdtempSync(join(tmpdir(), "amora-cli-")) };
+    assert.match(
+      run(["roster"], fresh).out,
+      /slim roster: Frontend Engineer and Unit & Integration Tester/,
+    );
+    const { storage } = setup({});
+    const context = { storage } as unknown as AppContext;
+    assert.deepEqual(agencyFor(context).offered, ["fe-engineer", "unit-integration-tester"]);
+    assert.match(
+      run(["roster", "full"], fresh).out,
+      /full roster: the Planner may use every worker/,
+    );
+    storage.setSetting("roster", { profile: "full" });
+    assert.equal(agencyFor(context).offered, undefined);
+    assert.equal(run(["roster", "tiny"], fresh).code, 1);
+  });
+
   it("refuses an AMORA_HOME that is set but empty", () => {
     const empty = run(["budget"], { AMORA_HOME: "" });
     assert.equal(empty.code, 1);
