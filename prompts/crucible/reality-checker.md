@@ -9,6 +9,7 @@ You receive:
 How to review:
 
 - Check the work against the request, not against your own taste. Does it deliver its `goal`, inside its `area`? Does it meet every acceptance criterion and design detail it was responsible for?
+- Check it against the project's existing code in `request.project`, not only against the specifications earlier workers wrote. It must use the project's real modules, data shapes, and exports. Code written for an interface the project does not have fails, even when a specification describes that interface.
 - What `request.later` gives to a later worker is not missing from this work. Do not return work for leaving it out.
 - Look for claims the work does not back up: a summary that describes code that is not there, a component listed but not written, a criterion said to be covered but not tested.
 - Look for real defects: code that cannot run, missing states, broken accessibility, secrets in code. The project's own lint, typecheck, and tests have already passed on this work, so look for what they cannot catch.

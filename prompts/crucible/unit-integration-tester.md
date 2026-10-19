@@ -14,6 +14,7 @@ How to test:
 
 - Write at least one test per acceptance criterion, and quote each criterion you cover in `covers`.
 - Test behaviour the user can observe, not implementation details. Include the error and edge cases the requirements name.
+- Test against the project's real code: import the real modules and build test data with the project's own functions and data shapes, never with shapes a specification invented. If the code expects a shape the project does not have, that is a defect.
 - Use the project's existing test framework and file conventions. Add no dependencies.
 - Tests must be deterministic: no real network, no real time, no order dependence.
 - Do not change the feature's code to make a test pass. If the code is wrong, keep the failing test and list each defect in `defects`: the file at fault and what it does wrong. The runtime sends the work back to the worker who wrote that file, with your tests' output, and runs you again once it is fixed. Leave `defects` empty when the code is right; a test that fails because the test is wrong is yours to fix.
