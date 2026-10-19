@@ -37,6 +37,8 @@ describe("CLI: budget and model families", () => {
     assert.equal(run(["budget", "--daily", "0"]).code, 1);
     assert.match(run(["budget", "--daily", "2.5"]).out, /Daily limit set to \$2.50/);
     assert.match(run(["budget"]).out, /Daily limit \$2.50; spent today \$0.00/);
+    assert.match(run(["budget", "--daily", "0.005"]).out, /Daily limit set to \$0.005;/);
+    run(["budget", "--daily", "2.5"]);
   });
 
   it("records a family the registry does not know, and leaves the registry's alone", () => {

@@ -4,6 +4,7 @@ import { GatewayError } from "../model-layer/gateway.ts";
 import { createOpenRouter } from "../model-layer/openrouter.ts";
 import { probeMaxAgeDays, staleProbes } from "../model-layer/known-models.ts";
 import { assignedModels, resolveWorker } from "../model-layer/slots.ts";
+import { formatUsd } from "../runtime/money.ts";
 import { dayMs } from "../runtime/time.ts";
 import { bindAddress } from "../runtime/security.ts";
 import { type AppContext, defaultPort } from "./context.ts";
@@ -185,7 +186,7 @@ export function checkBudget(context: Pick<AppContext, "storage">): Check {
   const daily = context.storage.getSetting<{ dailyUsd: number }>("budgets")?.dailyUsd;
   return daily === undefined
     ? { status: "warn", label: "Budget", detail: "no daily limit yet: amora budget --daily <usd>" }
-    : { status: "pass", label: "Budget", detail: `daily limit $${daily.toFixed(2)}` };
+    : { status: "pass", label: "Budget", detail: `daily limit ${formatUsd(daily)}` };
 }
 
 function checkRoster(context: AppContext): Check {

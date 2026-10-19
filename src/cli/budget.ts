@@ -1,10 +1,9 @@
+import { formatUsd as usd } from "../runtime/money.ts";
 import { spentSince } from "../runtime/task-store.ts";
 import type { AppContext } from "./context.ts";
 import { print, printError } from "./output.ts";
 
 type Budgets = { dailyUsd: number };
-
-const usd = (amount: number) => `$${amount.toFixed(2)}`;
 
 // The daily limit applies across every task (PRD §11). No task can be approved
 // until one is set, so spending always has a ceiling the owner chose.
