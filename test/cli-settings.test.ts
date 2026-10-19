@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
-import { mkdtempSync } from "node:fs";
+import { execFileSync, spawn } from "node:child_process";
+import { existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, it } from "node:test";
@@ -205,5 +205,48 @@ describe("model prices", () => {
       inputPerMillion: 1,
       outputPerMillion: 5,
     });
+  });
+});
+
+describe("CLI: starting amora without a browser", { skip: process.platform === "win32" }, () => {
+  // A fake `open` (macOS) and `xdg-open` (Linux) that only leave a mark.
+  function fakeOpener(): { bin: string; mark: string } {
+    const bin = mkdtempSync(join(tmpdir(), "amora-bin-"));
+    const mark = join(bin, "opened");
+    for (const name of ["open", "xdg-open"]) {
+      writeFileSync(join(bin, name), `#!/bin/sh\necho "$@" > "${mark}"\n`, { mode: 0o755 });
+    }
+    return { bin, mark };
+  }
+
+  async function start(args: string[], bin: string): Promise<void> {
+    const main = fileURLToPath(new URL("../src/cli/main.ts", import.meta.url));
+    const child = spawn(
+      process.execPath,
+      [main, ...args, "--port", String(41000 + Math.floor(Math.random() * 9000))],
+      {
+        env: {
+          ...process.env,
+          AMORA_HOME: mkdtempSync(join(tmpdir(), "amora-cli-")),
+          PATH: `${bin}:${process.env.PATH}`,
+        },
+      },
+    );
+    await new Promise<void>((resolve) => {
+      child.stdout.on("data", (chunk: Buffer) => {
+        if (chunk.toString().includes("Press Ctrl+C")) resolve();
+      });
+    });
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    child.kill("SIGINT");
+  }
+
+  it("opens the browser by default and not with --no-open", async () => {
+    const quiet = fakeOpener();
+    await start(["--no-open"], quiet.bin);
+    assert.equal(existsSync(quiet.mark), false);
+    const loud = fakeOpener();
+    await start([], loud.bin);
+    assert.match(readFileSync(loud.mark, "utf8"), /auth\/sign-in\?token=/);
   });
 });

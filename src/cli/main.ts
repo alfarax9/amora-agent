@@ -46,6 +46,7 @@ Commands:
 
 Options:
   --port <n>               Port to use (default ${defaultPort}); moves to the next free one if taken
+  --no-open                Print the sign-in link without opening a browser
   --assigned               With models probe: every model in use
   --daily <usd>            With budget: the daily limit in USD
   --brief <id>             With eval: run only this brief (repeatable)
@@ -72,6 +73,7 @@ type Flags = {
   url: string | undefined;
   daily: string | undefined;
   denyDataCollection: boolean;
+  noOpen: boolean;
   briefs: string[];
   system: string;
   baselineModel: string | undefined;
@@ -145,7 +147,9 @@ const commands: Record<string, Command> = {
 
 async function run(command: string | undefined, rest: string[], flags: Flags): Promise<boolean> {
   const context = openContext();
-  if (command === undefined) return (await startAmora(context, flags.port), true);
+  if (command === undefined) {
+    return (await startAmora(context, flags.port, { open: !flags.noOpen }), true);
+  }
   const outcome = command in commands ? await commands[command]?.(context, rest, flags) : undefined;
   if (outcome !== undefined) return outcome;
   printError(usage);
@@ -154,6 +158,7 @@ async function run(command: string | undefined, rest: string[], flags: Flags): P
 
 const options = {
   port: { type: "string", default: String(defaultPort) },
+  "no-open": { type: "boolean", default: false },
   "allow-data-collection": { type: "boolean", default: false },
   "deny-data-collection": { type: "boolean", default: false },
   assigned: { type: "boolean", default: false },
@@ -189,6 +194,7 @@ async function main(): Promise<void> {
     url: values.url,
     daily: values.daily,
     denyDataCollection: values["deny-data-collection"],
+    noOpen: values["no-open"],
     briefs: values.brief ?? [],
     system: values.system,
     baselineModel: values["baseline-model"],
