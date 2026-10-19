@@ -81,8 +81,9 @@ async function attempt(
   try {
     if (system === "baseline") return await baseline(run, agency, brief, folder);
     const project = join(folder, "project");
-    const offered = system === "slim" ? rosterProfiles.slim : undefined;
-    const roster = offered ? { ...agency, offered } : agency;
+    // Each system names its roster, whatever the owner's default is.
+    const offered = system === "slim" ? rosterProfiles.slim : rosterProfiles.full;
+    const roster = { ...agency, offered };
     return await runThinPath(roster, brief.brief, project, run.budgetUsd, run.logger);
   } catch (error) {
     const message = redactSecrets(error instanceof Error ? error.message : String(error));

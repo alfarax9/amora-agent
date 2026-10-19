@@ -2,6 +2,17 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { fakeAgency, runWith, taxSolution } from "./eval-fixture.ts";
 
+describe("benchmark runner, whatever the owner's default roster", () => {
+  it("runs the full system with every worker even when the agency offers the slim roster", async () => {
+    const agency = {
+      ...fakeAgency(taxSolution),
+      offered: ["fe-engineer", "unit-integration-tester"],
+    };
+    const [row] = await runWith(agency, ["amora"]);
+    assert.equal(row?.calls, 9);
+  });
+});
+
 describe("benchmark runner, when the baseline fails its checks", () => {
   it("keeps the failing check's output in the reason", async () => {
     const [row] = await runWith(fakeAgency("export function totalWithTax( {"), ["baseline"]);
