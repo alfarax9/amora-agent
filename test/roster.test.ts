@@ -13,11 +13,12 @@ const contracts = loadContracts(join(root, "contracts")).items;
 const workers = loadManifests(join(root, "workers")).items;
 
 describe("roster", () => {
-  it("ships nine thin-path workers whose contracts, prompts, and reviewers all exist", () => {
+  it("ships the thin-path workers whose contracts, prompts, and reviewers all exist", () => {
     const problems = rosterProblems(workers, contracts, (path) => existsSync(join(root, path)));
     assert.deepEqual(problems, []);
     assert.deepEqual(workers.map(({ id }) => id).sort(), [
       "fe-api-integration",
+      "fe-engineer",
       "fe-logic-developer",
       "fe-performance",
       "fe-slice-engineer",
@@ -35,7 +36,7 @@ describe("roster", () => {
     const reviewed = workers.filter(({ quality_gate }) =>
       quality_gate.some((check) => typeof check === "object" && "reviewed_by" in check),
     );
-    assert.equal(reviewed.length, 5);
+    assert.equal(reviewed.length, 6);
   });
 
   it("names each broken reference with its manifest", () => {
