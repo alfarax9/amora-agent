@@ -1,5 +1,6 @@
 import { type Agency, perform, taskWorkspace, type TurnOutcome } from "./agency.ts";
 import type { Logger } from "./logger.ts";
+import { formatUsd as usd } from "./money.ts";
 import { matchesScope, scopesOf } from "./project-gates.ts";
 import { redactSecrets } from "./secret-scanner.ts";
 import { assertMove, type TaskStatus } from "./task-states.ts";
@@ -30,8 +31,6 @@ export type Desk = {
 
 // A refusal is meant for the owner, as is; any other error is a bug.
 export class Refusal extends Error {}
-
-export const usd = (amount: number) => `$${amount.toFixed(2)}`;
 
 export function describe(outcome: TurnOutcome): string {
   return [outcome.reason, ...outcome.findings].join(" ");

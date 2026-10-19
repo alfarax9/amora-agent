@@ -11,9 +11,9 @@ import {
   say,
   startWork,
   stopAfterError,
-  usd,
 } from "./dispatch.ts";
 import type { Logger } from "./logger.ts";
+import { formatUsd as usd } from "./money.ts";
 import { briefContract, plannerId } from "./roster.ts";
 import { isFinished } from "./task-states.ts";
 import { estimatePlan } from "./estimate.ts";
