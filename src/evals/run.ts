@@ -4,6 +4,7 @@ import { withRetries } from "../model-layer/gateway.ts";
 import type { Agency } from "../runtime/agency.ts";
 import type { Contract } from "../runtime/contracts.ts";
 import type { Logger } from "../runtime/logger.ts";
+import { rosterProfiles } from "../runtime/roster.ts";
 import { redactSecrets } from "../runtime/secret-scanner.ts";
 import { runAcceptance } from "./acceptance.ts";
 import { emptyMeter, type Meter, metered } from "./meter.ts";
@@ -15,7 +16,8 @@ import { runThinPath } from "./thin-path.ts";
 // scores the delivered project with the brief's hidden test. A task succeeds
 // only when it was delivered and every hidden test passes.
 
-export type System = "amora" | "baseline";
+// AMORA with every worker, AMORA with the slim roster, and one agent.
+export type System = "amora" | "slim" | "baseline";
 
 export type EvalRow = Meter & {
   brief: string;
@@ -79,7 +81,9 @@ async function attempt(
   try {
     if (system === "baseline") return await baseline(run, agency, brief, folder);
     const project = join(folder, "project");
-    return await runThinPath(agency, brief.brief, project, run.budgetUsd, run.logger);
+    const offered = system === "slim" ? rosterProfiles.slim : undefined;
+    const roster = offered ? { ...agency, offered } : agency;
+    return await runThinPath(roster, brief.brief, project, run.budgetUsd, run.logger);
   } catch (error) {
     const message = redactSecrets(error instanceof Error ? error.message : String(error));
     return { delivered: false, reason: `The run stopped: ${message}` } satisfies SystemRun;

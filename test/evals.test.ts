@@ -112,7 +112,8 @@ test("adds tax", () => {
 
 const file = (path: string, content: string) => ({ path, content });
 
-// Replies per contract for the real thin path, plus the baseline's one answer.
+// Replies per contract for the real thin path, plus the slim roster's plan and
+// engineer, and the baseline's one answer.
 const pass = { verdict: "pass", findings: [] };
 
 function replies(taxCode: string, review: unknown = pass): Record<string, unknown> {
@@ -155,16 +156,31 @@ function replies(taxCode: string, review: unknown = pass): Record<string, unknow
       files: [file("src/tax.js", taxCode), file("tests/tax.test.js", taxTests)],
       notes: [],
     },
+    slim_plan: {
+      summary: "Tax.",
+      steps: ["fe-engineer", "unit-integration-tester"].map((worker) => ({ worker, goal: worker })),
+    },
+    engineer: { summary: "Tax module.", files: [file("src/tax.js", taxCode)], notes: [] },
     review_v1: review,
   };
+}
+
+// Which scripted answer a request gets: by contract, except for the
+// baseline, the slim roster's plan, and the Frontend Engineer.
+function answerFor(request: ChatRequest): string {
+  const contract = (request.response_format?.json_schema as { name: string }).name;
+  const prompt = String(request.messages[0]?.content);
+  if (prompt.startsWith("Do it all.")) return "baseline";
+  if (prompt.startsWith("You are the Frontend Engineer")) return "engineer";
+  const offered = String(request.messages[1]?.content);
+  if (contract === "plan_v1" && !offered.includes("product-manager")) return "slim_plan";
+  return contract;
 }
 
 function fakeAgency(taxCode: string, review: unknown = pass) {
   const answers = replies(taxCode, review);
   const chat = async (request: ChatRequest): Promise<ChatResponse> => {
-    const contract = (request.response_format?.json_schema as { name: string }).name;
-    const baseline = String(request.messages[0]?.content).startsWith("Do it all.");
-    const name = baseline ? "baseline" : contract;
+    const name = answerFor(request);
     const usage = { prompt_tokens: 100, completion_tokens: 10, cost: 0.001 };
     return {
       choices: [{ message: { content: JSON.stringify(answers[name]) } }],
@@ -214,7 +230,7 @@ async function benchmark(taxCode: string) {
       out,
       budgetUsd: 1,
       logger: createLogger(() => undefined),
-      systems: ["amora", "baseline"],
+      systems: ["amora", "slim", "baseline"],
     },
     [briefOf("tax")],
   );
@@ -228,6 +244,7 @@ describe("benchmark runner, with scripted models", () => {
       rows.map(({ system, delivered, success, failed }) => [system, delivered, success, failed]),
       [
         ["amora", true, true, 0],
+        ["slim", true, true, 0],
         ["baseline", true, true, 0],
       ],
       why,
@@ -235,8 +252,10 @@ describe("benchmark runner, with scripted models", () => {
     // Planner, PM, UX, then the Slice Engineer, Logic Developer, and Tester,
     // each with its review.
     assert.equal(rows[0]?.calls, 9);
-    assert.equal(rows[1]?.calls, 1);
-    assert.equal(rows[1]?.tokensIn, 100);
+    // Planner, then the Frontend Engineer and the Tester, each with its review.
+    assert.equal(rows[1]?.calls, 5);
+    assert.equal(rows[2]?.calls, 1);
+    assert.equal(rows[2]?.tokensIn, 100);
     assert.match(readFileSync(join(rows[0]?.project ?? "", "src", "tax.js"), "utf8"), /taxExempt/);
   });
 

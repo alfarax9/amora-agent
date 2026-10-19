@@ -47,7 +47,8 @@ Options:
   --assigned               With models probe: every model in use
   --daily <usd>            With budget: the daily limit in USD
   --brief <id>             With eval: run only this brief (repeatable)
-  --system <name>          With eval: both (default), amora, or baseline
+  --system <name>          With eval: all (default: amora, slim, and baseline), both (amora and
+                           baseline), amora, slim, or baseline
   --baseline-model <id>    With eval: the baseline's model (default: the global model)
   --budget <usd>           With eval: each AMORA task's budget (default 1)
   --allow-data-collection  With privacy: let providers that keep or train on prompts serve
@@ -156,7 +157,7 @@ const options = {
   url: { type: "string" },
   daily: { type: "string" },
   brief: { type: "string", multiple: true },
-  system: { type: "string", default: "both" },
+  system: { type: "string", default: "all" },
   "baseline-model": { type: "string" },
   budget: { type: "string", default: "1" },
   family: { type: "string" },
