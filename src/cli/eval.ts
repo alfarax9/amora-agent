@@ -20,6 +20,7 @@ export type EvalOptions = {
   baselineModel: string | undefined;
   budgetUsd: number;
   runs: number;
+  tier: string;
 };
 
 const systemNames: System[] = ["amora", "slim", "baseline"];
@@ -57,9 +58,13 @@ function preflight(context: AppContext, options: EvalOptions, systems: System[] 
   return undefined;
 }
 
-function selected(context: AppContext, ids: string[]) {
-  const { items, errors } = loadSuite(join(packageRoot, "evals"));
+function selected(ids: string[], tier: string) {
+  if (!["all", "regression", "realistic"].includes(tier)) {
+    return { problem: "--tier must be all, regression, or realistic." };
+  }
+  const { items: all, errors } = loadSuite(join(packageRoot, "evals"));
   if (errors.length > 0) return { problem: errors.join("\n") };
+  const items = all.filter((brief) => tier === "all" || brief.tier === tier);
   const unknown = ids.filter((id) => !items.some((brief) => brief.id === id));
   if (unknown.length > 0) {
     return {
@@ -85,7 +90,7 @@ function writeReport(out: string, rows: EvalRow[]): void {
 export async function runEval(context: AppContext, options: EvalOptions): Promise<boolean> {
   const systems = systemsOf(options.system);
   const problem = preflight(context, options, systems);
-  const suite = selected(context, options.briefs);
+  const suite = selected(options.briefs, options.tier);
   if (problem || "problem" in suite) return (printError(problem ?? suite.problem ?? ""), false);
   const contract = context.contracts.find(({ id }) => id === "code_change.v1");
   if (!contract || !systems) return (printError("The code_change.v1 contract is missing."), false);

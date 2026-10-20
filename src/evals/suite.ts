@@ -6,19 +6,24 @@ import type { LoadResult } from "../runtime/manifests.ts";
 // The benchmark set (PRD §3, §7.6): briefs on small fixture projects, each with
 // a hidden acceptance test that neither AMORA nor the baseline sees, and a
 // reference solution that shows the test can be passed. `held_out` marks the
-// briefs nobody tuned prompts or code against.
+// briefs nobody tuned prompts or code against. The regression tier is small
+// and quick, for every change; the realistic tier is a React app with real
+// dependencies, multi-file features, vague briefs, and bugs to fix.
+
+type Tier = "regression" | "realistic";
 
 export type EvalBrief = {
   id: string;
   brief: string;
   heldOut: boolean;
+  tier: Tier;
   // The fixture project the task starts from, and the hidden test.
   project: string;
   acceptance: string;
   solution: string;
 };
 
-type BriefFile = { id: string; project: string; held_out: boolean; brief: string };
+type BriefFile = { id: string; project: string; held_out: boolean; tier?: Tier; brief: string };
 
 const validate = new Ajv({ allErrors: true }).compile<BriefFile>({
   type: "object",
@@ -26,6 +31,7 @@ const validate = new Ajv({ allErrors: true }).compile<BriefFile>({
     id: { type: "string", pattern: "^[a-z0-9]+(-[a-z0-9]+)*$" },
     project: { type: "string", pattern: "^[a-z0-9]+(-[a-z0-9]+)*$" },
     held_out: { type: "boolean" },
+    tier: { enum: ["regression", "realistic"] },
     brief: { type: "string", minLength: 20 },
   },
   required: ["id", "project", "held_out", "brief"],
@@ -64,12 +70,13 @@ export function loadSuite(root: string): LoadResult<EvalBrief> {
       errors.push(...problems.map((problem) => `evals/briefs/${folder}: ${problem}`));
       continue;
     }
-    const { id, project, held_out: heldOut, brief } = data as BriefFile;
+    const { id, project, held_out: heldOut, tier = "regression", brief } = data as BriefFile;
     const folderPath = join(root, "briefs", folder);
     items.push({
       id,
       brief,
       heldOut,
+      tier,
       project: join(root, "projects", project),
       acceptance: join(folderPath, "acceptance.test.mjs"),
       solution: join(folderPath, "solution"),
