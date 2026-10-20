@@ -1,0 +1,7 @@
+{
+  "id": "app-delete-note",
+  "project": "notes-app",
+  "held_out": true,
+  "tier": "realistic",
+  "brief": "Add a Delete button to each note in the list, named for the note it deletes (for example \"Delete Buy milk\" for screen readers). It calls DELETE /api/notes/:id through a new function in src/api/client.ts and removes the note from the list once the server agrees. If the request fails, keep the note and show an error message. Add tests for it."
+}
