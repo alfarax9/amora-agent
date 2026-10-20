@@ -32,10 +32,12 @@ jobs:
           cache-dependency-path: |
             package-lock.json
             evals/projects/notes-app/package-lock.json
+            evals/projects/react-starter/package-lock.json
       - run: npm ci
-      # The realistic benchmark tier checks its briefs against a React app with
-      # real dependencies, which are not committed.
+      # The realistic and heavy benchmark tiers check their briefs against React
+      # apps with real dependencies, which are not committed.
       - run: npm ci --prefix evals/projects/notes-app
+      - run: npm ci --prefix evals/projects/react-starter
       - run: npm run typecheck
       - run: npm run lint
       - run: npm run format:check
