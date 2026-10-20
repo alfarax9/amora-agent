@@ -7,6 +7,7 @@ import { chooseRoster } from "../runtime/roster.ts";
 import { redactSecrets } from "../runtime/secret-scanner.ts";
 import { openWorkspace } from "../runtime/workspace.ts";
 import { runAcceptance } from "./acceptance.ts";
+import { addMeter, type Attempt, bestOf } from "./best-of.ts";
 import { emptyMeter, type Meter, metered } from "./meter.ts";
 import { type Watch, watched } from "./outage.ts";
 import { runSingleAgent, type SystemRun } from "./single-agent.ts";
@@ -20,8 +21,9 @@ import { runThinPath } from "./thin-path.ts";
 // system, so the systems are still compared on the same briefs.
 
 // AMORA with every worker, AMORA with the slim roster, AMORA choosing between
-// them by weighing each brief, and one agent.
-export type System = "amora" | "slim" | "auto" | "baseline";
+// them by weighing each brief, the same twice in parallel keeping the better
+// attempt (best-of.ts), and one agent.
+export type System = "amora" | "slim" | "auto" | "best2" | "baseline";
 
 export type EvalRow = Meter & {
   brief: string;
@@ -82,6 +84,46 @@ async function baseline(run: SuiteRun, agency: Agency, brief: EvalBrief, folder:
   return runSingleAgent(single, brief.brief, join(folder, "project"), join(folder, "workspace"));
 }
 
+const stoppedBy = (error: unknown): SystemRun => {
+  const message = redactSecrets(error instanceof Error ? error.message : String(error));
+  return { delivered: false, reason: `The run stopped: ${message}` };
+};
+
+// Each system names its roster, whatever the owner's default is.
+function thinPath(
+  run: SuiteRun,
+  setting: string,
+  brief: EvalBrief,
+  folder: string,
+  agency: Agency,
+) {
+  const roster = { ...agency, roster: (text: string) => chooseRoster(setting, text) };
+  return runThinPath(roster, brief.brief, join(folder, "project"), run.budgetUsd, run.logger);
+}
+
+async function bestOfTwo(
+  run: SuiteRun,
+  brief: EvalBrief,
+  folder: string,
+  meter: Meter,
+  watch: Watch,
+) {
+  const attempts: Attempt[] = await Promise.all(
+    [1, 2].map(async (n) => {
+      const own = join(folder, `attempt-${n}`);
+      openWorkspace(brief.project, join(own, "project"));
+      const ownMeter = emptyMeter();
+      const agency = meteredAgency(run.agency, ownMeter, watch, own);
+      const result = await thinPath(run, "auto", brief, own, agency).catch(stoppedBy);
+      return { ...result, project: join(own, "project"), meter: ownMeter };
+    }),
+  );
+  for (const each of attempts) addMeter(meter, each.meter);
+  const best = bestOf(attempts);
+  const which = `attempt ${attempts.indexOf(best) + 1} of 2`;
+  return { delivered: best.delivered, reason: `${best.reason} (${which})`, project: best.project };
+}
+
 async function attempt(
   run: SuiteRun,
   system: System,
@@ -89,18 +131,14 @@ async function attempt(
   folder: string,
   meter: Meter,
   watch: Watch,
-) {
+): Promise<SystemRun & { project?: string }> {
+  if (system === "best2") return bestOfTwo(run, brief, folder, meter, watch);
   const agency = meteredAgency(run.agency, meter, watch, folder);
   try {
     if (system === "baseline") return await baseline(run, agency, brief, folder);
-    const project = join(folder, "project");
-    // Each system names its roster, whatever the owner's default is.
-    const setting = system === "amora" ? "full" : system;
-    const roster = { ...agency, roster: (text: string) => chooseRoster(setting, text) };
-    return await runThinPath(roster, brief.brief, project, run.budgetUsd, run.logger);
+    return await thinPath(run, system === "amora" ? "full" : system, brief, folder, agency);
   } catch (error) {
-    const message = redactSecrets(error instanceof Error ? error.message : String(error));
-    return { delivered: false, reason: `The run stopped: ${message}` } satisfies SystemRun;
+    return stoppedBy(error);
   }
 }
 
@@ -117,10 +155,18 @@ async function runOne(
   const meter = emptyMeter();
   const watch: Watch = { failure: undefined };
   const started = Date.now();
-  const outcome = await attempt(run, system, brief, folder, meter, watch);
+  // best2 scores the attempt it kept, in that attempt's own folder.
+  const { project: kept = project, ...outcome } = await attempt(
+    run,
+    system,
+    brief,
+    folder,
+    meter,
+    watch,
+  );
   if (!outcome.delivered && watch.failure) return { outage: watch.failure };
   const seconds = Math.round((Date.now() - started) / 1000);
-  const { passed, failed } = await runAcceptance(brief.acceptance, project);
+  const { passed, failed } = await runAcceptance(brief.acceptance, kept);
   const success = outcome.delivered && passed > 0 && failed === 0;
   return {
     brief: brief.id,
@@ -132,7 +178,7 @@ async function runOne(
     failed,
     success,
     seconds,
-    project,
+    project: kept,
     ...meter,
   };
 }

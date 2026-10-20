@@ -61,7 +61,9 @@ Options:
   --daily <usd>            With budget: the daily limit in USD
   --brief <id>             With eval: run only this brief (repeatable)
   --system <names>         With eval: all (default: amora, slim, and baseline), both (amora and
-                           baseline), or a comma-separated list of amora, slim, auto, and baseline
+                           baseline), or a comma-separated list of amora, slim, auto, best2
+                           (auto twice in parallel, keeping the attempt whose gates passed), and
+                           baseline
   --baseline-model <id>    With eval: the baseline's model (default: the global model)
   --budget <usd>           With eval or run: each AMORA task's budget (default 1)
   --approve                With run: approve the plan and run every step
