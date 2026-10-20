@@ -1,6 +1,7 @@
 import { type Agency, perform, taskWorkspace } from "./agency.ts";
 import { resumeTask, wakeLater } from "./resume.ts";
 import { ship } from "./ship.ts";
+import { type FileChange, requestChanges, type ReviewNote, taskChanges } from "./changes.ts";
 import {
   dailyLimit,
   describe,
@@ -35,7 +36,11 @@ import {
 export { Refusal };
 
 export type Decision =
-  { action: "retry"; budgetUsd?: number } | { action: "complete" } | { action: "cancel" };
+  | { action: "retry"; budgetUsd?: number }
+  | { action: "complete" }
+  | { action: "cancel" }
+  // Notes from reviewing the changes; the work goes back to the step that wrote them.
+  | { action: "changes"; notes: ReviewNote[] };
 
 // Every call checks the request and answers at once; the work it starts runs
 // in the background, and `settled` waits for a task's work to finish.
@@ -45,6 +50,8 @@ export type Orchestrator = {
   revise(id: string, feedback: string): Task;
   decide(id: string, decision: Decision): Task;
   cancel(id: string): Task;
+  // What completing the task would change in the project, file by file.
+  changes(id: string): FileChange[];
   pauseAll(): void;
   resumeAll(): void;
   recoverInterrupted(): void;
@@ -213,6 +220,7 @@ function decide(desk: Desk, id: string, decision: Decision): Task {
   }
   if (decision.action === "retry") return retry(desk, task, decision.budgetUsd);
   if (decision.action === "complete") return complete(desk, task);
+  if (decision.action === "changes") return requestChanges(desk, task, decision.notes);
   say(desk, id, "owner", "Cancel the task.");
   return move(desk, task, "cancelled");
 }
@@ -258,6 +266,7 @@ export function createOrchestrator(
     approve: (id) => approve(desk, id),
     revise: (id, feedback) => revise(desk, id, feedback),
     decide: (id, decision) => decide(desk, id, decision),
+    changes: (id) => taskChanges(agency, load(desk, id)),
     cancel(id) {
       const task = load(desk, id);
       if (isFinished(task.status)) throw new Refusal("This task has already finished.");
