@@ -1,0 +1,6 @@
+{
+  "id": "rename-note",
+  "project": "notes-api",
+  "held_out": true,
+  "brief": "Add PUT /notes/:id to handle in src/notes.js with a body of { title }: it renames that note and answers 200 with it; a missing or blank title answers 400 with { error: \"Title is required\" }; an unknown id answers 404 with { error: \"Not found\" }. Add tests for it."
+}
