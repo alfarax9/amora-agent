@@ -123,7 +123,18 @@ export function deliverToBranch(
 
 type BranchRow = { project: string; branch: string; commit_id: string };
 
-function branchOf(storage: Storage, taskId: string): BranchRow | undefined {
+// Branches of completed tasks that are not undone yet, newest first.
+export function undoableBranches(
+  storage: Storage,
+): { taskId: string; branch: string; at: string }[] {
+  return storage.database
+    .prepare(
+      "SELECT task_id AS taskId, branch, delivered_at AS at FROM branch_deliveries WHERE undone_at IS NULL ORDER BY delivered_at DESC",
+    )
+    .all() as { taskId: string; branch: string; at: string }[];
+}
+
+export function branchOf(storage: Storage, taskId: string): BranchRow | undefined {
   return storage.database
     .prepare(
       "SELECT project, branch, commit_id FROM branch_deliveries WHERE task_id = ? AND undone_at IS NULL",

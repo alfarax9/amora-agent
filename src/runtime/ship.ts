@@ -6,11 +6,12 @@ import type { Task } from "./task-store.ts";
 // What Complete does with the files every passed step wrote. In a git project
 // they become a commit on a branch of their own and the working tree is left
 // alone (git-delivery.ts); otherwise they are copied in, with backups of the
-// files they replace (deliveries.ts). Returns what to tell the owner.
+// files they replace (deliveries.ts). The owner can choose with
+// `amora delivery files`. Returns what to tell the owner.
 
-type DeliveryMode = "branch" | "files";
+export type DeliveryMode = "branch" | "files";
 
-function deliveryMode(agency: Pick<Agency, "storage">): DeliveryMode {
+export function deliveryMode(agency: Pick<Agency, "storage">): DeliveryMode {
   return agency.storage.getSetting<{ mode: DeliveryMode }>("delivery")?.mode ?? "branch";
 }
 

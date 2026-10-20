@@ -4,10 +4,11 @@ import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { describe, it } from "node:test";
+import { fileURLToPath } from "node:url";
 import { deliverToBranch, undoBranch } from "../src/runtime/git-delivery.ts";
 import { ship } from "../src/runtime/ship.ts";
 import { openStorage } from "../src/runtime/storage.ts";
-import { createTask } from "../src/runtime/task-store.ts";
+import { createTask, listMessages } from "../src/runtime/task-store.ts";
 import { setup } from "./agency.ts";
 
 // No identity from the machine's own git config, so a repo that names nobody
@@ -164,5 +165,46 @@ describe("Complete's delivery", () => {
     writeFileSync(locked, "");
     assert.throws(() => deliverToBranch(storage, shipment, ["src/page.js"]));
     assert.equal(undoBranch(storage, task.id), "nothing");
+  });
+});
+
+describe("CLI: amora delivery and amora undo with a branch", () => {
+  const cli = fileURLToPath(new URL("../src/cli/main.ts", import.meta.url));
+  const run = (home: string, args: string[]) => {
+    try {
+      const out = execFileSync("node", [cli, ...args], {
+        env: { ...process.env, AMORA_HOME: home },
+        encoding: "utf8",
+        stdio: "pipe",
+      });
+      return { code: 0, out };
+    } catch (error) {
+      const failed = error as { status: number; stdout: string; stderr: string };
+      return { code: failed.status, out: `${failed.stdout}${failed.stderr}` };
+    }
+  };
+
+  it("shows and sets the delivery, and undoes a branch delivery", () => {
+    const home = mkdtempSync(join(tmpdir(), "amora-home-"));
+    assert.match(run(home, ["delivery"]).out, /a branch of their own/);
+    assert.match(run(home, ["delivery", "files"]).out, /copied into the project/);
+    assert.equal(run(home, ["delivery", "nope"]).code, 1);
+    const storage = openStorage(join(home, "amora.db"));
+    const project = mkdtempSync(join(tmpdir(), "amora-repo-"));
+    git(project, "init", "--quiet");
+    write(project, { "a.txt": "a" });
+    git(project, "add", ".");
+    git(project, "-c", "user.name=O", "-c", "user.email=o@x", "commit", "-qm", "start");
+    const workspace = mkdtempSync(join(tmpdir(), "amora-workspace-"));
+    write(workspace, { "b.txt": "b" });
+    const task = createTask(storage, "Add b.", 1, new Date(), project);
+    const shipment = { taskId: task.id, workspace, project, brief: task.brief };
+    const branch = deliverToBranch(storage, shipment, ["b.txt"])?.branch ?? "";
+    assert.match(run(home, ["undo"]).out, new RegExp(`${task.id.slice(0, 8)} .* branch ${branch}`));
+    const undone = run(home, ["undo", task.id.slice(0, 8)]);
+    assert.equal(undone.code, 0, undone.out);
+    assert.match(undone.out, /deleted the branch/);
+    assert.equal(git(project, "branch", "--list", branch), "");
+    assert.match(listMessages(storage, task.id).at(-1)?.text ?? "", /^Undid the delivery: deleted/);
   });
 });

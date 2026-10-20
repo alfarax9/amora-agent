@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
+import { type DeliveryMode, deliveryMode } from "../runtime/ship.ts";
 import type { AppContext } from "./context.ts";
 import { print, printError } from "./output.ts";
 
@@ -42,5 +43,24 @@ export function runProject(context: AppContext, path: string | undefined): boole
   if (missing.length > 0) {
     print(`It has no ${missing.join(", ")} script, so the gates that need them will ask you.`);
   }
+  return true;
+}
+
+const modes: Record<DeliveryMode, string> = {
+  branch:
+    "In a git project, a completed task's files become a commit on a branch of their own (amora/<task>); your working tree stays as it is. Elsewhere they are copied in, with backups.",
+  files:
+    "A completed task's files are copied into the project, with backups of the files they replace.",
+};
+
+// `amora delivery [branch|files]`: how a completed task reaches the project.
+export function runDelivery(context: AppContext, mode: string | undefined): boolean {
+  if (mode !== undefined) {
+    if (mode !== "branch" && mode !== "files") {
+      return (printError(`There is no ${mode} delivery. Choose branch or files.`), false);
+    }
+    context.storage.setSetting("delivery", { mode });
+  }
+  print(modes[deliveryMode(context)]);
   return true;
 }

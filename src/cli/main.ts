@@ -14,7 +14,7 @@ import { probeAssigned, probeModel } from "./probe.ts";
 import { setPrice } from "./prices.ts";
 import { runPrivacy } from "./privacy.ts";
 import { runRoster } from "./profile.ts";
-import { runProject } from "./project.ts";
+import { runDelivery, runProject } from "./project.ts";
 import { print, printError } from "./output.ts";
 import { draftEntry } from "./registry.ts";
 import { startAmora } from "./start.ts";
@@ -29,8 +29,10 @@ Commands:
   project [path]                  Show or set the project folder new tasks work on
   roster [auto|slim|full]         Show or choose the workers new tasks plan with (default: auto,
                                   which gives heavy briefs every worker and light ones the slim roster)
-  undo [task]                     List deliveries that can be undone, or put the project back as it
-                                  was before a task's delivery (--force when files changed since)
+  delivery [branch|files]         Show or choose how a completed task reaches the project: a branch
+                                  of its own in a git project (default), or files copied in
+  undo [task]                     List deliveries that can be undone, or take one back: delete its
+                                  branch, or restore the files (--force when files changed since)
   privacy                         Show whether OpenRouter providers may keep or train on prompts
   eval                            Run the benchmark set through AMORA and one strong agent, and
                                   report success and cost per successful task (calls your models)
@@ -139,6 +141,7 @@ const commands: Record<string, Command> = {
   models: (context, args, flags) => runModels(context, args, flags),
   project: async (context, args) => (args.length <= 1 ? runProject(context, args[0]) : undefined),
   roster: async (context, args) => (args.length <= 1 ? runRoster(context, args[0]) : undefined),
+  delivery: async (context, args) => (args.length <= 1 ? runDelivery(context, args[0]) : undefined),
   undo: async (context, args, flags) =>
     args.length <= 1 ? runUndo(context, args[0], flags.force) : undefined,
   eval: async (context, args, flags) => {
