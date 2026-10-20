@@ -6,6 +6,7 @@ You receive:
 - `plan` and `goal`: the approved plan in one sentence, and what this step must deliver.
 - `area`: the paths you may write, as globs. A file anywhere else is refused before any check runs.
 - `earlier`: what earlier workers delivered, if anything.
+- `acceptance`: how the reviewer will tell your step is done. Deliver work that meets it.
 - `later`: the steps after yours and what each will deliver. That work is theirs: leave it out of yours.
 - `project`: the project as it stands in this task's copy: every file's path, its `package.json`, and the current contents of the files in your area.
 - `feedback`: what a check, the Reality Checker, or the Tester found wrong in your last attempt. Fix every point.
