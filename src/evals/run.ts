@@ -56,11 +56,12 @@ export type SuiteRun = {
 export type SuiteResult = { rows: EvalRow[]; stopped?: string };
 
 // The same agency, with every model call counted and watched for provider
-// failures, and the run's own folder for task workspaces.
-function meteredAgency(agency: Agency, meter: Meter, watch: Watch, workspaces: string): Agency {
+// failures, and the run's own folders for task workspaces and backups.
+function meteredAgency(agency: Agency, meter: Meter, watch: Watch, folder: string): Agency {
   return {
     ...agency,
-    workspaces,
+    workspaces: join(folder, "workspaces"),
+    backups: join(folder, "backups"),
     connect: async (model) => {
       const connected = await agency.connect(model);
       return { ...connected, chat: watched(metered(connected.chat, meter), watch) };
@@ -89,7 +90,7 @@ async function attempt(
   meter: Meter,
   watch: Watch,
 ) {
-  const agency = meteredAgency(run.agency, meter, watch, join(folder, "workspaces"));
+  const agency = meteredAgency(run.agency, meter, watch, folder);
   try {
     if (system === "baseline") return await baseline(run, agency, brief, folder);
     const project = join(folder, "project");

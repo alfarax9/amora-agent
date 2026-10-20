@@ -156,6 +156,7 @@ export function fakeAgency(taxCode: string, review: unknown = pass) {
     families: (model) => [model],
     connect: async (model) => ({ chat, name: model }),
     workspaces: mkdtempSync(join(tmpdir(), "amora-workspaces-")),
+    backups: mkdtempSync(join(tmpdir(), "amora-backups-")),
     price: async () => ({ inputPerMillion: 0, outputPerMillion: 0 }),
     retryDelaysMs: [0, 0],
   };

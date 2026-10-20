@@ -127,6 +127,7 @@ export function setup(script: Script, options: Options = {}) {
     families: (model) => (families[model] ? [families[model]] : undefined),
     connect: async (model) => ({ chat, name: model }),
     workspaces: mkdtempSync(join(tmpdir(), "amora-workspaces-")),
+    backups: mkdtempSync(join(tmpdir(), "amora-backups-")),
     retryDelaysMs: [0, 0],
     price: async (model) =>
       model.startsWith("fake/")

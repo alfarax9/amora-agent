@@ -182,6 +182,7 @@ function agencyFor(storage: ReturnType<typeof openStorage>, bug: boolean) {
     families: (model) => [model === "fake/beta" ? "beta" : "alpha"],
     connect: async (model) => ({ chat, name: model }),
     workspaces: mkdtempSync(join(tmpdir(), "amora-workspaces-")),
+    backups: mkdtempSync(join(tmpdir(), "amora-backups-")),
     price: async () => ({ inputPerMillion: 0, outputPerMillion: 0 }),
   };
   return { agency, requests };
@@ -255,7 +256,12 @@ describe("thin path, end to end on a fixture project", () => {
     const written = ["src/plans.js", "src/price.js", "src/pricing.js", "tests/pricing.test.js"];
     for (const path of written) assert.ok(existsSync(join(run.project, path)), path);
     const report = listMessages(run.storage, run.id).at(-2)?.text ?? "";
-    assert.match(report, new RegExp(`^Wrote 4 files to .*: ${written.join(", ")}$`));
+    assert.match(
+      report,
+      new RegExp(
+        `^Wrote 4 files to .*: ${written.join(", ")}\\. .*amora undo ${run.id.slice(0, 8)}$`,
+      ),
+    );
     assert.match(npmTest(run.project), /pass 3/);
   });
 

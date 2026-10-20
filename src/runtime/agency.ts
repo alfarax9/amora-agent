@@ -30,6 +30,8 @@ export type Agency = {
   connect(model: string): Promise<{ chat: Chat; name: string }>;
   // Where each task's copy of its project lives.
   workspaces: string;
+  // Where a delivery keeps the owner's files it replaced, so it can be undone.
+  backups: string;
   // A model's price per million tokens, or nothing when nobody knows it.
   price(model: string): Promise<Price | undefined>;
   // Waits before retrying a busy provider; tests pass zeros.

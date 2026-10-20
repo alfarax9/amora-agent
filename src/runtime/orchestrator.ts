@@ -1,4 +1,5 @@
 import { type Agency, perform, taskWorkspace } from "./agency.ts";
+import { deliverTracked } from "./deliveries.ts";
 import {
   dailyLimit,
   describe,
@@ -25,7 +26,6 @@ import {
   type Plan,
   type Task,
 } from "./task-store.ts";
-import { deliver } from "./workspace.ts";
 
 // The task lifecycle the owner drives (PRD §4): a brief becomes a plan, the
 // owner approves it, workers run it, and every stop waits for the owner's
@@ -198,13 +198,15 @@ function complete(desk: Desk, task: Task): Task {
     const written = listHandoffs(desk.agency.storage, task.id)
       .filter(({ gate }) => gate === "passed")
       .flatMap(({ artifacts }) => artifacts);
-    const delivered = deliver(workspace, task.project, written);
+    const { backups } = desk.agency;
+    const shipment = { taskId: task.id, workspace, project: task.project, backups };
+    const delivered = deliverTracked(desk.agency.storage, shipment, written);
     if (delivered.length > 0) {
       say(
         desk,
         task.id,
         "agency",
-        `Wrote ${delivered.length} files to ${task.project}: ${delivered.join(", ")}`,
+        `Wrote ${delivered.length} files to ${task.project}: ${delivered.join(", ")}. Replaced files were backed up; undo with: amora undo ${task.id.slice(0, 8)}`,
       );
     }
   }

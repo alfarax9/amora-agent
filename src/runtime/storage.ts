@@ -73,6 +73,19 @@ const migrations = [
   `ALTER TABLE tasks ADD COLUMN project TEXT`,
   // How often a test run sent the task's work back to an earlier step.
   `ALTER TABLE tasks ADD COLUMN returns INTEGER NOT NULL DEFAULT 0`,
+  // Every file a completed task wrote into the owner's project, with the backup
+  // of the file it replaced, so the delivery can be undone (deliveries.ts).
+  `CREATE TABLE deliveries (
+     id INTEGER PRIMARY KEY AUTOINCREMENT,
+     task_id TEXT NOT NULL REFERENCES tasks (id),
+     project TEXT NOT NULL,
+     path TEXT NOT NULL,
+     before_hash TEXT,
+     after_hash TEXT NOT NULL,
+     backup TEXT,
+     delivered_at TEXT NOT NULL,
+     undone_at TEXT
+   )`,
 ];
 
 // S6: nothing is written to the database before it has been scanned. Secrets
