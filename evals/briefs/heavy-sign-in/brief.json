@@ -1,0 +1,7 @@
+{
+  "id": "heavy-sign-in",
+  "project": "notes-app",
+  "held_out": true,
+  "tier": "heavy",
+  "brief": "Add sign-in to the notes app, using the API. Before anything else, show a new sign-in screen with fields labelled \"Email\" and \"Password\" and a \"Sign in\" button. Signing in sends POST /api/session with { email, password }. If the server answers 401, show \"Wrong email or password\". If it answers with { token }, show the notes list and send that token as an \"Authorization: Bearer <token>\" header when loading the notes. Keep the token in memory only, never in localStorage, sessionStorage, or cookies. Add a \"Sign out\" button that goes back to the sign-in screen. Add tests."
+}

@@ -9,14 +9,14 @@ import { loadSuite } from "../src/evals/suite.ts";
 import { benchmark, bothWays, root, suite, taxSolution, taxWrong } from "./eval-fixture.ts";
 
 describe("benchmark set", () => {
-  it("ships forty-two briefs on five projects, in three tiers, most of them held out", () => {
+  it("ships forty-three briefs on five projects, in three tiers, most of them held out", () => {
     assert.deepEqual(suite.errors, []);
-    assert.equal(suite.items.length, 42);
+    assert.equal(suite.items.length, 43);
     assert.equal(new Set(suite.items.map(({ project }) => project)).size, 5);
-    assert.equal(suite.items.filter(({ heldOut }) => heldOut).length, 40);
+    assert.equal(suite.items.filter(({ heldOut }) => heldOut).length, 41);
     const tiers = suite.items.map(({ tier }) => tier);
     assert.equal(tiers.filter((tier) => tier === "realistic").length, 10);
-    assert.equal(tiers.filter((tier) => tier === "heavy").length, 2);
+    assert.equal(tiers.filter((tier) => tier === "heavy").length, 3);
   });
 
   it("has regression tests that fail on the untouched project and pass with the reference solution", async () => {
