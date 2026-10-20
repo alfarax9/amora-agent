@@ -1,4 +1,4 @@
-import { cpSync, mkdirSync, mkdtempSync, readFileSync } from "node:fs";
+import { cpSync, mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -162,42 +162,29 @@ export function fakeAgency(taxCode: string, review: unknown = pass) {
   return agency;
 }
 
-export async function benchmark(taxCode: string) {
-  const contract = contracts.find(({ id }) => id === "code_change.v1");
-  if (!contract) throw new Error("code_change.v1 is missing");
-  const out = mkdtempSync(join(tmpdir(), "amora-evals-out-"));
-  mkdirSync(out, { recursive: true });
-  return runSuite(
-    {
-      agency: fakeAgency(taxCode),
-      baselineModel: "fake/alpha",
-      baselinePrompt: "Do it all.",
-      contract,
-      out,
-      budgetUsd: 1,
-      logger: createLogger(() => undefined),
-      systems: ["amora", "slim", "baseline"],
-      runs: 1,
-    },
-    [briefOf("tax")],
-  );
+export function benchmark(taxCode: string) {
+  return runWith(fakeAgency(taxCode), ["amora", "slim", "baseline"]);
 }
 
-// Runs one brief through the given systems with an agency the test built.
-export async function runWith(agency: Agency, systems: System[], briefId = "tax", runs = 1) {
+// Runs briefs through the given systems with an agency the test built, and
+// returns the whole result, a stop included.
+export function runSuiteWith(agency: Agency, systems: System[], briefIds = ["tax"], runs = 1) {
   const contract = contracts.find(({ id }) => id === "code_change.v1");
   if (!contract) throw new Error("code_change.v1 is missing");
-  const out = mkdtempSync(join(tmpdir(), "amora-evals-out-"));
   const run = {
     agency,
     baselineModel: "fake/alpha",
     baselinePrompt: "Do it all.",
     contract,
-    out,
+    out: mkdtempSync(join(tmpdir(), "amora-evals-out-")),
     budgetUsd: 1,
     logger: createLogger(() => undefined),
     systems,
     runs,
   };
-  return runSuite(run, [briefOf(briefId)]);
+  return runSuite(run, briefIds.map(briefOf));
+}
+
+export async function runWith(agency: Agency, systems: System[], briefId = "tax", runs = 1) {
+  return (await runSuiteWith(agency, systems, [briefId], runs)).rows;
 }

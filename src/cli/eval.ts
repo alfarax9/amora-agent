@@ -74,10 +74,12 @@ function selected(ids: string[], tier: string) {
   return { briefs: ids.length === 0 ? items : items.filter(({ id }) => ids.includes(id)) };
 }
 
-function writeReport(out: string, rows: EvalRow[]): void {
+function writeReport(out: string, rows: EvalRow[], stopped: string | undefined): void {
   const summaries = summarize(rows);
-  writeFileSync(join(out, "report.json"), `${JSON.stringify({ summaries, rows }, null, 2)}\n`);
-  writeFileSync(join(out, "report.md"), markdownReport(rows, summaries, "AMORA benchmark"));
+  const report = { summaries, rows, ...(stopped ? { stopped } : {}) };
+  writeFileSync(join(out, "report.json"), `${JSON.stringify(report, null, 2)}\n`);
+  const note = stopped ? `\nStopped early, not scored: ${stopped}\n` : "";
+  writeFileSync(join(out, "report.md"), markdownReport(rows, summaries, "AMORA benchmark") + note);
   for (const s of summaries) {
     const perSuccess = s.costPerSuccessUsd === null ? "n/a" : `$${s.costPerSuccessUsd.toFixed(4)}`;
     print(
@@ -85,6 +87,11 @@ function writeReport(out: string, rows: EvalRow[]): void {
     );
   }
   print(`Report: ${join(out, "report.md")}`);
+  if (stopped) {
+    printError(
+      `Stopped: a provider could not serve ${stopped}. That brief is not scored for any system; the report covers the briefs finished before it. Run again once the provider is back.`,
+    );
+  }
 }
 
 export async function runEval(context: AppContext, options: EvalOptions): Promise<boolean> {
@@ -100,7 +107,7 @@ export async function runEval(context: AppContext, options: EvalOptions): Promis
     `Running ${suite.briefs.length} briefs through ${systems.join(" and ")}, ${options.runs === 1 ? "once" : `${options.runs} times`}. This calls your models.`,
   );
   const agency: Agency = agencyFor(context);
-  const rows = await runSuite(
+  const { rows, stopped } = await runSuite(
     {
       agency,
       baselineModel: options.baselineModel ?? context.slots.global ?? "",
@@ -118,6 +125,6 @@ export async function runEval(context: AppContext, options: EvalOptions): Promis
     },
     suite.briefs,
   );
-  writeReport(out, rows);
-  return true;
+  writeReport(out, rows, stopped);
+  return !stopped;
 }

@@ -8,13 +8,16 @@ import { redactSecrets } from "../runtime/secret-scanner.ts";
 import { openWorkspace } from "../runtime/workspace.ts";
 import { runAcceptance } from "./acceptance.ts";
 import { emptyMeter, type Meter, metered } from "./meter.ts";
+import { type Watch, watched } from "./outage.ts";
 import { runSingleAgent, type SystemRun } from "./single-agent.ts";
 import type { EvalBrief } from "./suite.ts";
 import { runThinPath } from "./thin-path.ts";
 
 // Runs each brief through each system on its own copy of the project, then
 // scores the delivered project with the brief's hidden test. A task succeeds
-// only when it was delivered and every hidden test passes.
+// only when it was delivered and every hidden test passes. A run that ends on
+// a provider failure stops the benchmark, and that brief is scored for no
+// system, so the systems are still compared on the same briefs.
 
 // AMORA with every worker, AMORA with the slim roster, and one agent.
 export type System = "amora" | "slim" | "baseline";
@@ -47,15 +50,19 @@ export type SuiteRun = {
   onRow?: (row: EvalRow) => void;
 };
 
-// The same agency, with every model call counted and the run's own folder for
-// task workspaces.
-function meteredAgency(agency: Agency, meter: Meter, workspaces: string): Agency {
+// The rows of the briefs every system finished, and where the run stopped
+// when a provider failed.
+export type SuiteResult = { rows: EvalRow[]; stopped?: string };
+
+// The same agency, with every model call counted and watched for provider
+// failures, and the run's own folder for task workspaces.
+function meteredAgency(agency: Agency, meter: Meter, watch: Watch, workspaces: string): Agency {
   return {
     ...agency,
     workspaces,
     connect: async (model) => {
       const connected = await agency.connect(model);
-      return { ...connected, chat: metered(connected.chat, meter) };
+      return { ...connected, chat: watched(metered(connected.chat, meter), watch) };
     },
   };
 }
@@ -79,8 +86,9 @@ async function attempt(
   brief: EvalBrief,
   folder: string,
   meter: Meter,
+  watch: Watch,
 ) {
-  const agency = meteredAgency(run.agency, meter, join(folder, "workspaces"));
+  const agency = meteredAgency(run.agency, meter, watch, join(folder, "workspaces"));
   try {
     if (system === "baseline") return await baseline(run, agency, brief, folder);
     const project = join(folder, "project");
@@ -99,14 +107,16 @@ async function runOne(
   round: number,
   system: System,
   brief: EvalBrief,
-): Promise<EvalRow> {
+): Promise<EvalRow | { outage: string }> {
   const folder = join(run.out, `run-${round}`, system, brief.id);
   const project = join(folder, "project");
   // Copied like a task's workspace: the fixture's installed packages are linked.
   openWorkspace(brief.project, project);
   const meter = emptyMeter();
+  const watch: Watch = { failure: undefined };
   const started = Date.now();
-  const outcome = await attempt(run, system, brief, folder, meter);
+  const outcome = await attempt(run, system, brief, folder, meter, watch);
+  if (!outcome.delivered && watch.failure) return { outage: watch.failure };
   const seconds = Math.round((Date.now() - started) / 1000);
   const { passed, failed } = await runAcceptance(brief.acceptance, project);
   const success = outcome.delivered && passed > 0 && failed === 0;
@@ -125,18 +135,23 @@ async function runOne(
   };
 }
 
-export async function runSuite(run: SuiteRun, briefs: EvalBrief[]): Promise<EvalRow[]> {
+export async function runSuite(run: SuiteRun, briefs: EvalBrief[]): Promise<SuiteResult> {
   const rows: EvalRow[] = [];
   // Whole rounds one after another, so a run stopped early still compares the
   // systems on the same briefs.
   for (let round = 1; round <= run.runs; round += 1) {
     for (const brief of briefs) {
+      const finished: EvalRow[] = [];
       for (const system of run.systems) {
-        const row = await runOne(run, round, system, brief);
-        rows.push(row);
-        run.onRow?.(row);
+        const result = await runOne(run, round, system, brief);
+        if ("outage" in result) {
+          return { rows, stopped: `${brief.id} (${system}, run ${round}): ${result.outage}` };
+        }
+        finished.push(result);
       }
+      rows.push(...finished);
+      for (const row of finished) run.onRow?.(row);
     }
   }
-  return rows;
+  return { rows };
 }
