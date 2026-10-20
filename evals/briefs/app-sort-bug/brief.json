@@ -1,0 +1,7 @@
+{
+  "id": "app-sort-bug",
+  "project": "notes-app",
+  "held_out": true,
+  "tier": "realistic",
+  "brief": "The notes list is supposed to show the newest note first, but it shows the oldest first. Fix it, and add a test so it does not come back."
+}
