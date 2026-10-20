@@ -79,7 +79,8 @@ describe("amora run, without the dashboard", () => {
   });
 
   it("answers 3 with the time when a provider is out of quota", async () => {
-    const quota = Array.from({ length: 3 }, () => new GatewayError(429, "Rate limit", 60_000));
+    // A short Retry-After: the runner honours it between retries.
+    const quota = Array.from({ length: 3 }, () => new GatewayError(429, "Rate limit", 30));
     const paused = await run(
       { plan_v1: [plan(["builder"])], note_v1: [...quota, { text: "v" }], review_v1: [passing] },
       { approve: true, dailyUsd: 5 },
