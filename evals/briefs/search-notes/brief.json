@@ -1,0 +1,6 @@
+{
+  "id": "search-notes",
+  "project": "notes-api",
+  "held_out": true,
+  "brief": "Make GET /notes in src/notes.js accept a q query: GET /notes?q=<text> returns only the notes whose title contains that text, ignoring case. The query string is part of request.path and may be URL-encoded. Add tests for it."
+}
