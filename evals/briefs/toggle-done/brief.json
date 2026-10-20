@@ -1,0 +1,6 @@
+{
+  "id": "toggle-done",
+  "project": "notes-api",
+  "held_out": true,
+  "brief": "Add PATCH /notes/:id/done to handle in src/notes.js: it flips that note's done flag and answers 200 with the updated note, or 404 with { error: \"Not found\" } when no note has that id. Add tests for it."
+}
