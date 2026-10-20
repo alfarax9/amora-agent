@@ -43,7 +43,7 @@ function preflight(context: AppContext, options: EvalOptions, systems: System[] 
     return "Name the baseline's model with --baseline-model, or set a global model.";
   }
   const daily = context.storage.getSetting<{ dailyUsd: number }>("budgets")?.dailyUsd;
-  if (systems.includes("amora") && daily === undefined) {
+  if (systems.some((system) => system !== "baseline") && daily === undefined) {
     return "AMORA's tasks need a daily limit first: amora budget --daily <usd>";
   }
   return undefined;
