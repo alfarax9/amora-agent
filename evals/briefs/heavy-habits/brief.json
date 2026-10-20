@@ -1,0 +1,7 @@
+{
+  "id": "heavy-habits",
+  "project": "react-starter",
+  "held_out": true,
+  "tier": "heavy",
+  "brief": "Build me a small habit tracker app from scratch in this project. It loads the user's habits from GET /api/habits, which returns [{ id, name, streak }], and shows each habit's name with its streak (for example \"Read: 3 days\"). Users add a habit with a field labelled \"Habit name\" and an \"Add habit\" button: a blank name shows \"Name is required\" and sends nothing; otherwise it sends POST /api/habits with { name } and shows the habit the server returns. Each habit has a \"Done today\" button, named for its habit for screen readers (for example \"Done today: Read\"), that sends POST /api/habits/:id/check and shows the habit the server returns with its new streak. Show a loading message while habits load and an error message if they cannot be loaded. Add tests."
+}

@@ -46,10 +46,12 @@ describe("weighing a brief", () => {
     assert.equal(weighBrief(`${list}\n${long}`).heavy, true);
   });
 
-  // The benchmark has no heavy brief yet, so there the weighed roster is the
-  // slim one, and the slim results stand for it.
-  it("weighs every benchmark brief as light", () => {
-    const heavy = suite.items.filter((brief) => weighBrief(brief.brief).heavy).map(({ id }) => id);
-    assert.deepEqual(heavy, []);
+  // So on the benchmark the weighed roster is the slim one for the regression
+  // and realistic tiers, and the full one for the heavy tier.
+  it("weighs exactly the heavy tier's briefs as heavy", () => {
+    const weighed = suite.items.filter((brief) => weighBrief(brief.brief).heavy);
+    const heavyTier = suite.items.filter(({ tier }) => tier === "heavy");
+    assert.deepEqual(weighed, heavyTier);
+    assert.equal(heavyTier.length, 1);
   });
 });
