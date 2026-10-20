@@ -1,0 +1,6 @@
+{
+  "id": "get-note",
+  "project": "notes-api",
+  "held_out": true,
+  "brief": "Add GET /notes/:id to handle in src/notes.js: it answers 200 with that note, or 404 with { error: \"Not found\" } when no note has that id. Add tests for it."
+}
