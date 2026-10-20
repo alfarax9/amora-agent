@@ -56,8 +56,9 @@ Options:
   --baseline-model <id>    With eval: the baseline's model (default: the global model)
   --budget <usd>           With eval: each AMORA task's budget (default 1)
   --runs <n>               With eval: run every brief n times per system, 1 to 10 (default 1)
-  --tier <name>            With eval: all (default), regression (small and quick), or realistic
-                           (a React app with real dependencies)
+  --tier <name>            With eval: all (default), regression (small and quick), realistic
+                           (a React app with real dependencies), or heavy (a product from
+                           scratch and new screens with an API)
   --allow-data-collection  With privacy: let providers that keep or train on prompts serve
                            tasks in this AMORA home; --deny-data-collection turns it off
   --url <url>              With connect omniroute: its API address (default http://localhost:20128/v1)

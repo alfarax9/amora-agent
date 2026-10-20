@@ -8,9 +8,11 @@ import type { LoadResult } from "../runtime/manifests.ts";
 // reference solution that shows the test can be passed. `held_out` marks the
 // briefs nobody tuned prompts or code against. The regression tier is small
 // and quick, for every change; the realistic tier is a React app with real
-// dependencies, multi-file features, vague briefs, and bugs to fix.
+// dependencies, multi-file features, vague briefs, and bugs to fix; the heavy
+// tier is what the weighed roster sends to the specialists: a small product
+// from scratch, and new screens backed by an API.
 
-type Tier = "regression" | "realistic";
+type Tier = "regression" | "realistic" | "heavy";
 
 export type EvalBrief = {
   id: string;
@@ -31,7 +33,7 @@ const validate = new Ajv({ allErrors: true }).compile<BriefFile>({
     id: { type: "string", pattern: "^[a-z0-9]+(-[a-z0-9]+)*$" },
     project: { type: "string", pattern: "^[a-z0-9]+(-[a-z0-9]+)*$" },
     held_out: { type: "boolean" },
-    tier: { enum: ["regression", "realistic"] },
+    tier: { enum: ["regression", "realistic", "heavy"] },
     brief: { type: "string", minLength: 20 },
   },
   required: ["id", "project", "held_out", "brief"],

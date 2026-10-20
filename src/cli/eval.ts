@@ -59,8 +59,8 @@ function preflight(context: AppContext, options: EvalOptions, systems: System[] 
 }
 
 function selected(ids: string[], tier: string) {
-  if (!["all", "regression", "realistic"].includes(tier)) {
-    return { problem: "--tier must be all, regression, or realistic." };
+  if (!["all", "regression", "realistic", "heavy"].includes(tier)) {
+    return { problem: "--tier must be all, regression, realistic, or heavy." };
   }
   const { items: all, errors } = loadSuite(join(packageRoot, "evals"));
   if (errors.length > 0) return { problem: errors.join("\n") };
