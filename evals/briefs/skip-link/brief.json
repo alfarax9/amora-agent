@@ -1,0 +1,6 @@
+{
+  "id": "skip-link",
+  "project": "landing-page",
+  "held_out": true,
+  "brief": "Add a \"Skip to content\" link as the very first element of the page rendered by src/page.js, pointing to #content, and give the main element the id \"content\". Add tests for it."
+}
