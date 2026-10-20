@@ -1,0 +1,6 @@
+{
+  "id": "note-title",
+  "project": "notes-api",
+  "held_out": true,
+  "brief": "Make POST /notes in src/notes.js refuse a missing or blank title with status 400 and { error: \"Title is required\" }, and trim the title before storing it. Add tests for it."
+}
