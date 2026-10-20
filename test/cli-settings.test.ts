@@ -108,7 +108,7 @@ describe("CLI: budget and model families", () => {
     assert.equal(unknown.code, 1);
     assert.match(
       unknown.out,
-      /No brief is named nope\. Briefs: app-add-note, app-delete-note, app-search/,
+      /No brief is named nope\. Briefs: app-add-note, app-date-bug, app-delete-note/,
     );
   });
 

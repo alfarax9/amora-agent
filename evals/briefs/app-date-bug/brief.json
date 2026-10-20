@@ -1,0 +1,7 @@
+{
+  "id": "app-date-bug",
+  "project": "notes-app",
+  "held_out": true,
+  "tier": "realistic",
+  "brief": "Bug report from a user: \"My note from 5 October 2026 says Oct 1, 2026 in the list.\" The dates in the notes list are wrong. Fix it, and add a test so it does not come back."
+}
