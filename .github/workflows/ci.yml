@@ -29,7 +29,13 @@ jobs:
         with:
           node-version: 24
           cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            evals/projects/notes-app/package-lock.json
       - run: npm ci
+      # The realistic benchmark tier checks its briefs against a React app with
+      # real dependencies, which are not committed.
+      - run: npm ci --prefix evals/projects/notes-app
       - run: npm run typecheck
       - run: npm run lint
       - run: npm run format:check
