@@ -90,6 +90,16 @@ const migrations = [
   // such waits it has had in a row (quota.ts).
   `ALTER TABLE tasks ADD COLUMN resume_at TEXT`,
   `ALTER TABLE tasks ADD COLUMN quota_waits INTEGER NOT NULL DEFAULT 0`,
+  // A completed task's branch in a git project (git-delivery.ts).
+  `CREATE TABLE branch_deliveries (
+     id INTEGER PRIMARY KEY AUTOINCREMENT,
+     task_id TEXT NOT NULL REFERENCES tasks (id),
+     project TEXT NOT NULL,
+     branch TEXT NOT NULL,
+     commit_id TEXT NOT NULL,
+     delivered_at TEXT NOT NULL,
+     undone_at TEXT
+   )`,
 ];
 
 // S6: nothing is written to the database before it has been scanned. Secrets

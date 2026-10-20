@@ -1,6 +1,6 @@
 import { type Agency, perform, taskWorkspace } from "./agency.ts";
-import { deliverTracked } from "./deliveries.ts";
 import { resumeTask, wakeLater } from "./resume.ts";
+import { ship } from "./ship.ts";
 import {
   dailyLimit,
   describe,
@@ -187,8 +187,9 @@ function retry(desk: Desk, task: Task, budgetUsd: number | undefined): Task {
   return moved;
 }
 
-// The owner's folder changes only here, when they complete the task: the files
-// every passed step wrote are copied from the task's workspace (PRD §4 step 7).
+// The owner's project changes only here, when they complete the task: the
+// files every passed step wrote leave the task's workspace (PRD §4 step 7), as
+// a branch in a git project or as files elsewhere (ship.ts).
 function complete(desk: Desk, task: Task): Task {
   if (!task.plan || task.step < task.plan.steps.length) {
     throw new Refusal("Only a task whose every step passed its gate can be completed.");
@@ -199,17 +200,8 @@ function complete(desk: Desk, task: Task): Task {
     const written = listHandoffs(desk.agency.storage, task.id)
       .filter(({ gate }) => gate === "passed")
       .flatMap(({ artifacts }) => artifacts);
-    const { backups } = desk.agency;
-    const shipment = { taskId: task.id, workspace, project: task.project, backups };
-    const delivered = deliverTracked(desk.agency.storage, shipment, written);
-    if (delivered.length > 0) {
-      say(
-        desk,
-        task.id,
-        "agency",
-        `Wrote ${delivered.length} files to ${task.project}: ${delivered.join(", ")}. Replaced files were backed up; undo with: amora undo ${task.id.slice(0, 8)}`,
-      );
-    }
+    const report = ship(desk.agency, { ...task, project: task.project }, workspace, written);
+    if (report) say(desk, task.id, "agency", report);
   }
   return move(desk, task, "completed");
 }
