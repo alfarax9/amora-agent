@@ -1,0 +1,6 @@
+{
+  "id": "filter-done",
+  "project": "notes-api",
+  "held_out": true,
+  "brief": "Make GET /notes in src/notes.js accept a done query: GET /notes?done=true returns only done notes, ?done=false only open ones, and any other value answers 400 with { error: \"done must be true or false\" }. The query string is part of request.path. Add tests for it."
+}
