@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import {
   existsSync,
   mkdirSync,
@@ -11,9 +12,10 @@ import {
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { describe, it } from "node:test";
+import { fileURLToPath } from "node:url";
 import { deliverTracked, undoableTasks, undoDelivery } from "../src/runtime/deliveries.ts";
 import { openStorage } from "../src/runtime/storage.ts";
-import { createTask } from "../src/runtime/task-store.ts";
+import { createTask, listMessages } from "../src/runtime/task-store.ts";
 
 function write(folder: string, files: Record<string, string>): void {
   for (const [path, content] of Object.entries(files)) {
@@ -101,5 +103,41 @@ describe("delivery ledger and secrets (S6)", () => {
     );
     assert.equal(existsSync(join(project, name)), false);
     assert.equal(undoableTasks(storage)[0]?.files, 2);
+  });
+});
+
+describe("CLI: amora undo", () => {
+  const cli = fileURLToPath(new URL("../src/cli/main.ts", import.meta.url));
+  const run = (home: string, args: string[]) => {
+    try {
+      const out = execFileSync("node", [cli, ...args], {
+        env: { ...process.env, AMORA_HOME: home },
+        encoding: "utf8",
+        stdio: "pipe",
+      });
+      return { code: 0, out };
+    } catch (error) {
+      const failed = error as { status: number; stdout: string; stderr: string };
+      return { code: failed.status, out: `${failed.stdout}${failed.stderr}` };
+    }
+  };
+
+  it("lists what can be undone, refuses a changed file without --force, and undoes it", () => {
+    const { home, storage, project, id } = delivered();
+    const short = id.slice(0, 8);
+    assert.match(run(home, ["undo"]).out, new RegExp(`${short} .* 2 files {2}Add a page`));
+    const unknown = run(home, ["undo", "nope"]);
+    assert.equal(unknown.code, 1);
+    assert.match(unknown.out, /No delivery of nope can be undone/);
+    write(project, { "src/page.js": "owner edit" });
+    const refused = run(home, ["undo", short]);
+    assert.equal(refused.code, 1);
+    assert.match(refused.out, /Changed since the delivery, so nothing was undone: src\/page\.js/);
+    const forced = run(home, ["undo", short, "--force"]);
+    assert.equal(forced.code, 0, forced.out);
+    assert.match(forced.out, /restored 1 and removed 1 files\. Your changed versions are kept/);
+    assert.equal(read(project, "src/page.js"), "old page");
+    assert.match(listMessages(storage, id).at(-1)?.text ?? "", /^Undid the delivery/);
+    assert.match(run(home, ["undo"]).out, /No delivery can be undone/);
   });
 });

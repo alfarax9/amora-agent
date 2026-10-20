@@ -18,6 +18,7 @@ import { runProject } from "./project.ts";
 import { print, printError } from "./output.ts";
 import { draftEntry } from "./registry.ts";
 import { startAmora } from "./start.ts";
+import { runUndo } from "./undo.ts";
 
 const usage = `Usage: amora [command] [options]
 
@@ -28,6 +29,8 @@ Commands:
   project [path]                  Show or set the project folder new tasks work on
   roster [auto|slim|full]         Show or choose the workers new tasks plan with (default: auto,
                                   which gives heavy briefs every worker and light ones the slim roster)
+  undo [task]                     List deliveries that can be undone, or put the project back as it
+                                  was before a task's delivery (--force when files changed since)
   privacy                         Show whether OpenRouter providers may keep or train on prompts
   eval                            Run the benchmark set through AMORA and one strong agent, and
                                   report success and cost per successful task (calls your models)
@@ -59,6 +62,7 @@ Options:
   --tier <name>            With eval: all (default), regression (small and quick), realistic
                            (a React app with real dependencies), or heavy (a product from
                            scratch and new screens with an API)
+  --force                  With undo: undo even files changed since the delivery, keeping a copy
   --allow-data-collection  With privacy: let providers that keep or train on prompts serve
                            tasks in this AMORA home; --deny-data-collection turns it off
   --url <url>              With connect omniroute: its API address (default http://localhost:20128/v1)
@@ -85,6 +89,7 @@ type Flags = {
   budget: string;
   runs: string;
   tier: string;
+  force: boolean;
 };
 
 function privacyChoice(flags: Flags): "allow" | "deny" | undefined {
@@ -134,6 +139,8 @@ const commands: Record<string, Command> = {
   models: (context, args, flags) => runModels(context, args, flags),
   project: async (context, args) => (args.length <= 1 ? runProject(context, args[0]) : undefined),
   roster: async (context, args) => (args.length <= 1 ? runRoster(context, args[0]) : undefined),
+  undo: async (context, args, flags) =>
+    args.length <= 1 ? runUndo(context, args[0], flags.force) : undefined,
   eval: async (context, args, flags) => {
     const budgetUsd = Number(flags.budget);
     const runs = Number(flags.runs);
@@ -179,6 +186,7 @@ const options = {
   budget: { type: "string", default: "1" },
   runs: { type: "string", default: "1" },
   tier: { type: "string", default: "all" },
+  force: { type: "boolean", default: false },
   family: { type: "string" },
   license: { type: "string" },
   version: { type: "boolean", default: false },
@@ -212,6 +220,7 @@ async function main(): Promise<void> {
     budget: values.budget,
     runs: values.runs,
     tier: values.tier,
+    force: values.force,
   };
   if (!(await run(command, rest, flags))) process.exitCode = 1;
 }
