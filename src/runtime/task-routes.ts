@@ -80,20 +80,42 @@ function amount(body: Record<string, unknown>, field: string): number | undefine
   return value;
 }
 
+const maxNotes = 50;
+
+// Review notes: each names a file the task changes, and says what to change.
+function notes(body: Record<string, unknown>) {
+  const list = Array.isArray(body.notes) ? (body.notes as unknown[]) : [];
+  const valid = list.flatMap((note) => {
+    const { file, text } = (note ?? {}) as { file?: unknown; text?: unknown };
+    if (typeof text !== "string" || text.trim() === "") return [];
+    return [{ file: typeof file === "string" ? file : "", text: refuseKeys(text.trim()) }];
+  });
+  if (valid.length === 0 || valid.length > maxNotes) {
+    throw new BadRequest(400, `Write between 1 and ${maxNotes} notes on the changes.`);
+  }
+  return valid;
+}
+
 function decision(body: Record<string, unknown>): Decision {
+  if (body.action === "changes") return { action: "changes", notes: notes(body) };
   if (body.action === "retry") {
     const budgetUsd = amount(body, "budgetUsd");
     return budgetUsd === undefined ? { action: "retry" } : { action: "retry", budgetUsd };
   }
   if (body.action === "complete" || body.action === "cancel") return { action: body.action };
-  throw new BadRequest(400, "Choose retry, complete, or cancel.");
+  throw new BadRequest(400, "Choose retry, complete, changes, or cancel.");
 }
 
-function thread(storage: Storage, task: Task) {
+// A task whose every step passed shows what Complete would change, so the
+// owner can review it first.
+function thread(desk: TaskDesk, task: Task) {
+  const finished =
+    task.status === "awaiting_decision" && task.plan && task.step >= task.plan.steps.length;
   return {
     ...task,
-    messages: listMessages(storage, task.id),
-    handoffs: listHandoffs(storage, task.id),
+    messages: listMessages(desk.storage, task.id),
+    handoffs: listHandoffs(desk.storage, task.id),
+    changes: finished ? desk.orchestrator.changes(task.id) : [],
   };
 }
 
@@ -107,7 +129,7 @@ function overview(desk: TaskDesk): JsonReply {
   return {
     status: 200,
     body: {
-      tasks: tasks.map((task) => thread(storage, task)),
+      tasks: tasks.map((task) => thread(desk, task)),
       roles: desk.roles,
       project: desk.project() ?? null,
       paused: storage.getSetting<boolean>("paused") ?? false,

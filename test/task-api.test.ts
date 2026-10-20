@@ -96,6 +96,19 @@ describe("agency chat API", () => {
     assert.equal(foreign.status, 403);
   });
 
+  it("checks review notes before they reach a task", async () => {
+    const path = `/api/tasks/${"0".repeat(8)}-0000-0000-0000-${"0".repeat(12)}/decide`;
+    const none = await call(runtime.port, "POST", path, { cookie, json: { action: "changes" } });
+    assert.equal(none.status, 400);
+    assert.match(none.body, /Write between 1 and 50 notes/);
+    const keyed = await call(runtime.port, "POST", path, {
+      cookie,
+      json: { action: "changes", notes: [{ file: "a.js", text: `use ${key}` }] },
+    });
+    assert.equal(keyed.status, 400);
+    assert.ok(!keyed.body.includes(key));
+  });
+
   it("refuses a message that holds a key, without echoing it or storing anything (PRD §8 rule 5)", async () => {
     const refused = await call(runtime.port, "POST", "/api/tasks", {
       cookie,

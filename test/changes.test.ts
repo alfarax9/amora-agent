@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import type { IncomingMessage } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, it } from "node:test";
@@ -7,6 +8,7 @@ import type { Chat, ChatRequest } from "../src/model-layer/gateway.ts";
 import type { Agency } from "../src/runtime/agency.ts";
 import { createLogger } from "../src/runtime/logger.ts";
 import { createOrchestrator } from "../src/runtime/orchestrator.ts";
+import { handleTaskApi } from "../src/runtime/task-routes.ts";
 import { getTask } from "../src/runtime/task-store.ts";
 import { openWorkspace } from "../src/runtime/workspace.ts";
 import { briefOf, fakeAgency, taxSolution } from "./eval-fixture.ts";
@@ -106,5 +108,17 @@ describe("reviewing the changes before Complete", () => {
     const [tax] = orchestrator.changes(id);
     assert.ok(!(tax?.diff ?? "").includes(key));
     assert.match(tax?.diff ?? "", /\[redacted /);
+  });
+
+  it("sends the changes with a task that is ready to complete", async () => {
+    const { orchestrator, agency } = await finished();
+    const desk = { orchestrator, storage: agency.storage, roles: {}, project: () => undefined };
+    const request = { method: "GET", headers: {} } as IncomingMessage;
+    const reply = await handleTaskApi(desk, request, "/api/tasks");
+    const [task] = (reply?.body.tasks ?? []) as { changes: { path: string }[] }[];
+    assert.deepEqual(
+      task?.changes.map(({ path }) => path),
+      ["src/tax.js", "tests/tax.test.js"],
+    );
   });
 });
