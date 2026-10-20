@@ -1,0 +1,6 @@
+{
+  "id": "delete-note",
+  "project": "notes-api",
+  "held_out": true,
+  "brief": "Add DELETE /notes/:id to handle in src/notes.js: when the note exists it is removed and the answer is status 204 with body null; otherwise 404 with { error: \"Not found\" }. Add tests for it."
+}
