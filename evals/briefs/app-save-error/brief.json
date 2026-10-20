@@ -1,0 +1,7 @@
+{
+  "id": "app-save-error",
+  "project": "notes-app",
+  "held_out": true,
+  "tier": "realistic",
+  "brief": "Bug: when the server refuses a new note (for example with a 400 or a 500), createNote in src/api/client.ts still resolves as if the note had been saved. It should fail the way listNotes does. Fix it and add tests."
+}
