@@ -1,0 +1,6 @@
+{
+  "id": "top-line",
+  "project": "cart",
+  "held_out": true,
+  "brief": "Export mostExpensiveLine(cart) from src/insights.js: it returns the cart line with the highest price times quantity, or null for an empty cart; when lines tie, the one added first wins. Add tests for it."
+}
