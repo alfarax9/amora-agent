@@ -1,0 +1,6 @@
+{
+  "id": "hero",
+  "project": "landing-page",
+  "held_out": true,
+  "brief": "Add a hero section to the landing page rendered by src/page.js: a heading, one sentence describing the product, and a call-to-action link to /signup with the text \"Get started\". Add tests for it."
+}
