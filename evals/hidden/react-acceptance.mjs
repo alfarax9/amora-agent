@@ -34,19 +34,26 @@ function hiddenResults(briefFolder) {
     cpSync(join(dirname(fileURLToPath(import.meta.url)), helper), join(folder, helper));
   }
   const report = join(mkdtempSync(join(tmpdir(), "amora-hidden-")), "report.json");
-  const run = npm([
-    "exec",
-    "--",
-    "vitest",
-    "run",
-    "src/__hidden__",
-    "--reporter=json",
-    `--outputFile=${report}`,
-  ]);
+  // Vitest's own entry run by Node: no npm and no shell, the same on every system.
+  const vitest = join(project, "node_modules", "vitest", "vitest.mjs");
+  const args = [vitest, "run", "src/__hidden__", "--reporter=json", `--outputFile=${report}`];
+  const run = spawnSync(process.execPath, args, {
+    cwd: project,
+    encoding: "utf8",
+    timeout: 120_000,
+  });
   rmSync(folder, { recursive: true, force: true });
   if (!existsSync(report)) return { results: [], output: tail(run) };
   const { testResults } = JSON.parse(readFileSync(report, "utf8"));
-  return { results: testResults.flatMap((file) => file.assertionResults), output: tail(run) };
+  // A file that fails to load has no assertion results, only its message.
+  const loadErrors = testResults
+    .map((file) => file.message)
+    .filter(Boolean)
+    .join("\n");
+  return {
+    results: testResults.flatMap((file) => file.assertionResults),
+    output: `${loadErrors}\n${tail(run)}`.trim(),
+  };
 }
 
 export function reactAcceptance(briefUrl) {
