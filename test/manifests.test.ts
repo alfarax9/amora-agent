@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
+import { resolveWorker } from "../src/model-layer/slots.ts";
 import { loadManifests } from "../src/runtime/manifests.ts";
 
 const example = readFileSync(
@@ -73,5 +74,28 @@ describe("manifest loader", () => {
       items: [],
       errors: [],
     });
+  });
+});
+
+describe("structured output requirements", () => {
+  it("lets the Engineer and Tester use a JSON mode model, but not the Planner or the reviewer", () => {
+    const { items } = loadManifests(fileURLToPath(new URL("../workers", import.meta.url)));
+    const jsonMode = () => ({
+      vision: true,
+      tool_use: true,
+      structured_output: "json_mode" as const,
+      context: 1_000_000,
+    });
+    const verdict = (id: string) => {
+      const manifest = items.find((candidate) => candidate.id === id);
+      if (!manifest) throw new Error(`no worker ${id}`);
+      return resolveWorker(manifest, { global: "m", divisions: {}, workers: {} }, jsonMode).verdict;
+    };
+    assert.deepEqual(
+      ["fe-engineer", "unit-integration-tester", "planner-decomposer", "reality-checker"].map(
+        verdict,
+      ),
+      ["fits", "fits", "rejected", "rejected"],
+    );
   });
 });
