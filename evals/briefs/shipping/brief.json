@@ -1,0 +1,6 @@
+{
+  "id": "shipping",
+  "project": "cart",
+  "held_out": true,
+  "brief": "Export shippingCost(cart) from src/shipping.js: shipping costs 5 when the cart's subtotal is above 0 and below 50, and is free (0) from 50 up and for an empty cart. Add tests for it."
+}
