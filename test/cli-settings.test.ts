@@ -221,7 +221,10 @@ describe("CLI: starting amora without a browser", { skip: process.platform === "
     return { bin, mark };
   }
 
-  async function start(args: string[], bin: string): Promise<void> {
+  // The opener runs detached, so a run that should open the browser waits for
+  // the mark (a fixed pause fails under load); one that should not waits briefly.
+  async function start(args: string[], opener: { bin: string; mark: string }, waitMs: number) {
+    const { bin, mark } = opener;
     const main = fileURLToPath(new URL("../src/cli/main.ts", import.meta.url));
     const child = spawn(
       process.execPath,
@@ -239,16 +242,18 @@ describe("CLI: starting amora without a browser", { skip: process.platform === "
         if (chunk.toString().includes("Press Ctrl+C")) resolve();
       });
     });
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    for (const deadline = Date.now() + waitMs; Date.now() < deadline && !existsSync(mark);) {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
     child.kill("SIGINT");
   }
 
   it("opens the browser by default and not with --no-open", async () => {
     const quiet = fakeOpener();
-    await start(["--no-open"], quiet.bin);
+    await start(["--no-open"], quiet, 500);
     assert.equal(existsSync(quiet.mark), false);
     const loud = fakeOpener();
-    await start([], loud.bin);
+    await start([], loud, 10_000);
     assert.match(readFileSync(loud.mark, "utf8"), /auth\/sign-in\?token=/);
   });
 });
