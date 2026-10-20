@@ -6,7 +6,7 @@ import { createOpenRouter } from "../model-layer/openrouter.ts";
 import { emptySlots, type SlotConfig } from "../model-layer/slots.ts";
 import type { Agency } from "../runtime/agency.ts";
 import type { Price } from "../runtime/estimate.ts";
-import { rosterProfiles } from "../runtime/roster.ts";
+import { chooseRoster } from "../runtime/roster.ts";
 import { dataDirectory } from "../runtime/storage.ts";
 import { type AppContext, packageRoot } from "./context.ts";
 import { omniRouteClient } from "./measure.ts";
@@ -51,9 +51,7 @@ export function agencyFor(context: AppContext): Agency {
     connect: (model) => connect(context, model),
     workspaces: join(dataDirectory(), "workspaces"),
     // Read when a plan is drafted, so `amora roster` applies to the next task.
-    get offered() {
-      return rosterProfiles[rosterProfile(context)];
-    },
+    roster: (brief) => chooseRoster(rosterProfile(context), brief),
     // Looked up once per model in this process; OpenRouter's list is large.
     price: (model) => {
       const cached = prices.get(model) ?? priceOf(context, model);

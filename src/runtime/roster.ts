@@ -1,3 +1,4 @@
+import { weighBrief } from "./brief-weight.ts";
 import type { Contract } from "./contracts.ts";
 import type { WorkerManifest } from "./manifest-schema.ts";
 
@@ -15,6 +16,25 @@ export const rosterProfiles: Record<string, string[] | undefined> = {
   full: undefined,
   slim: ["fe-engineer", "unit-integration-tester"],
 };
+
+// The workers a task's Planner may use (all when absent), and why, when AMORA
+// chose them itself.
+export type RosterChoice = { offered: string[] | undefined; note?: string };
+
+export function chooseRoster(setting: string, brief: string): RosterChoice {
+  if (setting !== "auto") return { offered: rosterProfiles[setting] };
+  const { heavy, reasons } = weighBrief(brief);
+  if (heavy) {
+    return {
+      offered: rosterProfiles.full,
+      note: `AMORA weighed this as a heavy task (${reasons.join("; ")}), so the Planner may use every worker.`,
+    };
+  }
+  return {
+    offered: rosterProfiles.slim,
+    note: "AMORA weighed this as a light task, so the Planner uses the slim roster: the Frontend Engineer and the Unit & Integration Tester.",
+  };
+}
 
 // What the owner typed. Every other input is something an earlier worker
 // delivered.

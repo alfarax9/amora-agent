@@ -8,6 +8,7 @@ import { join } from "node:path";
 import { type CheckOutcome, runGate } from "./gates.ts";
 import type { WorkerManifest } from "./manifest-schema.ts";
 import { projectGate } from "./project-gates.ts";
+import type { RosterChoice } from "./roster.ts";
 import type { Storage } from "./storage.ts";
 import { recordHandoff, type Task } from "./task-store.ts";
 import { callWorker, type WorkerCall, type WorkerReply } from "./worker-runner.ts";
@@ -33,8 +34,8 @@ export type Agency = {
   price(model: string): Promise<Price | undefined>;
   // Waits before retrying a busy provider; tests pass zeros.
   retryDelaysMs?: number[];
-  // The workers the Planner may use (see rosterProfiles); all when absent.
-  offered?: string[] | undefined;
+  // The workers the Planner may use for a brief (see chooseRoster); all when absent.
+  roster?: (brief: string) => RosterChoice;
 };
 
 // The task's copy of its project, made on first use, or nothing when the task

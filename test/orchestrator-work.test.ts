@@ -141,10 +141,23 @@ describe("orchestrator: what a step's worker is told", () => {
 });
 
 describe("orchestrator: roster profiles", () => {
-  it("offers the Planner only the workers of the agency's profile", async () => {
-    const world = setup({ plan_v1: [plan(["builder"])] }, { extra: [manifest("other")] });
-    world.agency.offered = ["builder"];
-    await world.orchestrator.submit(brief, 1);
+  it("offers the Planner only the workers chosen for the brief, and says why once", async () => {
+    const world = setup(
+      { plan_v1: [plan(["builder"]), plan(["builder"])] },
+      { extra: [manifest("other")] },
+    );
+    const briefs: string[] = [];
+    world.agency.roster = (text) => {
+      briefs.push(text);
+      return { offered: ["builder"], note: "A light task." };
+    };
+    const task = await world.orchestrator.submit(brief, 1);
+    await world.orchestrator.revise(task.id, "Shorter, please.");
+    assert.deepEqual(briefs, [brief, brief]);
+    const notes = listMessages(world.storage, task.id).filter(
+      ({ text }) => text === "A light task.",
+    );
+    assert.equal(notes.length, 1);
     const input = JSON.parse(String(world.requests[0]?.messages[1]?.content)) as {
       workers: { id: string }[];
     };

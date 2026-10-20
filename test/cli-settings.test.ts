@@ -125,13 +125,14 @@ describe("CLI: budget and model families", () => {
     );
     const { storage } = setup({});
     const context = { storage } as unknown as AppContext;
-    assert.deepEqual(agencyFor(context).offered, ["fe-engineer", "unit-integration-tester"]);
+    const offered = (text: string) => agencyFor(context).roster?.(text).offered;
+    assert.deepEqual(offered("Build me a CMS project"), ["fe-engineer", "unit-integration-tester"]);
     assert.match(
       run(["roster", "full"], fresh).out,
       /full roster: the Planner may use every worker/,
     );
     storage.setSetting("roster", { profile: "full" });
-    assert.equal(agencyFor(context).offered, undefined);
+    assert.equal(offered("Add a Delete button to each note."), undefined);
     assert.equal(run(["roster", "tiny"], fresh).code, 1);
   });
 

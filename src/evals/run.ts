@@ -3,7 +3,7 @@ import { withRetries } from "../model-layer/gateway.ts";
 import type { Agency } from "../runtime/agency.ts";
 import type { Contract } from "../runtime/contracts.ts";
 import type { Logger } from "../runtime/logger.ts";
-import { rosterProfiles } from "../runtime/roster.ts";
+import { chooseRoster } from "../runtime/roster.ts";
 import { redactSecrets } from "../runtime/secret-scanner.ts";
 import { openWorkspace } from "../runtime/workspace.ts";
 import { runAcceptance } from "./acceptance.ts";
@@ -93,8 +93,8 @@ async function attempt(
     if (system === "baseline") return await baseline(run, agency, brief, folder);
     const project = join(folder, "project");
     // Each system names its roster, whatever the owner's default is.
-    const offered = system === "slim" ? rosterProfiles.slim : rosterProfiles.full;
-    const roster = { ...agency, offered };
+    const setting = system === "amora" ? "full" : system;
+    const roster = { ...agency, roster: (text: string) => chooseRoster(setting, text) };
     return await runThinPath(roster, brief.brief, project, run.budgetUsd, run.logger);
   } catch (error) {
     const message = redactSecrets(error instanceof Error ? error.message : String(error));

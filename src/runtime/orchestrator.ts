@@ -53,8 +53,8 @@ export type Orchestrator = {
 // Reviewers work through gates, so the Planner is only offered the workers
 // that produce something, with what each needs and delivers so it can order
 // them.
-function roster(agency: Agency) {
-  const offered = (id: string) => agency.offered?.includes(id) ?? true;
+function roster(agency: Agency, offeredIds: string[] | undefined) {
+  const offered = (id: string) => offeredIds?.includes(id) ?? true;
   return agency.manifests
     .filter(({ id, output_contract }) => id !== plannerId && output_contract !== "review.v1")
     .filter(({ id }) => offered(id))
@@ -92,7 +92,10 @@ function checkPlan(output: unknown, workers: RosterEntry[]): string[] {
 async function plan(desk: Desk, id: string): Promise<Task> {
   const task = load(desk, id);
   if (task.status !== "planning") throw new Refusal("This task is not being planned.");
-  const workers = roster(desk.agency);
+  const choice = desk.agency.roster?.(task.brief) ?? { offered: undefined };
+  const workers = roster(desk.agency, choice.offered);
+  // Said once, on the first plan; a revision keeps the same brief and roster.
+  if (choice.note && task.feedback.length === 0) say(desk, id, "agency", choice.note);
   try {
     const outcome = await perform(desk.agency, {
       task,

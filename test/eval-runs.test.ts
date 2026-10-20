@@ -6,7 +6,7 @@ describe("benchmark runner, whatever the owner's default roster", () => {
   it("runs the full system with every worker even when the agency offers the slim roster", async () => {
     const agency = {
       ...fakeAgency(taxSolution),
-      offered: ["fe-engineer", "unit-integration-tester"],
+      roster: () => ({ offered: ["fe-engineer", "unit-integration-tester"] }),
     };
     const [row] = await runWith(agency, ["amora"]);
     assert.equal(row?.calls, 9);
