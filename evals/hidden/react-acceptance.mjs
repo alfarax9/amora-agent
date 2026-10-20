@@ -30,10 +30,9 @@ function hiddenResults(briefFolder) {
   const folder = join(project, "src", "__hidden__");
   mkdirSync(folder, { recursive: true });
   cpSync(join(briefFolder, "hidden.test.tsx"), join(folder, "acceptance.test.tsx"));
-  cpSync(
-    join(dirname(fileURLToPath(import.meta.url)), "notes-server.ts"),
-    join(folder, "notes-server.ts"),
-  );
+  for (const helper of ["notes-server.ts", "fake-api.ts"]) {
+    cpSync(join(dirname(fileURLToPath(import.meta.url)), helper), join(folder, helper));
+  }
   const report = join(mkdtempSync(join(tmpdir(), "amora-hidden-")), "report.json");
   const run = npm([
     "exec",
