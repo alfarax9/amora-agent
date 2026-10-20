@@ -1,0 +1,7 @@
+{
+  "id": "app-search",
+  "project": "notes-app",
+  "held_out": true,
+  "tier": "realistic",
+  "brief": "People with lots of notes can't find anything in the list. Add a way to narrow the list down by typing part of a note's title."
+}
