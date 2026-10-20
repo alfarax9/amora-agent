@@ -27,7 +27,7 @@ const signals: Signal[] = [
     reason: "a new page or screen to design",
     weight: 1,
     found: (brief) =>
-      /\b(?:new\s+(?:\w+\s+){0,3}(?:page|screen|view)s?|(?:add|build|create)\s+an?\s+(?:\w+\s+){0,3}(?:page|screen)\b|dashboard|redesign\w*|layout|wizard|onboarding|multi-step|design system|dark mode|responsive)\b/i.test(
+      /\b(?:new\s+(?:[\w-]+\s+){0,3}(?:page|screen|view)s?|(?:add|build|create)\s+an?\s+(?:[\w-]+\s+){0,3}(?:page|screen)\b|dashboard|redesign\w*|layout|wizard|onboarding|multi-step|design system|dark mode|responsive)\b/i.test(
         brief,
       ),
   },

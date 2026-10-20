@@ -16,6 +16,7 @@ describe("weighing a brief", () => {
       "Redesign the pricing page so it feels more modern, and make it load faster.",
       "Integrate Stripe payments into checkout and add a new order history page.",
       "Add a login page with email and password, connected to our REST API.",
+      "Show a new sign-in screen before the notes.",
     ]) {
       assert.equal(weighBrief(brief).heavy, true, brief);
     }
