@@ -1,0 +1,7 @@
+{
+  "id": "heavy-dashboard",
+  "project": "notes-app",
+  "held_out": true,
+  "tier": "heavy",
+  "brief": "Add a new dashboard screen to the notes app. A navigation with \"Notes\" and \"Dashboard\" buttons switches between the notes list and the dashboard. The dashboard loads the stats API at GET /api/stats, which returns { total, done, overdue }, and shows the three numbers with the labels \"Total\", \"Done\", and \"Overdue\". Below them it lists the five most recently created notes from GET /api/notes, newest first. If the stats cannot be loaded, show an error message there but still list the recent notes. Add tests."
+}

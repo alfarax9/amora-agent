@@ -52,6 +52,6 @@ describe("weighing a brief", () => {
     const weighed = suite.items.filter((brief) => weighBrief(brief.brief).heavy);
     const heavyTier = suite.items.filter(({ tier }) => tier === "heavy");
     assert.deepEqual(weighed, heavyTier);
-    assert.equal(heavyTier.length, 3);
+    assert.equal(heavyTier.length, 4);
   });
 });

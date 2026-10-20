@@ -104,6 +104,8 @@ describe("CLI: budget and model families", () => {
     const listed = ["--system", "slim,baseline", "--baseline-model", "fake/x"];
     assert.match(run(["eval", ...listed, "--brief", "nope"]).out, /No brief is named nope/);
     assert.match(run(["eval", ...listed, "--tier", "nope"]).out, /--tier must be all, regression/);
+    const heavy = run(["eval", ...listed, "--tier", "heavy", "--brief", "tax"]).out;
+    assert.match(heavy, /Briefs: heavy-archive, heavy-dashboard, heavy-habits, heavy-sign-in$/m);
     const realistic = run(["eval", ...listed, "--tier", "realistic", "--brief", "tax"]).out;
     assert.match(
       realistic,
