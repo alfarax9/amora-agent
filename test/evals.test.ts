@@ -9,11 +9,11 @@ import { loadSuite } from "../src/evals/suite.ts";
 import { benchmark, root, suite, taxSolution, taxWrong } from "./eval-fixture.ts";
 
 describe("benchmark set", () => {
-  it("ships twelve briefs on two projects, most of them held out", () => {
+  it("ships thirteen briefs on two projects, most of them held out", () => {
     assert.deepEqual(suite.errors, []);
-    assert.equal(suite.items.length, 12);
+    assert.equal(suite.items.length, 13);
     assert.equal(new Set(suite.items.map(({ project }) => project)).size, 2);
-    assert.equal(suite.items.filter(({ heldOut }) => heldOut).length, 10);
+    assert.equal(suite.items.filter(({ heldOut }) => heldOut).length, 11);
   });
 
   it("has hidden tests that fail on the untouched project and pass with the reference solution", async () => {
@@ -69,7 +69,7 @@ describe("benchmark set", () => {
       JSON.stringify({ ...renamed, project: "nowhere" }),
     );
     const { items, errors } = loadSuite(broken);
-    assert.equal(items.length, 8);
+    assert.equal(items.length, 9);
     assert.ok(errors.includes("evals/briefs/faq: acceptance.test.mjs is missing"));
     assert.ok(errors.includes('evals/briefs/pricing: id is "prices" but the folder is pricing'));
     assert.ok(

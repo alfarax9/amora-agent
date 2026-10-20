@@ -1,0 +1,6 @@
+{
+  "id": "features",
+  "project": "landing-page",
+  "held_out": true,
+  "brief": "Add a features section to the landing page rendered by src/page.js listing exactly four features, each with a title in an h3 and a short description in a paragraph. Add tests for it."
+}
