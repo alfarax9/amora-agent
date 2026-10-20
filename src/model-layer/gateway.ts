@@ -51,14 +51,23 @@ export class GatewayError extends Error {
 }
 
 // OmniRoute answers a model whose credentials are cooling down with a 429 and
-// a Retry-After in seconds; HTTP also allows a date there.
+// a Retry-After in seconds; HTTP also allows a date there. OpenRouter's free
+// daily limit says when it resets in X-RateLimit-Reset, in epoch milliseconds.
 function retryAfterMs(headers: Headers): number | undefined {
   const value = headers.get("retry-after");
-  if (value === null) return undefined;
+  if (value === null) return rateLimitResetMs(headers);
   const seconds = Number(value);
   if (Number.isFinite(seconds) && seconds >= 0) return seconds * 1000;
   const date = Date.parse(value);
   return Number.isNaN(date) ? undefined : Math.max(0, date - Date.now());
+}
+
+function rateLimitResetMs(headers: Headers): number | undefined {
+  const reset = Number(headers.get("x-ratelimit-reset") ?? Number.NaN);
+  if (!Number.isFinite(reset) || reset <= 0) return undefined;
+  // Epoch seconds or epoch milliseconds, whichever the provider sent.
+  const at = reset < 1e12 ? reset * 1000 : reset;
+  return Math.max(0, at - Date.now());
 }
 
 // Models are named per gateway: `omniroute:<name>` for OmniRoute, a bare id for
