@@ -94,7 +94,10 @@ describe("CLI: budget and model families", () => {
     run(["budget", "--daily", "1"]);
     const unknown = run(["eval", "--system", "amora", "--brief", "nope"]);
     assert.equal(unknown.code, 1);
-    assert.match(unknown.out, /No brief is named nope\. Briefs: contact, cookie-notice, discount/);
+    assert.match(
+      unknown.out,
+      /No brief is named nope\. Briefs: bulk-discount, contact, cookie-notice/,
+    );
   });
 
   it("plans new tasks with the slim roster unless the owner chooses the full one", async () => {

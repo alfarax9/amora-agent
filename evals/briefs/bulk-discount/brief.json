@@ -1,0 +1,6 @@
+{
+  "id": "bulk-discount",
+  "project": "cart",
+  "held_out": true,
+  "brief": "Change subtotal in src/cart.js so that a line with 10 or more units gets 10% off that line; lines with fewer units are unchanged. Round the subtotal to cents. Add tests for it."
+}
