@@ -104,7 +104,11 @@ function script(bug = false): Record<string, unknown[]> {
           "fe-api-integration",
           "fe-performance",
           "unit-integration-tester",
-        ].map((worker) => ({ worker, goal: `The ${worker} part of the pricing section.` })),
+        ].map((worker) => ({
+          worker,
+          goal: `The ${worker} part of the pricing section.`,
+          acceptance: `The ${worker} part works.`,
+        })),
       },
     ],
     requirements_v1: [

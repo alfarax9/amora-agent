@@ -18,9 +18,13 @@
           "goal": {
             "type": "string",
             "description": "What this worker must deliver in this step."
+          },
+          "acceptance": {
+            "type": "string",
+            "description": "How anyone can tell this step is done: an observable check, such as a test that passes, an output, or a behaviour of the page, that the reviewer and later workers can verify."
           }
         },
-        "required": ["worker", "goal"],
+        "required": ["worker", "goal", "acceptance"],
         "additionalProperties": false
       }
     }

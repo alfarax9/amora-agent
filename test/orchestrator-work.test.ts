@@ -140,6 +140,15 @@ describe("orchestrator: what a step's worker is told", () => {
   });
 });
 
+describe("orchestrator: a plan step's acceptance", () => {
+  it("refuses a plan whose steps say nothing about when they are done", async () => {
+    const vague = { summary: "Deliver.", steps: [{ worker: "builder", goal: "Build it." }] };
+    const world = await planned({ plan_v1: [vague] });
+    assert.equal(world.task.status, "awaiting_decision");
+    assert.match(world.task.reason ?? "", /The plan is not ready.*acceptance/);
+  });
+});
+
 describe("orchestrator: roster profiles", () => {
   it("offers the Planner only the workers chosen for the brief, and says why once", async () => {
     const world = setup(

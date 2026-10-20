@@ -73,7 +73,7 @@ function replies(taxCode: string, review: unknown = pass): Record<string, unknow
   return {
     plan_v1: {
       summary: "Tax.",
-      steps: steps.map((worker) => ({ worker, goal: `${worker} part` })),
+      steps: steps.map((worker) => ({ worker, goal: `${worker} part`, acceptance: "It works." })),
     },
     requirements_v1: {
       feature: "Tax.",
@@ -104,7 +104,11 @@ function replies(taxCode: string, review: unknown = pass): Record<string, unknow
     },
     slim_plan: {
       summary: "Tax.",
-      steps: ["fe-engineer", "unit-integration-tester"].map((worker) => ({ worker, goal: worker })),
+      steps: ["fe-engineer", "unit-integration-tester"].map((worker) => ({
+        worker,
+        goal: worker,
+        acceptance: "Tax is added.",
+      })),
     },
     engineer: { summary: "Tax module.", files: [file("src/tax.js", taxCode)], notes: [] },
     review_v1: review,

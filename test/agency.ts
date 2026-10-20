@@ -65,7 +65,11 @@ export type Script = Record<string, unknown[]>;
 
 export const plan = (steps: string[]) => ({
   summary: "Deliver the feature.",
-  steps: steps.map((worker) => ({ worker, goal: `Goal for ${worker}` })),
+  steps: steps.map((worker) => ({
+    worker,
+    goal: `Goal for ${worker}`,
+    acceptance: `Done for ${worker}`,
+  })),
 });
 
 export const passing = { verdict: "pass", findings: [] };
