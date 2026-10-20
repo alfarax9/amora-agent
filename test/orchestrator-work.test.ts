@@ -132,11 +132,16 @@ describe("orchestrator: what a step's worker is told", () => {
       .filter((request) => request.model === "fake/alpha" && request.response_format)
       .map((request) => String(request.messages[1]?.content))
       .filter((content) => content.includes('"goal"') && !content.includes('"reviewing"'));
-    const first = JSON.parse(builderInputs[0] ?? "{}") as { area: string[]; later: unknown[] };
+    type Input = { area: string[]; later: unknown[]; acceptance?: string; earlier: unknown[] };
+    const first = JSON.parse(builderInputs[0] ?? "{}") as Input;
     assert.deepEqual(first.area, ["src/**"]);
     assert.deepEqual(first.later, [{ worker: "Role builder", goal: "Goal for builder" }]);
-    const second = JSON.parse(builderInputs.at(-1) ?? "{}") as { later: unknown[] };
+    assert.equal(first.acceptance, "Done for builder");
+    const second = JSON.parse(builderInputs.at(-1) ?? "{}") as Input;
     assert.deepEqual(second.later, []);
+    assert.deepEqual(second.earlier, [
+      { worker: "builder", acceptance: "Done for builder", output: { text: "v" } },
+    ]);
   });
 });
 
@@ -146,6 +151,21 @@ describe("orchestrator: a plan step's acceptance", () => {
     const world = await planned({ plan_v1: [vague] });
     assert.equal(world.task.status, "awaiting_decision");
     assert.match(world.task.reason ?? "", /The plan is not ready.*acceptance/);
+  });
+
+  it("still runs a plan drafted before steps had an acceptance", async () => {
+    const world = await planned(
+      { plan_v1: [plan(["builder"])], note_v1: [{ text: "v" }], review_v1: [passing] },
+      { dailyUsd: 5 },
+    );
+    const old = { summary: "Deliver.", steps: [{ worker: "builder", goal: "Goal for builder" }] };
+    saveTask(world.storage, { ...world.task, plan: old });
+    const done = await world.orchestrator.approve(world.task.id);
+    assert.match(done.reason ?? "", /Every step passed/);
+    const input = world.requests.find((request) =>
+      String(request.messages[1]?.content).includes('"goal"'),
+    );
+    assert.ok(!String(input?.messages[1]?.content).includes('"acceptance"'));
   });
 });
 

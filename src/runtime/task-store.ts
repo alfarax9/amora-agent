@@ -6,7 +6,9 @@ import type { TaskStatus } from "./task-states.ts";
 // before it is written (S6): a brief, a plan, a model's output, or a
 // reviewer's findings can all carry a key someone pasted.
 
-export type PlanStep = { worker: string; goal: string };
+// `acceptance` is the observable evidence that a step is done; plans drafted
+// before it existed have none.
+export type PlanStep = { worker: string; goal: string; acceptance?: string };
 // Computed by the runtime from model prices, never by a model: `unpriced`
 // names the models whose price nobody knows yet.
 export type Estimate = { usd: number; unpriced: string[] };

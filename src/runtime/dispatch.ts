@@ -157,14 +157,20 @@ function stopReason(desk: Desk, task: Task): { status: TaskStatus; reason: strin
 }
 
 function delivered(desk: Desk, task: Task) {
-  const done = new Set(task.plan?.steps.slice(0, task.step).map((earlier) => earlier.worker));
+  const earlier = task.plan?.steps.slice(0, task.step) ?? [];
+  const done = new Set(earlier.map(({ worker }) => worker));
+  const acceptanceOf = (worker: string) =>
+    earlier.find((step) => step.worker === worker)?.acceptance;
   const outputs = new Map<string, unknown>();
   for (const handoff of listHandoffs(desk.agency.storage, task.id)) {
     if (handoff.gate === "passed" && done.has(handoff.sender)) {
       outputs.set(handoff.sender, handoff.content);
     }
   }
-  return [...outputs].map(([worker, output]) => ({ worker, output }));
+  return [...outputs].map(([worker, output]) => {
+    const acceptance = acceptanceOf(worker);
+    return acceptance ? { worker, acceptance, output } : { worker, output };
+  });
 }
 
 // What a step's worker sees: the brief, its goal, the paths it may write, what
@@ -183,6 +189,7 @@ function stepInput(desk: Desk, task: Task, step: PlanStep) {
     brief: task.brief,
     plan: task.plan?.summary,
     goal: step.goal,
+    ...(step.acceptance ? { acceptance: step.acceptance } : {}),
     area,
     earlier: delivered(desk, task),
     later: later.map(({ worker, goal }) => ({ worker: roleOf(desk, worker), goal })),
