@@ -14,6 +14,7 @@ import { probeAssigned, probeModel } from "./probe.ts";
 import { setPrice } from "./prices.ts";
 import { runPrivacy } from "./privacy.ts";
 import { runRoster } from "./profile.ts";
+import { runTaskCommand } from "./run.ts";
 import { runDelivery, runProject } from "./project.ts";
 import { print, printError } from "./output.ts";
 import { draftEntry } from "./registry.ts";
@@ -29,6 +30,9 @@ Commands:
   project [path]                  Show or set the project folder new tasks work on
   roster [auto|slim|full]         Show or choose the workers new tasks plan with (default: auto,
                                   which gives heavy briefs every worker and light ones the slim roster)
+  run "<brief>"                   Run a task without the dashboard, for scripts, CI, and other agents:
+                                  plans it, and with --approve and --complete goes on (exit code 0
+                                  reached, 1 needs a decision, 3 paused for quota)
   delivery [branch|files]         Show or choose how a completed task reaches the project: a branch
                                   of its own in a git project (default), or files copied in
   undo [task]                     List deliveries that can be undone, or take one back: delete its
@@ -59,7 +63,10 @@ Options:
   --system <names>         With eval: all (default: amora, slim, and baseline), both (amora and
                            baseline), or a comma-separated list of amora, slim, auto, and baseline
   --baseline-model <id>    With eval: the baseline's model (default: the global model)
-  --budget <usd>           With eval: each AMORA task's budget (default 1)
+  --budget <usd>           With eval or run: each AMORA task's budget (default 1)
+  --approve                With run: approve the plan and run every step
+  --complete               With run and --approve: deliver the work when every step passed
+  --json                   With run: print one JSON object instead of the transcript
   --runs <n>               With eval: run every brief n times per system, 1 to 10 (default 1)
   --tier <name>            With eval: all (default), regression (small and quick), realistic
                            (a React app with real dependencies), or heavy (a product from
@@ -92,6 +99,9 @@ type Flags = {
   runs: string;
   tier: string;
   force: boolean;
+  approve: boolean;
+  complete: boolean;
+  json: boolean;
 };
 
 function privacyChoice(flags: Flags): "allow" | "deny" | undefined {
@@ -141,6 +151,8 @@ const commands: Record<string, Command> = {
   models: (context, args, flags) => runModels(context, args, flags),
   project: async (context, args) => (args.length <= 1 ? runProject(context, args[0]) : undefined),
   roster: async (context, args) => (args.length <= 1 ? runRoster(context, args[0]) : undefined),
+  run: async (context, args, flags) =>
+    args.length === 1 && args[0] ? runTaskCommand(context, args[0], flags) : undefined,
   delivery: async (context, args) => (args.length <= 1 ? runDelivery(context, args[0]) : undefined),
   undo: async (context, args, flags) =>
     args.length <= 1 ? runUndo(context, args[0], flags.force) : undefined,
@@ -190,6 +202,9 @@ const options = {
   runs: { type: "string", default: "1" },
   tier: { type: "string", default: "all" },
   force: { type: "boolean", default: false },
+  approve: { type: "boolean", default: false },
+  complete: { type: "boolean", default: false },
+  json: { type: "boolean", default: false },
   family: { type: "string" },
   license: { type: "string" },
   version: { type: "boolean", default: false },
@@ -224,6 +239,9 @@ async function main(): Promise<void> {
     runs: values.runs,
     tier: values.tier,
     force: values.force,
+    approve: values.approve,
+    complete: values.complete,
+    json: values.json,
   };
   if (!(await run(command, rest, flags))) process.exitCode = 1;
 }
