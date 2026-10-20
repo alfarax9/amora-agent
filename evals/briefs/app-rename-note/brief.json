@@ -1,0 +1,7 @@
+{
+  "id": "app-rename-note",
+  "project": "notes-app",
+  "held_out": true,
+  "tier": "realistic",
+  "brief": "Let users rename a note from the list. Each note gets an Edit button, named for its note (for example \"Edit Buy milk\" for screen readers), that swaps the title for a text field labelled \"Title\" with Save and Cancel buttons. Save sends PUT /api/notes/:id with { title } through a new function in src/api/client.ts and then shows the new title; a blank title shows \"Title is required\" and sends nothing. Cancel puts the old title back without saving. Add tests for it."
+}
