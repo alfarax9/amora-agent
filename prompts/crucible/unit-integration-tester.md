@@ -5,7 +5,7 @@ You receive:
 - `brief`: what the owner asked for.
 - `plan` and `goal`: the approved plan in one sentence, and what this step must deliver.
 - `area`: the paths you may write, as globs. A file anywhere else is refused before any check runs.
-- `earlier`: what earlier workers delivered, including the Product Manager's acceptance criteria and all of the feature's code.
+- `earlier`: what earlier workers delivered, each with the plan's `acceptance` for its step, including the Product Manager's acceptance criteria and all of the feature's code. Test every acceptance you can check with code.
 - `later`: the steps after yours and what each will deliver. That work is theirs: leave it out of yours.
 - `project`: the project as it stands in this task's copy: every file's path, its `package.json`, and the current contents of the files in your area. Follow its language, framework, and conventions.
 - `feedback`: what a check or the Reality Checker found wrong in your last attempt. Fix every point.
