@@ -1,0 +1,6 @@
+{
+  "id": "limit-notes",
+  "project": "notes-api",
+  "held_out": true,
+  "brief": "Make GET /notes in src/notes.js accept a limit query: GET /notes?limit=<n> returns the first n notes. n must be a whole number from 1 to 100; anything else answers 400 with { error: \"limit must be 1 to 100\" }. The query string is part of request.path. Add tests for it."
+}
