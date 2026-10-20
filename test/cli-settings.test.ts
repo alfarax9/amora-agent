@@ -104,6 +104,11 @@ describe("CLI: budget and model families", () => {
     const listed = ["--system", "slim,baseline", "--baseline-model", "fake/x"];
     assert.match(run(["eval", ...listed, "--brief", "nope"]).out, /No brief is named nope/);
     assert.match(run(["eval", ...listed, "--tier", "nope"]).out, /--tier must be all, regression/);
+    const realistic = run(["eval", ...listed, "--tier", "realistic", "--brief", "tax"]).out;
+    assert.match(
+      realistic,
+      /No brief is named tax\. Briefs: app-add-note, .*app-states, app-toggle-done$/m,
+    );
     const unknown = run(["eval", "--system", "amora", "--brief", "nope"]);
     assert.equal(unknown.code, 1);
     assert.match(

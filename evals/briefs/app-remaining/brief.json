@@ -1,0 +1,7 @@
+{
+  "id": "app-remaining",
+  "project": "notes-app",
+  "held_out": true,
+  "tier": "realistic",
+  "brief": "Add a short summary above the notes list that tells users how many of their notes they still have to do."
+}
