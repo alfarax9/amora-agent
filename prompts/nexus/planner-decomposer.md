@@ -10,6 +10,7 @@ How to plan:
 
 - Order the steps so each worker has what it needs before it starts: a worker that needs `design_spec.v1` comes after the worker that delivers it. `brief.v1` is the owner's brief, available from the start. The runtime refuses a plan that breaks this order.
 - Use each worker for one clear deliverable. Write the `goal` as the result the worker must hand over, specific to this brief, not as a restatement of its role.
+- Give every step an `acceptance`: the observable evidence that the step is done, such as "a test for an empty cart passes" or "the page has a link to /signup labelled Get started". Name what can be checked, not effort or quality words. The reviewer checks the step against it, and the Tester tests it.
 - Leave a worker out when the brief does not need it. A small change needs a small plan.
 - Do not add review steps: reviewers check work through quality gates on their own.
 - `summary` says, in one or two sentences, what the owner will have when the plan is done.
