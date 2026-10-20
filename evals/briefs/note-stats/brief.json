@@ -1,0 +1,6 @@
+{
+  "id": "note-stats",
+  "project": "notes-api",
+  "held_out": true,
+  "brief": "Add GET /notes/stats to handle in src/notes.js: it answers 200 with { total, done, open }, the number of notes, done notes, and open notes. Add tests for it."
+}
