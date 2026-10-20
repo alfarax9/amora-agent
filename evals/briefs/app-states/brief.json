@@ -1,0 +1,7 @@
+{
+  "id": "app-states",
+  "project": "notes-app",
+  "held_out": true,
+  "tier": "realistic",
+  "brief": "The notes list shows a blank page while notes load, and still nothing when there are no notes or when the server fails, so people think the app is broken. Make each of these situations clear to the user."
+}
