@@ -98,6 +98,11 @@ describe("CLI: budget and model families", () => {
       assert.match(refused.out, /--runs <n>/);
     }
     run(["budget", "--daily", "1"]);
+    for (const system of ["slim,nope", "slim,slim", ""]) {
+      assert.match(run(["eval", "--system", system]).out, /--system must be all, both, or/);
+    }
+    const listed = ["--system", "slim,baseline", "--baseline-model", "fake/x"];
+    assert.match(run(["eval", ...listed, "--brief", "nope"]).out, /No brief is named nope/);
     const unknown = run(["eval", "--system", "amora", "--brief", "nope"]);
     assert.equal(unknown.code, 1);
     assert.match(

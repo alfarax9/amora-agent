@@ -50,8 +50,8 @@ Options:
   --assigned               With models probe: every model in use
   --daily <usd>            With budget: the daily limit in USD
   --brief <id>             With eval: run only this brief (repeatable)
-  --system <name>          With eval: all (default: amora, slim, and baseline), both (amora and
-                           baseline), amora, slim, or baseline
+  --system <names>         With eval: all (default: amora, slim, and baseline), both (amora and
+                           baseline), or a comma-separated list such as slim,baseline
   --baseline-model <id>    With eval: the baseline's model (default: the global model)
   --budget <usd>           With eval: each AMORA task's budget (default 1)
   --runs <n>               With eval: run every brief n times per system, 1 to 10 (default 1)

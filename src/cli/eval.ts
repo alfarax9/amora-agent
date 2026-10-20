@@ -22,13 +22,19 @@ export type EvalOptions = {
   runs: number;
 };
 
-const systemsFor: Record<string, System[]> = {
-  all: ["amora", "slim", "baseline"],
-  both: ["amora", "baseline"],
-  amora: ["amora"],
-  slim: ["slim"],
-  baseline: ["baseline"],
+const systemNames: System[] = ["amora", "slim", "baseline"];
+const systemAliases: Record<string, string> = {
+  all: "amora,slim,baseline",
+  both: "amora,baseline",
 };
+
+// A shorthand or a comma-separated list such as slim,baseline; an unknown or
+// repeated name refuses the whole list.
+function systemsOf(option: string): System[] | undefined {
+  const listed = (systemAliases[option] ?? option).split(",");
+  const systems = systemNames.filter((name) => listed.includes(name));
+  return systems.length === listed.length ? systems : undefined;
+}
 
 function describeRow(row: EvalRow): string {
   const verdict = row.success ? "success" : "no success";
@@ -37,7 +43,9 @@ function describeRow(row: EvalRow): string {
 
 // Everything that would make a run spend quota for nothing is refused first.
 function preflight(context: AppContext, options: EvalOptions, systems: System[] | undefined) {
-  if (!systems) return "--system must be all, both, amora, slim, or baseline.";
+  if (!systems) {
+    return "--system must be all, both, or a comma-separated list of amora, slim, and baseline.";
+  }
   const baselineModel = options.baselineModel ?? context.slots.global;
   if (systems.includes("baseline") && !baselineModel) {
     return "Name the baseline's model with --baseline-model, or set a global model.";
@@ -75,7 +83,7 @@ function writeReport(out: string, rows: EvalRow[]): void {
 }
 
 export async function runEval(context: AppContext, options: EvalOptions): Promise<boolean> {
-  const systems = systemsFor[options.system];
+  const systems = systemsOf(options.system);
   const problem = preflight(context, options, systems);
   const suite = selected(context, options.briefs);
   if (problem || "problem" in suite) return (printError(problem ?? suite.problem ?? ""), false);
