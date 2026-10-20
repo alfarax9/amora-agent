@@ -1,0 +1,6 @@
+{
+  "id": "cookie-notice",
+  "project": "landing-page",
+  "held_out": true,
+  "brief": "Add a cookie notice to the landing page rendered by src/page.js with the text \"We use cookies\" and two buttons, Accept and Decline. Export cookieChoice(state, action) from src/cookies.js: for \"accept\" or \"decline\" it returns a new state with consent set to true or false and visible set to false, leaving the given state unchanged; any other action throws an Error. Add tests for it."
+}
