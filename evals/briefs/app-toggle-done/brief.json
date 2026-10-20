@@ -1,0 +1,7 @@
+{
+  "id": "app-toggle-done",
+  "project": "notes-app",
+  "held_out": true,
+  "tier": "realistic",
+  "brief": "Let users mark notes as done from the list. Each note gets a checkbox labelled with the note's title, checked when the note is done. Ticking or unticking it saves the change with PATCH /api/notes/:id and the body { done }, through a new function in src/api/client.ts. If saving fails, the checkbox goes back to its previous state. Add tests for it."
+}
