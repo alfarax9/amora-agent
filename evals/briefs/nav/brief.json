@@ -1,0 +1,6 @@
+{
+  "id": "nav",
+  "project": "landing-page",
+  "held_out": true,
+  "brief": "Add site navigation to the landing page rendered by src/page.js: a nav element labelled \"Main\" with links to /, /pricing, /blog, and /login, placed before the page heading. Add tests for it."
+}
