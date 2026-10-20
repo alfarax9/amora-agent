@@ -1,6 +1,14 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import {
+  cpSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { test } from "node:test";
@@ -12,7 +20,11 @@ import { fileURLToPath } from "node:url";
 // say how much of the brief works. Nothing of this is in the project while
 // AMORA or the baseline works on it.
 
-const project = process.env.PROJECT ?? "";
+// The project's real path: Windows runners hand out temporary folders by their
+// short 8.3 name (RUNNER~1), and Vite, which resolves its config by the long
+// name, then misplaces the config's relative paths ("Cannot find module
+// '/src/test/setup.ts'").
+const project = process.env.PROJECT ? realpathSync.native(process.env.PROJECT) : "";
 const windows = process.platform === "win32";
 
 // The arguments are fixed names, never model text.
