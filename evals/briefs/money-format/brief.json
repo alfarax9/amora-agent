@@ -1,0 +1,6 @@
+{
+  "id": "money-format",
+  "project": "cart",
+  "held_out": true,
+  "brief": "Export formatMoney(amount, currency) from src/money.js. \"USD\" formats as $1,234.50, \"EUR\" as \u20ac1,234.50 (two decimals, comma thousands), and \"IDR\" as Rp1.234.500 (no decimals, dot thousands). Any other currency throws a RangeError. Add tests for it."
+}
