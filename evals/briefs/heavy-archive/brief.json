@@ -1,0 +1,7 @@
+{
+  "id": "heavy-archive",
+  "project": "notes-app",
+  "held_out": true,
+  "tier": "heavy",
+  "brief": "Add a new Archive screen to the notes app, using the notes API. A navigation with \"Notes\" and \"Archive\" buttons switches between the notes list and the new screen. Each note in the list gets an Archive button, named for its note for screen readers (for example \"Archive Buy milk\"), that sends POST /api/notes/:id/archive and removes the note from the list. The Archive screen loads GET /api/notes/archived and shows those notes, each with a Restore button (for example \"Restore Buy milk\") that sends POST /api/notes/:id/restore and removes it from the archive. Each POST answers with the note. Add tests."
+}
