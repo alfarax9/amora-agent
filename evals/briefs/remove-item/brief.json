@@ -1,0 +1,6 @@
+{
+  "id": "remove-item",
+  "project": "cart",
+  "held_out": true,
+  "brief": "Export removeItem(cart, sku) from src/cart.js: it returns a new cart without that sku's line and leaves the given cart unchanged; removing a sku that is not in the cart returns a cart with the same lines. Add tests for it."
+}
