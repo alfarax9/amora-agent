@@ -38,14 +38,30 @@ const validate = new Ajv({ allErrors: true }).compile<BriefFile>({
   additionalProperties: false,
 });
 
+// A fixture with dependencies is checked against them, so they must be there.
+function missingPackages(manifest: string): boolean {
+  const { dependencies = {}, devDependencies = {} } = JSON.parse(
+    readFileSync(manifest, "utf8"),
+  ) as {
+    dependencies?: object;
+    devDependencies?: object;
+  };
+  const wanted = Object.keys(dependencies).length + Object.keys(devDependencies).length > 0;
+  return wanted && !existsSync(join(manifest, "..", "node_modules"));
+}
+
 function problemsOf(root: string, folder: string, data: unknown): string[] {
   if (!validate(data)) {
     return (validate.errors ?? []).map((error) => `${error.instancePath || "/"} ${error.message}`);
   }
   const problems: string[] = [];
   if (data.id !== folder) problems.push(`id is "${data.id}" but the folder is ${folder}`);
-  if (!existsSync(join(root, "projects", data.project, "package.json"))) {
-    problems.push(`project ${data.project} has no package.json`);
+  const manifest = join(root, "projects", data.project, "package.json");
+  if (!existsSync(manifest)) problems.push(`project ${data.project} has no package.json`);
+  else if (missingPackages(manifest)) {
+    problems.push(
+      `project ${data.project} needs its packages: npm ci --prefix evals/projects/${data.project}`,
+    );
   }
   for (const file of ["acceptance.test.mjs", "solution"]) {
     if (!existsSync(join(root, "briefs", folder, file))) problems.push(`${file} is missing`);
