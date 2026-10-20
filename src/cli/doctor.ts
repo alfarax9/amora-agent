@@ -191,7 +191,11 @@ export function checkBudget(context: Pick<AppContext, "storage">): Check {
 
 function checkRoster(context: AppContext): Check {
   const profile = rosterProfile(context);
-  return { status: "pass", label: "Roster", detail: `new tasks plan with the ${profile} roster` };
+  const detail =
+    profile === "auto"
+      ? "new tasks are weighed: slim roster for light briefs, every worker for heavy ones"
+      : `new tasks plan with the ${profile} roster`;
+  return { status: "pass", label: "Roster", detail };
 }
 
 // Allowed is the owner's choice, so it warns rather than fails.

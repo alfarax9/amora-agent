@@ -17,6 +17,10 @@ export const rosterProfiles: Record<string, string[] | undefined> = {
   slim: ["fe-engineer", "unit-integration-tester"],
 };
 
+// The owner's roster setting: a profile, or "auto", which weighs each brief and
+// gives a heavy one every worker and a light one the slim roster.
+export const rosterSettings = ["auto", ...Object.keys(rosterProfiles)];
+
 // The workers a task's Planner may use (all when absent), and why, when AMORA
 // chose them itself.
 export type RosterChoice = { offered: string[] | undefined; note?: string };

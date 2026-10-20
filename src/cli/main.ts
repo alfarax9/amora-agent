@@ -26,7 +26,8 @@ Commands:
   budget                          Show the daily spending limit and today's spend
   budget --daily <usd>            Set the daily limit across all tasks (needed before a first task)
   project [path]                  Show or set the project folder new tasks work on
-  roster [slim|full]              Show or choose the workers new tasks plan with (default: slim)
+  roster [auto|slim|full]         Show or choose the workers new tasks plan with (default: auto,
+                                  which gives heavy briefs every worker and light ones the slim roster)
   privacy                         Show whether OpenRouter providers may keep or train on prompts
   eval                            Run the benchmark set through AMORA and one strong agent, and
                                   report success and cost per successful task (calls your models)

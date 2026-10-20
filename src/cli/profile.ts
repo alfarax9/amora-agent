@@ -1,20 +1,24 @@
-import { rosterProfiles } from "../runtime/roster.ts";
+import { rosterProfiles, rosterSettings } from "../runtime/roster.ts";
 import type { AppContext } from "./context.ts";
 import { print, printError } from "./output.ts";
 
 type RosterSetting = { profile: string };
 
-// New tasks plan with the slim roster unless the owner chooses otherwise: on
-// the benchmark it beat both the full roster and one agent (docs/decisions.md,
-// Oct 19, 2026).
-const defaultProfile = "slim";
+// New tasks are weighed one by one unless the owner chooses a roster: a light
+// brief gets the slim roster, which beat both the full roster and one agent on
+// the benchmark's light briefs (docs/decisions.md, Oct 19, 2026), and a heavy
+// one gets the specialists.
+const defaultProfile = "auto";
 
 export function rosterProfile(context: Pick<AppContext, "storage">): string {
   const chosen = context.storage.getSetting<RosterSetting>("roster")?.profile;
-  return chosen !== undefined && chosen in rosterProfiles ? chosen : defaultProfile;
+  return chosen !== undefined && rosterSettings.includes(chosen) ? chosen : defaultProfile;
 }
 
 function describe(context: AppContext, profile: string): string {
+  if (profile === "auto") {
+    return "New tasks are weighed one by one: a heavy brief (a whole product, a new screen to design, requirements to work out, an outside service, speed, or a lot to do) may use every worker; a light one uses the slim roster.";
+  }
   const ids = rosterProfiles[profile];
   if (!ids) return `New tasks plan with the ${profile} roster: the Planner may use every worker.`;
   const roleOf = (id: string) =>
@@ -24,10 +28,8 @@ function describe(context: AppContext, profile: string): string {
 
 export function runRoster(context: AppContext, profile: string | undefined): boolean {
   if (profile !== undefined) {
-    if (!(profile in rosterProfiles)) {
-      printError(
-        `There is no ${profile} roster. Choose ${Object.keys(rosterProfiles).join(" or ")}.`,
-      );
+    if (!rosterSettings.includes(profile)) {
+      printError(`There is no ${profile} roster. Choose ${rosterSettings.join(", ")}.`);
       return false;
     }
     context.storage.setSetting("roster", { profile } satisfies RosterSetting);

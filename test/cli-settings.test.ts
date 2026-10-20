@@ -117,23 +117,29 @@ describe("CLI: budget and model families", () => {
     );
   });
 
-  it("plans new tasks with the slim roster unless the owner chooses the full one", async () => {
+  it("weighs each new task's brief unless the owner chooses a roster", async () => {
     const fresh = { AMORA_HOME: mkdtempSync(join(tmpdir(), "amora-cli-")) };
-    assert.match(
-      run(["roster"], fresh).out,
-      /slim roster: Frontend Engineer and Unit & Integration Tester/,
-    );
+    assert.match(run(["roster"], fresh).out, /New tasks are weighed one by one/);
     const { storage } = setup({});
     const context = { storage } as unknown as AppContext;
     const offered = (text: string) => agencyFor(context).roster?.(text).offered;
-    assert.deepEqual(offered("Build me a CMS project"), ["fe-engineer", "unit-integration-tester"]);
+    const light = "Add a Delete button to each note.";
+    const heavy = "Build me a CMS project";
+    assert.deepEqual(offered(light), ["fe-engineer", "unit-integration-tester"]);
+    assert.equal(offered(heavy), undefined);
+    assert.match(agencyFor(context).roster?.(heavy).note ?? "", /heavy task \(a whole product/);
     assert.match(
       run(["roster", "full"], fresh).out,
       /full roster: the Planner may use every worker/,
     );
+    storage.setSetting("roster", { profile: "slim" });
+    assert.deepEqual(offered(heavy), ["fe-engineer", "unit-integration-tester"]);
+    assert.equal(agencyFor(context).roster?.(heavy).note, undefined);
     storage.setSetting("roster", { profile: "full" });
-    assert.equal(offered("Add a Delete button to each note."), undefined);
-    assert.equal(run(["roster", "tiny"], fresh).code, 1);
+    assert.equal(offered(light), undefined);
+    const tiny = run(["roster", "tiny"], fresh);
+    assert.equal(tiny.code, 1);
+    assert.match(tiny.out, /Choose auto, full, slim\./);
   });
 
   it("refuses an AMORA_HOME that is set but empty", () => {
