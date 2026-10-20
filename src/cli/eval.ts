@@ -19,6 +19,7 @@ export type EvalOptions = {
   system: string;
   baselineModel: string | undefined;
   budgetUsd: number;
+  runs: number;
 };
 
 const systemsFor: Record<string, System[]> = {
@@ -31,7 +32,7 @@ const systemsFor: Record<string, System[]> = {
 
 function describeRow(row: EvalRow): string {
   const verdict = row.success ? "success" : "no success";
-  return `${row.brief} (${row.system}): ${verdict}; hidden tests ${row.passed} passed, ${row.failed} failed; ${row.calls} calls, ${row.seconds} s. ${row.reason}`;
+  return `${row.brief} (${row.system}, run ${row.run}): ${verdict}; hidden tests ${row.passed} passed, ${row.failed} failed; ${row.calls} calls, ${row.seconds} s. ${row.reason}`;
 }
 
 // Everything that would make a run spend quota for nothing is refused first.
@@ -83,7 +84,7 @@ export async function runEval(context: AppContext, options: EvalOptions): Promis
   const out = join(dataDirectory(), "evals", new Date().toISOString().replace(/[:.]/g, "-"));
   mkdirSync(out, { recursive: true });
   print(
-    `Running ${suite.briefs.length} briefs through ${systems.join(" and ")}. This calls your models.`,
+    `Running ${suite.briefs.length} briefs through ${systems.join(" and ")}, ${options.runs === 1 ? "once" : `${options.runs} times`}. This calls your models.`,
   );
   const agency: Agency = agencyFor(context);
   const rows = await runSuite(
@@ -99,6 +100,7 @@ export async function runEval(context: AppContext, options: EvalOptions): Promis
       budgetUsd: options.budgetUsd,
       logger: createLogger(),
       systems,
+      runs: options.runs,
       onRow: (row) => print(describeRow(row)),
     },
     suite.briefs,

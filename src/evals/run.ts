@@ -21,6 +21,7 @@ export type System = "amora" | "slim" | "baseline";
 
 export type EvalRow = Meter & {
   brief: string;
+  run: number;
   heldOut: boolean;
   system: System;
   delivered: boolean;
@@ -41,6 +42,8 @@ export type SuiteRun = {
   budgetUsd: number;
   logger: Logger;
   systems: System[];
+  // Each brief runs this many times per system, to tell steady results from luck.
+  runs: number;
   onRow?: (row: EvalRow) => void;
 };
 
@@ -91,8 +94,13 @@ async function attempt(
   }
 }
 
-async function runOne(run: SuiteRun, system: System, brief: EvalBrief): Promise<EvalRow> {
-  const folder = join(run.out, system, brief.id);
+async function runOne(
+  run: SuiteRun,
+  round: number,
+  system: System,
+  brief: EvalBrief,
+): Promise<EvalRow> {
+  const folder = join(run.out, `run-${round}`, system, brief.id);
   const project = join(folder, "project");
   cpSync(brief.project, project, { recursive: true });
   const meter = emptyMeter();
@@ -103,6 +111,7 @@ async function runOne(run: SuiteRun, system: System, brief: EvalBrief): Promise<
   const success = outcome.delivered && passed > 0 && failed === 0;
   return {
     brief: brief.id,
+    run: round,
     heldOut: brief.heldOut,
     system,
     ...outcome,
@@ -117,11 +126,15 @@ async function runOne(run: SuiteRun, system: System, brief: EvalBrief): Promise<
 
 export async function runSuite(run: SuiteRun, briefs: EvalBrief[]): Promise<EvalRow[]> {
   const rows: EvalRow[] = [];
-  for (const brief of briefs) {
-    for (const system of run.systems) {
-      const row = await runOne(run, system, brief);
-      rows.push(row);
-      run.onRow?.(row);
+  // Whole rounds one after another, so a run stopped early still compares the
+  // systems on the same briefs.
+  for (let round = 1; round <= run.runs; round += 1) {
+    for (const brief of briefs) {
+      for (const system of run.systems) {
+        const row = await runOne(run, round, system, brief);
+        rows.push(row);
+        run.onRow?.(row);
+      }
     }
   }
   return rows;

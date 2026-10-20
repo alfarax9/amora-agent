@@ -6,6 +6,7 @@ import type { EvalRow } from "../src/evals/run.ts";
 describe("benchmark report", () => {
   const row = (system: "amora" | "baseline", success: boolean, heldOut: boolean): EvalRow => ({
     brief: "b",
+    run: 1,
     heldOut,
     system,
     delivered: true,

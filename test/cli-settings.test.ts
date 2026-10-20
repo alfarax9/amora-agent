@@ -91,6 +91,11 @@ describe("CLI: budget and model families", () => {
     const noLimit = run(["eval", "--system", "amora"], fresh);
     assert.equal(noLimit.code, 1);
     assert.match(noLimit.out, /AMORA's tasks need a daily limit first/);
+    for (const runs of ["0", "11", "1.5"]) {
+      const refused = run(["eval", "--runs", runs]);
+      assert.equal(refused.code, 1);
+      assert.match(refused.out, /--runs <n>/);
+    }
     run(["budget", "--daily", "1"]);
     const unknown = run(["eval", "--system", "amora", "--brief", "nope"]);
     assert.equal(unknown.code, 1);

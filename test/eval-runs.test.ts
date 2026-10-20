@@ -13,6 +13,23 @@ describe("benchmark runner, whatever the owner's default roster", () => {
   });
 });
 
+describe("benchmark runner, with repeated runs", () => {
+  it("runs every system on the brief once per round, each in its own folder", async () => {
+    const rows = await runWith(fakeAgency(taxSolution), ["slim", "baseline"], "tax", 2);
+    assert.deepEqual(
+      rows.map(({ run, system, success }) => [run, system, success]),
+      [
+        [1, "slim", true],
+        [1, "baseline", true],
+        [2, "slim", true],
+        [2, "baseline", true],
+      ],
+    );
+    assert.equal(new Set(rows.map(({ project }) => project)).size, 4);
+    assert.match(rows[2]?.project ?? "", /run-2[\\/]slim[\\/]tax/);
+  });
+});
+
 describe("benchmark runner, when the baseline fails its checks", () => {
   it("keeps the failing check's output in the reason", async () => {
     const [row] = await runWith(fakeAgency("export function totalWithTax( {"), ["baseline"]);

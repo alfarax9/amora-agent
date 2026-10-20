@@ -54,6 +54,7 @@ Options:
                            baseline), amora, slim, or baseline
   --baseline-model <id>    With eval: the baseline's model (default: the global model)
   --budget <usd>           With eval: each AMORA task's budget (default 1)
+  --runs <n>               With eval: run every brief n times per system, 1 to 10 (default 1)
   --allow-data-collection  With privacy: let providers that keep or train on prompts serve
                            tasks in this AMORA home; --deny-data-collection turns it off
   --url <url>              With connect omniroute: its API address (default http://localhost:20128/v1)
@@ -78,6 +79,7 @@ type Flags = {
   system: string;
   baselineModel: string | undefined;
   budget: string;
+  runs: string;
 };
 
 function privacyChoice(flags: Flags): "allow" | "deny" | undefined {
@@ -129,9 +131,11 @@ const commands: Record<string, Command> = {
   roster: async (context, args) => (args.length <= 1 ? runRoster(context, args[0]) : undefined),
   eval: async (context, args, flags) => {
     const budgetUsd = Number(flags.budget);
-    if (args.length > 0 || !(budgetUsd > 0)) return undefined;
+    const runs = Number(flags.runs);
+    const runsFit = Number.isInteger(runs) && runs >= 1 && runs <= 10;
+    if (args.length > 0 || !(budgetUsd > 0) || !runsFit) return undefined;
     const { briefs, system, baselineModel } = flags;
-    return runEval(context, { briefs, system, baselineModel, budgetUsd });
+    return runEval(context, { briefs, system, baselineModel, budgetUsd, runs });
   },
   privacy: async (context, args, flags) =>
     args.length === 0 ? runPrivacy(context, privacyChoice(flags)) : undefined,
@@ -168,6 +172,7 @@ const options = {
   system: { type: "string", default: "all" },
   "baseline-model": { type: "string" },
   budget: { type: "string", default: "1" },
+  runs: { type: "string", default: "1" },
   family: { type: "string" },
   license: { type: "string" },
   version: { type: "boolean", default: false },
@@ -199,6 +204,7 @@ async function main(): Promise<void> {
     system: values.system,
     baselineModel: values["baseline-model"],
     budget: values.budget,
+    runs: values.runs,
   };
   if (!(await run(command, rest, flags))) process.exitCode = 1;
 }

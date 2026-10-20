@@ -161,13 +161,14 @@ export async function benchmark(taxCode: string) {
       budgetUsd: 1,
       logger: createLogger(() => undefined),
       systems: ["amora", "slim", "baseline"],
+      runs: 1,
     },
     [briefOf("tax")],
   );
 }
 
 // Runs one brief through the given systems with an agency the test built.
-export async function runWith(agency: Agency, systems: System[], briefId = "tax") {
+export async function runWith(agency: Agency, systems: System[], briefId = "tax", runs = 1) {
   const contract = contracts.find(({ id }) => id === "code_change.v1");
   if (!contract) throw new Error("code_change.v1 is missing");
   const out = mkdtempSync(join(tmpdir(), "amora-evals-out-"));
@@ -180,6 +181,7 @@ export async function runWith(agency: Agency, systems: System[], briefId = "tax"
     budgetUsd: 1,
     logger: createLogger(() => undefined),
     systems,
+    runs,
   };
   return runSuite(run, [briefOf(briefId)]);
 }
