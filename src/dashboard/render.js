@@ -44,7 +44,13 @@ function planCard(task, roles, act) {
   const { plan } = task;
   const field = `revise-${task.id}`;
   const steps = plan.steps.map((step) =>
-    el("li", {}, el("strong", {}, roles[step.worker] ?? step.worker), `: ${step.goal}`),
+    el(
+      "li",
+      {},
+      el("strong", {}, roles[step.worker] ?? step.worker),
+      `: ${step.goal}`,
+      step.acceptance ? el("span", { class: "meta" }, ` Done when: ${step.acceptance}`) : null,
+    ),
   );
   return el(
     "div",
