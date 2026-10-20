@@ -68,7 +68,7 @@ function writeReport(out: string, rows: EvalRow[]): void {
   for (const s of summaries) {
     const perSuccess = s.costPerSuccessUsd === null ? "n/a" : `$${s.costPerSuccessUsd.toFixed(4)}`;
     print(
-      `${s.system}: ${s.successes} of ${s.tasks} succeeded (${s.heldOutSuccesses} of ${s.heldOutTasks} held out); ${s.calls} calls, ${s.tokens} tokens, cost per success ${perSuccess}`,
+      `${s.system}: ${s.successes} of ${s.tasks} succeeded (${s.heldOutSuccesses} of ${s.heldOutTasks} held out; ${s.steadyBriefs} of ${s.briefs} briefs in every run); ${s.calls} calls, ${s.tokens} tokens, cost per success ${perSuccess}`,
     );
   }
   print(`Report: ${join(out, "report.md")}`);

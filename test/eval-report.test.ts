@@ -38,9 +38,24 @@ describe("benchmark report", () => {
     const markdown = markdownReport(rows, summarize(rows), "Run");
     assert.match(
       markdown,
-      /\| amora \| 1 of 2 \| 0 of 1 \| 4 \| 300 \| \$0\.0400 \| \$0\.0400 \| 300 \| 20 s \|/,
+      /\| amora \| 1 of 2 \| 0 of 1 \| 0 of 1 briefs \| 4 \| 300 \| \$0\.0400 \| \$0\.0400 \| 300 \| 20 s \|/,
     );
     assert.match(markdown, /\| baseline \| 0 of 1 \| 0 of 1 \|.*\| n\/a \| n\/a \|/);
     assert.match(markdown, /Done \\\| fine/);
+  });
+
+  it("counts a brief as steady only when it succeeded in every run", () => {
+    const rows = [
+      { ...row("amora", true, true), brief: "a" },
+      { ...row("amora", true, true), brief: "a", run: 2 },
+      { ...row("amora", true, true), brief: "b" },
+      { ...row("amora", false, true), brief: "b", run: 2 },
+    ];
+    const [amora] = summarize(rows);
+    assert.deepEqual([amora?.steadyBriefs, amora?.briefs, amora?.successes], [1, 2, 3]);
+    assert.match(
+      markdownReport(rows, summarize(rows), "Run"),
+      /\| b \| 2 \| yes \| amora \| no \|/,
+    );
   });
 });

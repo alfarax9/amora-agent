@@ -1,7 +1,8 @@
 import type { EvalRow, System } from "./run.ts";
 
 // The headline is cost per successful task (PRD §3, §7.7), next to the success
-// rate overall and on held-out briefs only.
+// rate overall and on held-out briefs only. With repeated runs, a brief counts
+// as steady only when it succeeded in every run.
 
 export type Summary = {
   system: System;
@@ -9,6 +10,8 @@ export type Summary = {
   successes: number;
   heldOutTasks: number;
   heldOutSuccesses: number;
+  briefs: number;
+  steadyBriefs: number;
   calls: number;
   tokens: number;
   costUsd: number;
@@ -26,6 +29,7 @@ export function summarize(rows: EvalRow[]): Summary[] {
     const own = rows.filter((row) => row.system === system);
     const heldOut = own.filter((row) => row.heldOut);
     const successes = own.filter((row) => row.success).length;
+    const briefs = [...new Set(own.map(({ brief }) => brief))];
     const costUsd = sum(own, (row) => row.costUsd);
     const tokens = sum(own, (row) => row.tokensIn + row.tokensOut);
     return {
@@ -34,6 +38,9 @@ export function summarize(rows: EvalRow[]): Summary[] {
       successes,
       heldOutTasks: heldOut.length,
       heldOutSuccesses: heldOut.filter((row) => row.success).length,
+      briefs: briefs.length,
+      steadyBriefs: briefs.filter((id) => own.every((row) => row.brief !== id || row.success))
+        .length,
       calls: sum(own, (row) => row.calls),
       tokens,
       costUsd,
@@ -51,19 +58,19 @@ export function markdownReport(rows: EvalRow[], summaries: Summary[], title: str
   const head = [
     `# ${title}`,
     "",
-    "| System | Successes | Held out | Calls | Tokens | Cost | Cost per success | Tokens per success | Time |",
-    "| --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+    "| System | Successes | Held out | Every run | Calls | Tokens | Cost | Cost per success | Tokens per success | Time |",
+    "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
     ...summaries.map(
       (s) =>
-        `| ${s.system} | ${s.successes} of ${s.tasks} | ${s.heldOutSuccesses} of ${s.heldOutTasks} | ${s.calls} | ${s.tokens} | ${usd(s.costUsd)} | ${usd(s.costPerSuccessUsd)} | ${s.tokensPerSuccess ?? "n/a"} | ${s.seconds} s |`,
+        `| ${s.system} | ${s.successes} of ${s.tasks} | ${s.heldOutSuccesses} of ${s.heldOutTasks} | ${s.steadyBriefs} of ${s.briefs} briefs | ${s.calls} | ${s.tokens} | ${usd(s.costUsd)} | ${usd(s.costPerSuccessUsd)} | ${s.tokensPerSuccess ?? "n/a"} | ${s.seconds} s |`,
     ),
     "",
-    "| Brief | Held out | System | Success | Hidden tests | Calls | Tokens | Time | Why |",
-    "| --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+    "| Brief | Run | Held out | System | Success | Hidden tests | Calls | Tokens | Time | Why |",
+    "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
   ];
   const lines = rows.map(
     (r) =>
-      `| ${r.brief} | ${r.heldOut ? "yes" : "no"} | ${r.system} | ${r.success ? "yes" : "no"} | ${r.passed} passed, ${r.failed} failed | ${r.calls} | ${r.tokensIn + r.tokensOut} | ${r.seconds} s | ${cell(r.reason)} |`,
+      `| ${r.brief} | ${r.run} | ${r.heldOut ? "yes" : "no"} | ${r.system} | ${r.success ? "yes" : "no"} | ${r.passed} passed, ${r.failed} failed | ${r.calls} | ${r.tokensIn + r.tokensOut} | ${r.seconds} s | ${cell(r.reason)} |`,
   );
   return `${[...head, ...lines].join("\n")}\n`;
 }
