@@ -12,6 +12,10 @@ const unitMs: Record<string, number> = { s: 1000, m: 60_000, h: 3_600_000, d: 86
 
 export const defaultQuotaWaitMs = 15 * 60_000;
 
+// How many waits in a row a task may spend on quota before the owner decides;
+// a provider that keeps saying "reset after 5m" for hours should not loop.
+export const maxQuotaWaits = 5;
+
 const needsOwner = (status: number) => status === 401 || status === 402;
 
 function resetMs(reset: RegExpMatchArray): number {

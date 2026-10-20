@@ -41,7 +41,7 @@ function refreshRegistryInBackground(context: AppContext, logger: Logger): void 
 }
 
 function taskDesk(context: AppContext, logger: Logger): TaskDesk {
-  const orchestrator = createOrchestrator(agencyFor(context), { logger });
+  const orchestrator = createOrchestrator(agencyFor(context), { logger, autoResume: true });
   orchestrator.recoverInterrupted();
   const roles = Object.fromEntries(context.manifests.map(({ id, role }) => [id, role]));
   return { orchestrator, storage: context.storage, roles, project: () => projectPath(context) };

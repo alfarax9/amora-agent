@@ -86,6 +86,10 @@ const migrations = [
      delivered_at TEXT NOT NULL,
      undone_at TEXT
    )`,
+  // When a task paused for a provider's quota resumes by itself, and how many
+  // such waits it has had in a row (quota.ts).
+  `ALTER TABLE tasks ADD COLUMN resume_at TEXT`,
+  `ALTER TABLE tasks ADD COLUMN quota_waits INTEGER NOT NULL DEFAULT 0`,
 ];
 
 // S6: nothing is written to the database before it has been scanned. Secrets

@@ -27,6 +27,10 @@ export type Task = {
   returns: number;
   reason?: string;
   project?: string;
+  // Set while the task waits for a provider's quota: when it resumes itself.
+  resumeAt?: string;
+  // Quota waits in a row; a passed step or plan starts the count again.
+  quotaWaits: number;
   createdAt: string;
   updatedAt: string;
 };
@@ -65,6 +69,8 @@ type TaskRow = {
   returns: number;
   reason: string | null;
   project: string | null;
+  resume_at: string | null;
+  quota_waits: number;
   created_at: string;
   updated_at: string;
 };
@@ -83,6 +89,8 @@ function toTask(row: TaskRow): Task {
     returns: row.returns,
     ...(row.reason === null ? {} : { reason: row.reason }),
     ...(row.project === null ? {} : { project: row.project }),
+    ...(row.resume_at === null ? {} : { resumeAt: row.resume_at }),
+    quotaWaits: row.quota_waits,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -107,6 +115,7 @@ export function createTask(
     attempt: 0,
     feedback: [],
     returns: 0,
+    quotaWaits: 0,
     ...(project === undefined ? {} : { project }),
     createdAt: at,
     updatedAt: at,
@@ -139,7 +148,8 @@ export function saveTask(storage: Storage, task: Task, now = new Date()): Task {
   storage.database
     .prepare(
       `UPDATE tasks SET status = ?, budget_usd = ?, spent_usd = ?, plan = ?, step = ?, attempt = ?,
-       feedback = ?, returns = ?, reason = ?, updated_at = ? WHERE id = ?`,
+       feedback = ?, returns = ?, reason = ?, resume_at = ?, quota_waits = ?, updated_at = ?
+       WHERE id = ?`,
     )
     .run(
       saved.status,
@@ -151,6 +161,8 @@ export function saveTask(storage: Storage, task: Task, now = new Date()): Task {
       feedback,
       saved.returns,
       saved.reason ?? null,
+      saved.resumeAt ?? null,
+      saved.quotaWaits,
       saved.updatedAt,
       saved.id,
     );

@@ -1,6 +1,7 @@
 import { type Agency, perform, taskWorkspace, type TurnOutcome } from "./agency.ts";
 import type { Logger } from "./logger.ts";
 import { formatUsd as usd } from "./money.ts";
+import { maxQuotaWaits, quotaWaitMs } from "./quota.ts";
 import { matchesScope, scopesOf } from "./project-gates.ts";
 import { redactSecrets } from "./secret-scanner.ts";
 import { assertMove, type TaskStatus } from "./task-states.ts";
@@ -27,6 +28,9 @@ export type Desk = {
   // Each task's background work, chained, so a task never runs twice at once
   // and work started while earlier work finishes is not lost.
   work: Map<string, Promise<void>>;
+  // Resumes a task paused for quota at the given time; absent where nothing
+  // should resume by itself, such as a benchmark run.
+  wake?: (id: string, at: Date) => void;
 };
 
 // A refusal is meant for the owner, as is; any other error is a bug.
@@ -89,15 +93,44 @@ export function dailyLimit(desk: Desk): number | undefined {
   return desk.agency.storage.getSetting<{ dailyUsd: number }>("budgets")?.dailyUsd;
 }
 
+const clock = (at: Date) =>
+  at.toLocaleString("en-GB", {
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
+// A provider out of quota will serve again later, so the task pauses until
+// then and, where the runtime can, resumes by itself.
+function pauseForQuota(desk: Desk, task: Task, waitMs: number, message: string): Task {
+  const at = new Date(desk.now().getTime() + waitMs);
+  const then = desk.wake
+    ? `AMORA resumes the task at ${clock(at)} by itself; resume or cancel it to decide sooner.`
+    : `Resume the task after ${clock(at)}.`;
+  const reason = `Paused: the model is out of quota or rate-limited (${message}). ${then}`;
+  const waiting = { ...task, resumeAt: at.toISOString(), quotaWaits: task.quotaWaits + 1 };
+  const paused = move(desk, waiting, "paused", reason);
+  desk.wake?.(task.id, at);
+  return paused;
+}
+
 // A model that cannot be reached, or a reply refused for holding a secret,
 // says nothing about the work, so the task waits for the owner instead of
-// failing. Error text is redacted before it is kept.
+// failing; one out of quota waits for the provider first. Error text is
+// redacted before it is kept.
 export function stopAfterError(desk: Desk, id: string, during: TaskStatus, error: unknown): Task {
   const task = load(desk, id);
   const message = redactSecrets(error instanceof Error ? error.message : String(error));
   desk.logger.warn("A step could not finish", { task: id, reason: message });
   if (task.status !== during) return task;
-  return move(desk, task, "awaiting_decision", `The step could not finish: ${message}`);
+  const waitMs = quotaWaitMs(error);
+  if (waitMs !== undefined && task.quotaWaits < maxQuotaWaits) {
+    return pauseForQuota(desk, task, waitMs, message);
+  }
+  const stayed =
+    waitMs === undefined ? "" : ` The model stayed out of quota after ${maxQuotaWaits} waits.`;
+  return move(desk, task, "awaiting_decision", `The step could not finish: ${message}${stayed}`);
 }
 
 function startOfDay(moment: Date): Date {
@@ -207,7 +240,7 @@ function settle(desk: Desk, id: string, step: PlanStep, outcome: TurnOutcome): b
   const task = { ...latest, spentUsd: latest.spentUsd + outcome.costUsd };
   if (task.status !== "running") return (save(desk, task), false);
   if (outcome.result === "passed") {
-    save(desk, { ...task, step: task.step + 1, attempt: 0, feedback: [] });
+    save(desk, { ...task, step: task.step + 1, attempt: 0, feedback: [], quotaWaits: 0 });
     return true;
   }
   if (outcome.result === "blocked") {

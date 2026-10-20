@@ -1,5 +1,6 @@
 import { type Agency, perform, taskWorkspace } from "./agency.ts";
 import { deliverTracked } from "./deliveries.ts";
+import { resumeTask, wakeLater } from "./resume.ts";
 import {
   dailyLimit,
   describe,
@@ -115,7 +116,7 @@ async function plan(desk: Desk, id: string): Promise<Task> {
     const estimate = await estimatePlan(desk.agency, drafted.steps);
     const planned = { ...load(desk, id), spentUsd: spent.spentUsd };
     if (planned.status !== "planning") return save(desk, planned);
-    const withPlan = { ...planned, plan: { ...drafted, estimate }, feedback: [] };
+    const withPlan = { ...planned, plan: { ...drafted, estimate }, feedback: [], quotaWaits: 0 };
     return move(desk, withPlan, "awaiting_plan_approval");
   } catch (error) {
     return stopAfterError(desk, id, "planning", error);
@@ -227,9 +228,7 @@ function decide(desk: Desk, id: string, decision: Decision): Task {
 function resumeAll(desk: Desk): void {
   desk.agency.storage.setSetting("paused", false);
   for (const task of listTasks(desk.agency.storage)) {
-    if (task.status !== "paused") continue;
-    move(desk, task, "running");
-    startWork(desk, task.id, () => drive(desk, task.id));
+    if (task.status === "paused") resumeTask(desk, task, (id) => plan(desk, id));
   }
 }
 
@@ -238,6 +237,7 @@ function resumeAll(desk: Desk): void {
 // looking busy forever; trying again picks it up where it stopped.
 function recoverInterrupted(desk: Desk): void {
   for (const task of listTasks(desk.agency.storage)) {
+    if (task.status === "paused" && task.resumeAt) desk.wake?.(task.id, new Date(task.resumeAt));
     if (task.status !== "planning" && task.status !== "running") continue;
     const reason = "AMORA stopped while this task was working. Try again to continue.";
     move(desk, task, "awaiting_decision", reason);
@@ -246,9 +246,15 @@ function recoverInterrupted(desk: Desk): void {
 
 export function createOrchestrator(
   agency: Agency,
-  { logger, now = () => new Date() }: { logger: Logger; now?: () => Date },
+  {
+    logger,
+    now = () => new Date(),
+    autoResume = false,
+  }: { logger: Logger; now?: () => Date; autoResume?: boolean },
 ): Orchestrator {
   const desk: Desk = { agency, logger, now, work: new Map() };
+  // Only the runtime resumes tasks by itself; a benchmark run or a test must not.
+  if (autoResume) desk.wake = wakeLater(desk, (id) => plan(desk, id));
   return {
     create(brief, budgetUsd, project) {
       if (!(budgetUsd > 0)) throw new Refusal("A task needs a budget above $0.");

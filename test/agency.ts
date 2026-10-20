@@ -82,6 +82,8 @@ type Options = {
   pricePerMillion?: number;
   costPerCall?: number;
   dailyUsd?: number;
+  // Resume tasks paused for quota by themselves, as the runtime does.
+  autoResume?: boolean;
 };
 
 export function setup(script: Script, options: Options = {}) {
@@ -137,7 +139,8 @@ export function setup(script: Script, options: Options = {}) {
           }
         : undefined,
   };
-  const runtime = createOrchestrator(agency, { logger: createLogger(() => undefined) });
+  const autoResume = options.autoResume ?? false;
+  const runtime = createOrchestrator(agency, { logger: createLogger(() => undefined), autoResume });
   return { storage, requests, orchestrator: waitingFor(runtime, storage), runtime, agency };
 }
 

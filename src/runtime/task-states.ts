@@ -13,11 +13,12 @@ export type TaskStatus =
   | "cancelled";
 
 const moves: Record<TaskStatus, TaskStatus[]> = {
-  planning: ["awaiting_plan_approval", "awaiting_decision", "failed", "cancelled"],
+  planning: ["awaiting_plan_approval", "awaiting_decision", "paused", "failed", "cancelled"],
   awaiting_plan_approval: ["running", "planning", "cancelled"],
   running: ["running", "awaiting_decision", "paused", "completed", "failed", "cancelled"],
   awaiting_decision: ["running", "planning", "completed", "cancelled"],
-  paused: ["running", "cancelled"],
+  // A task paused while planning goes back to planning.
+  paused: ["running", "planning", "cancelled"],
   completed: [],
   failed: [],
   cancelled: [],
