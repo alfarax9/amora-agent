@@ -9,15 +9,17 @@ import { loadSuite } from "../src/evals/suite.ts";
 import { benchmark, bothWays, root, suite, taxSolution, taxWrong } from "./eval-fixture.ts";
 
 describe("benchmark set", () => {
-  it("ships thirty briefs on three projects, most of them held out", () => {
+  it("ships thirty-one briefs on four projects, in two tiers, most of them held out", () => {
     assert.deepEqual(suite.errors, []);
-    assert.equal(suite.items.length, 30);
-    assert.equal(new Set(suite.items.map(({ project }) => project)).size, 3);
-    assert.equal(suite.items.filter(({ heldOut }) => heldOut).length, 28);
+    assert.equal(suite.items.length, 31);
+    assert.equal(new Set(suite.items.map(({ project }) => project)).size, 4);
+    assert.equal(suite.items.filter(({ heldOut }) => heldOut).length, 29);
+    const tiers = suite.items.map(({ tier }) => tier);
+    assert.equal(tiers.filter((tier) => tier === "realistic").length, 1);
   });
 
-  it("has hidden tests that fail on the untouched project and pass with the reference solution", async () => {
-    for (const brief of suite.items) {
+  it("has regression tests that fail on the untouched project and pass with the reference solution", async () => {
+    for (const brief of suite.items.filter(({ tier }) => tier === "regression")) {
       const { untouched, solved } = await bothWays(brief);
       assert.ok(untouched.failed > 0, `${brief.id} untouched`);
       assert.equal(solved.failed, 0, `${brief.id} solution: ${solved.output}`);
@@ -43,7 +45,11 @@ describe("benchmark set", () => {
 
   it("names each broken brief and keeps loading the others", () => {
     const broken = mkdtempSync(join(tmpdir(), "amora-evals-"));
-    cpSync(join(root, "evals"), broken, { recursive: true });
+    // Without the React fixture's installed packages, which its briefs need.
+    cpSync(join(root, "evals"), broken, {
+      recursive: true,
+      filter: (source) => !source.endsWith("node_modules"),
+    });
     writeFileSync(join(broken, "briefs", "tax", "brief.json"), '{"id": "tax"}');
     rmSync(join(broken, "briefs", "faq", "acceptance.test.mjs"));
     const pricing = JSON.parse(
@@ -62,6 +68,11 @@ describe("benchmark set", () => {
     );
     const { items, errors } = loadSuite(broken);
     assert.equal(items.length, 26);
+    assert.ok(
+      errors.includes(
+        "evals/briefs/app-add-note: project notes-app needs its packages: npm ci --prefix evals/projects/notes-app",
+      ),
+    );
     assert.ok(errors.includes("evals/briefs/faq: acceptance.test.mjs is missing"));
     assert.ok(errors.includes('evals/briefs/pricing: id is "prices" but the folder is pricing'));
     assert.ok(

@@ -1,0 +1,7 @@
+{
+  "id": "app-add-note",
+  "project": "notes-app",
+  "held_out": true,
+  "tier": "realistic",
+  "brief": "On the notes page, let users create a note: a form above the list with a text field labelled \"Title\" and an \"Add note\" button. A blank title (empty or only spaces) shows \"Title is required\" and sends nothing. Otherwise the note is saved with createNote from src/api/client.ts, the field is cleared, and the new note appears in the list without reloading the page. Add tests for it."
+}
