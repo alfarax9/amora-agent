@@ -73,14 +73,18 @@ async function refresh() {
   }
 }
 
+// Says whether the runtime accepted the action, so a form can clear itself.
 async function act(id, action, body = {}) {
   actionError.textContent = "";
+  let accepted = true;
   try {
     await call("POST", `/api/tasks/${id}/${action}`, body);
   } catch (error) {
     actionError.textContent = error.message;
+    accepted = false;
   }
   await refresh();
+  return accepted;
 }
 
 pause.addEventListener("click", async () => {

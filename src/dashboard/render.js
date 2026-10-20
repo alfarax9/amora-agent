@@ -1,5 +1,6 @@
 import { el, usd } from "./dom.js";
 import { handoffLog } from "./log.js";
+import { reviewCard } from "./review.js";
 
 // Builds one task's thread in the agency chat from /api/tasks.
 
@@ -102,6 +103,7 @@ export function renderThread(task, roles, act) {
     task.messages.map(message),
     progress(task, roles),
     task.status === "awaiting_plan_approval" && task.plan ? planCard(task, roles, act) : null,
+    task.status === "awaiting_decision" ? reviewCard(task, act) : null,
     task.status === "awaiting_decision" ? decisionCard(task, act) : null,
     handoffLog(task, roles),
   );

@@ -7,6 +7,7 @@ const files: Record<string, URL> = {
   "/dashboard/render.js": new URL("../dashboard/render.js", import.meta.url),
   "/dashboard/log.js": new URL("../dashboard/log.js", import.meta.url),
   "/dashboard/dom.js": new URL("../dashboard/dom.js", import.meta.url),
+  "/dashboard/review.js": new URL("../dashboard/review.js", import.meta.url),
 };
 
 const cache = new Map<string, string>();

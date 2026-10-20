@@ -60,6 +60,10 @@ const dashboardStyle = `
   .scroll { overflow-x: auto; }
   th, td { white-space: nowrap; }
   td:nth-child(5) { white-space: normal; min-width: 12rem; }
+  .diff { font-size: .8125rem; overflow-x: auto; background: #0a0d14; padding: .5rem; border-radius: .5rem; }
+  .diff .add { color: #4ade80; }
+  .diff .del { color: #f87171; }
+  .diff .hunk { color: #60a5fa; }
 `;
 
 // The agency chat (PRD §8). The page itself is static; its script fetches the
