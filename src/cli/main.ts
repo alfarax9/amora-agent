@@ -52,7 +52,7 @@ Options:
   --daily <usd>            With budget: the daily limit in USD
   --brief <id>             With eval: run only this brief (repeatable)
   --system <names>         With eval: all (default: amora, slim, and baseline), both (amora and
-                           baseline), or a comma-separated list such as slim,baseline
+                           baseline), or a comma-separated list of amora, slim, auto, and baseline
   --baseline-model <id>    With eval: the baseline's model (default: the global model)
   --budget <usd>           With eval: each AMORA task's budget (default 1)
   --runs <n>               With eval: run every brief n times per system, 1 to 10 (default 1)

@@ -13,6 +13,15 @@ describe("benchmark runner, whatever the owner's default roster", () => {
   });
 });
 
+describe("benchmark runner, with the roster chosen by weighing the brief", () => {
+  it("runs a light brief with the slim roster", async () => {
+    const [row] = await runWith(fakeAgency(taxSolution), ["auto"]);
+    assert.equal(row?.success, true);
+    // Planner, then the Frontend Engineer and the Tester, each with its review.
+    assert.equal(row?.calls, 5);
+  });
+});
+
 describe("benchmark runner, with repeated runs", () => {
   it("runs every system on the brief once per round, each in its own folder", async () => {
     const rows = await runWith(fakeAgency(taxSolution), ["slim", "baseline"], "tax", 2);

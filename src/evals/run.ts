@@ -19,8 +19,9 @@ import { runThinPath } from "./thin-path.ts";
 // a provider failure stops the benchmark, and that brief is scored for no
 // system, so the systems are still compared on the same briefs.
 
-// AMORA with every worker, AMORA with the slim roster, and one agent.
-export type System = "amora" | "slim" | "baseline";
+// AMORA with every worker, AMORA with the slim roster, AMORA choosing between
+// them by weighing each brief, and one agent.
+export type System = "amora" | "slim" | "auto" | "baseline";
 
 export type EvalRow = Meter & {
   brief: string;

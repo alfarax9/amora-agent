@@ -23,7 +23,7 @@ export type EvalOptions = {
   tier: string;
 };
 
-const systemNames: System[] = ["amora", "slim", "baseline"];
+const systemNames: System[] = ["amora", "slim", "auto", "baseline"];
 const systemAliases: Record<string, string> = {
   all: "amora,slim,baseline",
   both: "amora,baseline",
@@ -45,7 +45,7 @@ function describeRow(row: EvalRow): string {
 // Everything that would make a run spend quota for nothing is refused first.
 function preflight(context: AppContext, options: EvalOptions, systems: System[] | undefined) {
   if (!systems) {
-    return "--system must be all, both, or a comma-separated list of amora, slim, and baseline.";
+    return "--system must be all, both, or a comma-separated list of amora, slim, auto, and baseline.";
   }
   const baselineModel = options.baselineModel ?? context.slots.global;
   if (systems.includes("baseline") && !baselineModel) {
