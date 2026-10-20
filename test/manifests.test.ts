@@ -78,7 +78,7 @@ describe("manifest loader", () => {
 });
 
 describe("structured output requirements", () => {
-  it("lets the Engineer and Tester use a JSON mode model, but not the Planner or the reviewer", () => {
+  it("lets the workers that write code use a JSON mode model, but not the Planner, PM, UX, or reviewer", () => {
     const { items } = loadManifests(fileURLToPath(new URL("../workers", import.meta.url)));
     const jsonMode = () => ({
       vision: true,
@@ -92,10 +92,22 @@ describe("structured output requirements", () => {
       return resolveWorker(manifest, { global: "m", divisions: {}, workers: {} }, jsonMode).verdict;
     };
     assert.deepEqual(
-      ["fe-engineer", "unit-integration-tester", "planner-decomposer", "reality-checker"].map(
-        verdict,
-      ),
-      ["fits", "fits", "rejected", "rejected"],
+      [
+        "fe-engineer",
+        "fe-slice-engineer",
+        "fe-logic-developer",
+        "fe-api-integration",
+        "fe-performance",
+        "unit-integration-tester",
+        "planner-decomposer",
+        "product-manager",
+        "ux-architect",
+        "reality-checker",
+      ].map(verdict),
+      [
+        ...["fits", "fits", "fits", "fits", "fits", "fits"],
+        ...["rejected", "rejected", "rejected", "rejected"],
+      ],
     );
   });
 });

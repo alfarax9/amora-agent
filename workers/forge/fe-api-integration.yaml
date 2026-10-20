@@ -7,7 +7,10 @@ mission: "Connect the feature to its data: requests, responses, loading and erro
 requires: # minimum brain requirements
   vision: false
   tool_use: true
-  structured_output: true
+  # JSON mode, like the other workers that write code: component_pkg.v1 is
+  # validated by code with one repair round, and the Reality Checker (strict
+  # schema, another family) reviews it.
+  structured_output: false
   min_context: 32000
   reviewer_family_rule: none
 model_slot: fe-api-integration
