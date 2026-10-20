@@ -1,15 +1,17 @@
-import { mkdirSync, mkdtempSync, readFileSync } from "node:fs";
+import { cpSync, mkdirSync, mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { runAcceptance } from "../src/evals/acceptance.ts";
 import { runSuite, type System } from "../src/evals/run.ts";
-import { loadSuite } from "../src/evals/suite.ts";
+import { type EvalBrief, loadSuite } from "../src/evals/suite.ts";
 import type { ChatRequest, ChatResponse } from "../src/model-layer/gateway.ts";
 import type { Agency } from "../src/runtime/agency.ts";
 import { loadContracts } from "../src/runtime/contracts.ts";
 import { createLogger } from "../src/runtime/logger.ts";
 import { loadManifests } from "../src/runtime/manifests.ts";
 import { openStorage } from "../src/runtime/storage.ts";
+import { openWorkspace } from "../src/runtime/workspace.ts";
 
 // Scripted models and a fake agency for the benchmark tests: the real thin
 // path, the slim roster, and the baseline, all answering from fixed replies.
@@ -22,6 +24,20 @@ export const briefOf = (id: string) => {
   if (!brief) throw new Error(`no brief ${id}`);
   return brief;
 };
+
+// Runs a brief's hidden test on the untouched project and on the project with
+// the reference solution, each in a fresh copy made like a task's workspace.
+export async function bothWays(brief: EvalBrief) {
+  const untouched = join(mkdtempSync(join(tmpdir(), "amora-eval-")), "project");
+  openWorkspace(brief.project, untouched);
+  const solved = join(mkdtempSync(join(tmpdir(), "amora-eval-")), "project");
+  openWorkspace(brief.project, solved);
+  cpSync(brief.solution, solved, { recursive: true });
+  return {
+    untouched: await runAcceptance(brief.acceptance, untouched),
+    solved: await runAcceptance(brief.acceptance, solved),
+  };
+}
 
 export const taxSolution = readFileSync(join(briefOf("tax").solution, "src", "tax.js"), "utf8");
 // Passes the project's own checks, but taxes exempt items: only the hidden

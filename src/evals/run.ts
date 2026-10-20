@@ -1,4 +1,3 @@
-import { cpSync } from "node:fs";
 import { join } from "node:path";
 import { withRetries } from "../model-layer/gateway.ts";
 import type { Agency } from "../runtime/agency.ts";
@@ -6,6 +5,7 @@ import type { Contract } from "../runtime/contracts.ts";
 import type { Logger } from "../runtime/logger.ts";
 import { rosterProfiles } from "../runtime/roster.ts";
 import { redactSecrets } from "../runtime/secret-scanner.ts";
+import { openWorkspace } from "../runtime/workspace.ts";
 import { runAcceptance } from "./acceptance.ts";
 import { emptyMeter, type Meter, metered } from "./meter.ts";
 import { runSingleAgent, type SystemRun } from "./single-agent.ts";
@@ -102,7 +102,8 @@ async function runOne(
 ): Promise<EvalRow> {
   const folder = join(run.out, `run-${round}`, system, brief.id);
   const project = join(folder, "project");
-  cpSync(brief.project, project, { recursive: true });
+  // Copied like a task's workspace: the fixture's installed packages are linked.
+  openWorkspace(brief.project, project);
   const meter = emptyMeter();
   const started = Date.now();
   const outcome = await attempt(run, system, brief, folder, meter);

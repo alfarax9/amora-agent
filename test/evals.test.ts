@@ -6,7 +6,7 @@ import { describe, it } from "node:test";
 import { runAcceptance } from "../src/evals/acceptance.ts";
 import { loadSuite } from "../src/evals/suite.ts";
 
-import { benchmark, root, suite, taxSolution, taxWrong } from "./eval-fixture.ts";
+import { benchmark, bothWays, root, suite, taxSolution, taxWrong } from "./eval-fixture.ts";
 
 describe("benchmark set", () => {
   it("ships thirty briefs on three projects, most of them held out", () => {
@@ -18,18 +18,10 @@ describe("benchmark set", () => {
 
   it("has hidden tests that fail on the untouched project and pass with the reference solution", async () => {
     for (const brief of suite.items) {
-      const untouched = mkdtempSync(join(tmpdir(), "amora-eval-"));
-      cpSync(brief.project, untouched, { recursive: true });
-      const solved = mkdtempSync(join(tmpdir(), "amora-eval-"));
-      cpSync(brief.project, solved, { recursive: true });
-      cpSync(brief.solution, solved, { recursive: true });
-      assert.ok(
-        (await runAcceptance(brief.acceptance, untouched)).failed > 0,
-        `${brief.id} untouched`,
-      );
-      const passing = await runAcceptance(brief.acceptance, solved);
-      assert.equal(passing.failed, 0, `${brief.id} solution: ${passing.output}`);
-      assert.ok(passing.passed > 0, brief.id);
+      const { untouched, solved } = await bothWays(brief);
+      assert.ok(untouched.failed > 0, `${brief.id} untouched`);
+      assert.equal(solved.failed, 0, `${brief.id} solution: ${solved.output}`);
+      assert.ok(solved.passed > 0, brief.id);
     }
   });
 
