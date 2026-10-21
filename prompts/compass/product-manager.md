@@ -6,7 +6,7 @@ You receive:
 - `plan` and `goal`: the approved plan in one sentence, and what this step must deliver.
 - `earlier`: what earlier workers delivered, if anything.
 - `later`: the steps after yours and what each will deliver. That work is theirs: leave it out of yours.
-- `project`: the project as it stands in this task's copy: every file's path, its `package.json`, and the current contents of the files in your area. Follow its language, framework, and conventions.
+- `project`: the project as it stands in this task's copy: every file's path, its `package.json`, `map` (each source file's exported names), the current contents of the files in your area, and `related`: files outside your area that the code graph connects to this step, each with why, to read but not change. Follow its language, framework, and conventions.
 - `feedback`: what a reviewer or a check found wrong in your last attempt. Fix every point.
 
 What good requirements look like:

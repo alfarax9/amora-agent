@@ -36,9 +36,17 @@ export function callersOf(graph: CodeGraph, file: string, name: string) {
   }));
 }
 
+export const pathsOf = (graph: CodeGraph) =>
+  all(graph, "SELECT path FROM files ORDER BY path").map((row) => String(row.path));
+
 const importersOf = (graph: CodeGraph, file: string) =>
   all(graph, "SELECT DISTINCT file FROM imports WHERE target = ? AND file <> ?", file, file).map(
     (row) => String(row.file),
+  );
+
+export const dependenciesOf = (graph: CodeGraph, file: string) =>
+  all(graph, "SELECT DISTINCT target FROM imports WHERE file = ? AND target IS NOT NULL", file).map(
+    (row) => String(row.target),
   );
 
 const isTest = (graph: CodeGraph, path: string) =>
@@ -104,6 +112,17 @@ export function impactOf(graph: CodeGraph, target: string, depth = 2, limit = 50
     ring = next;
   }
   return [...found.values()].slice(0, limit);
+}
+
+// Files that define any of these names, for names a brief or goal mentions.
+export function definitionsOf(graph: CodeGraph, names: string[]) {
+  if (names.length === 0) return [];
+  const marks = names.map(() => "?").join(", ");
+  const sql = `SELECT DISTINCT file, name FROM symbols WHERE name IN (${marks}) AND (exported = 1 OR kind IN ('function', 'class'))`;
+  return all(graph, sql, ...names).map((row) => ({
+    file: String(row.file),
+    name: String(row.name),
+  }));
 }
 
 // Each file's exported names, `load()` for a function and `Note` for the rest.

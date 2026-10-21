@@ -10,6 +10,8 @@ import {
   writeFileSync,
 } from "node:fs";
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
+import { type Focus, mapOf, pickFiles } from "../code-graph/focus.ts";
+import { openGraph, updateGraph } from "../code-graph/graph.ts";
 import { redactSecrets } from "./secret-scanner.ts";
 
 // Each task works on its own copy of the project, under ~/.amora/workspaces.
@@ -95,22 +97,69 @@ export function deliver(workspace: string, project: string, paths: string[]): st
 // Enough characters for a small project's files in one worker's area; a large
 // project gets the file list and as many files as fit.
 const contentBudget = 40_000;
+// The outline of a large project is cut here; a small one fits whole.
+const mapBudget = 6_000;
+
+export type ViewOptions = {
+  // What the step is about; without it, files come in path order.
+  focus?: Focus;
+  // Where the code graph is kept between steps; in memory when not given.
+  graphFile?: string;
+};
+
+type Reader = { read(path: string): string; used: number };
+
+// One shared budget, so the files the code graph picked come first, and a
+// file that would not fit is left out rather than cut.
+function take(reader: Reader, path: string): string | undefined {
+  if (basename(path).startsWith(".env")) return undefined;
+  const content = reader.read(path);
+  if (reader.used + content.length > contentBudget) return undefined;
+  reader.used += content.length;
+  return content;
+}
+
+function graphPicks(workspace: string, { focus, graphFile = ":memory:" }: ViewOptions) {
+  const graph = openGraph(graphFile);
+  try {
+    updateGraph(graph, workspace);
+    const picked = focus ? pickFiles(graph, focus) : [];
+    return { picked, map: mapOf(graph, picked, mapBudget) };
+  } finally {
+    graph.close();
+  }
+}
 
 // What a worker sees of the project: every file's path, the package manifest,
-// and the current contents of the files in its own area. Contents pass the
-// secret scanner before they are sent to a model, and .env files never are.
-export function projectView(workspace: string, inArea: (path: string) => boolean) {
+// an outline of each source file's exported names, the files of its own area,
+// and, read only, files outside its area that the code graph connects to the
+// step. Contents pass the secret scanner before they are sent to a model, and
+// .env files never are.
+export function projectView(
+  workspace: string,
+  inArea: (path: string) => boolean,
+  options: ViewOptions = {},
+) {
   const files = listFiles(workspace);
-  const read = (path: string) => redactSecrets(readFileSync(join(workspace, path), "utf8"));
+  const reader: Reader = {
+    read: (path) => redactSecrets(readFileSync(join(workspace, path), "utf8")),
+    used: 0,
+  };
+  const { picked, map } = graphPicks(workspace, options);
   const contents: FileChange[] = [];
-  let used = 0;
-  for (const path of files) {
-    if (!inArea(path) || basename(path).startsWith(".env")) continue;
-    const content = read(path);
-    if (used + content.length > contentBudget) continue;
-    used += content.length;
-    contents.push({ path, content });
+  const related: (FileChange & { why: string })[] = [];
+  for (const { path, why } of picked) {
+    const content = take(reader, path);
+    if (content === undefined) continue;
+    if (inArea(path)) contents.push({ path, content });
+    else related.push({ path, why, content });
   }
-  const packageJson = files.includes("package.json") ? read("package.json") : null;
-  return { files, package_json: packageJson, contents };
+  const shown = new Set(picked.map(({ path }) => path));
+  for (const path of files) {
+    if (shown.has(path) || !inArea(path)) continue;
+    const content = take(reader, path);
+    if (content !== undefined) contents.push({ path, content });
+  }
+  const packageJson = files.includes("package.json") ? reader.read("package.json") : null;
+  return { files, package_json: packageJson, map, contents, related };
 }

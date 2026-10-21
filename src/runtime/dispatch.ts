@@ -1,3 +1,4 @@
+import { stepFocus } from "../code-graph/focus.ts";
 import { type Agency, perform, taskWorkspace, type TurnOutcome } from "./agency.ts";
 import type { Logger } from "./logger.ts";
 import { formatUsd as usd } from "./money.ts";
@@ -185,15 +186,19 @@ function stepInput(desk: Desk, task: Task, step: PlanStep) {
   const area = manifest ? scopesOf(manifest) : [];
   const inArea = (path: string) => area.some((scope) => matchesScope(path, scope));
   const later = (task.plan?.steps ?? []).slice(task.step + 1);
+  const earlier = delivered(desk, task);
+  // Kept next to the workspace, so each step re-parses only changed files.
+  const focus = stepFocus([step.goal, step.acceptance ?? "", task.brief], earlier);
+  const view = { focus, graphFile: `${workspace}.graph.sqlite` };
   return {
     brief: task.brief,
     plan: task.plan?.summary,
     goal: step.goal,
     ...(step.acceptance ? { acceptance: step.acceptance } : {}),
     area,
-    earlier: delivered(desk, task),
+    earlier,
     later: later.map(({ worker, goal }) => ({ worker: roleOf(desk, worker), goal })),
-    ...(workspace ? { project: projectView(workspace, inArea) } : {}),
+    ...(workspace ? { project: projectView(workspace, inArea, view) } : {}),
     feedback: task.feedback,
   };
 }

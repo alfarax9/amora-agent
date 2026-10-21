@@ -57,9 +57,11 @@ export async function runSingleAgent(
 ): Promise<SystemRun> {
   openWorkspace(project, workspace);
   const inArea = (path: string) => area.some((scope) => matchesScope(path, scope));
+  // The same code graph a step gets, focused on the brief alone.
+  const view = { focus: { text: brief, paths: [] }, graphFile: `${workspace}.graph.sqlite` };
   let feedback: string[] = [];
   for (let attempt = 1; attempt <= attempts; attempt += 1) {
-    const input = { brief, area, project: projectView(workspace, inArea), feedback };
+    const input = { brief, area, project: projectView(workspace, inArea, view), feedback };
     const reply = await callWorker({ ...single, input });
     if (reply.validation === "invalid") {
       feedback = [`The output did not match ${single.contract.id}.`, ...reply.problems];

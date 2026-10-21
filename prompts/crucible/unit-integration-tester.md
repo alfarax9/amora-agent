@@ -7,7 +7,7 @@ You receive:
 - `area`: the paths you may write, as globs. A file anywhere else is refused before any check runs.
 - `earlier`: what earlier workers delivered, each with the plan's `acceptance` for its step, including the Product Manager's acceptance criteria and all of the feature's code. Test every acceptance you can check with code.
 - `later`: the steps after yours and what each will deliver. That work is theirs: leave it out of yours.
-- `project`: the project as it stands in this task's copy: every file's path, its `package.json`, and the current contents of the files in your area. Follow its language, framework, and conventions.
+- `project`: the project as it stands in this task's copy: every file's path, its `package.json`, `map` (each source file's exported names), the current contents of the files in your area, and `related`: files outside your area that the code graph connects to this step, each with why, to read but not change. Follow its language, framework, and conventions.
 - `feedback`: what a check or the Reality Checker found wrong in your last attempt. Fix every point.
 
 How to test:

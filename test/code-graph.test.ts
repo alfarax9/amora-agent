@@ -6,6 +6,7 @@ import { describe, it } from "node:test";
 import { openGraph, updateGraph } from "../src/code-graph/graph.ts";
 import { parseSource } from "../src/code-graph/parse.ts";
 import { callersOf, impactOf, outline } from "../src/code-graph/query.ts";
+import { projectView } from "../src/runtime/workspace.ts";
 
 function folderWith(files: Record<string, string>): string {
   const folder = mkdtempSync(join(tmpdir(), "amora-graph-"));
@@ -138,5 +139,36 @@ describe("the code graph", () => {
       { file: "src/later.ts", caller: "x", line: 2 },
     ]);
     graph.close();
+  });
+});
+
+describe("a worker's view of a large project", () => {
+  it("shows the files around the step first, and connected files outside its area", () => {
+    // Forty large files in the area: without the graph, the first ones by path
+    // fill the budget and the one the step is about is never shown.
+    const filler = "// filler\n".repeat(400);
+    const files: Record<string, string> = {
+      ...app,
+      "package.json": "{}",
+      "test/session.test.ts": `import { signIn } from "../src/session";\nsignIn("a");`,
+    };
+    for (let n = 0; n < 40; n += 1) files[`src/a${String(n).padStart(2, "0")}.ts`] = filler;
+    const folder = folderWith(files);
+    const inArea = (path: string) => path.startsWith("src/");
+    const plain = projectView(folder, inArea);
+    assert.ok(!plain.contents.some(({ path }) => path === "src/session.ts"));
+    const focus = { text: "Make signIn remember the user.", paths: [] };
+    const view = projectView(folder, inArea, { focus });
+    assert.deepEqual(
+      // signIn's file, what it builds on, and what calls it: one ring, not
+      // the files those reach in turn.
+      view.contents.slice(0, 3).map(({ path }) => path),
+      ["src/session.ts", "src/auth.ts", "src/pages/Home.tsx"],
+    );
+    assert.deepEqual(
+      view.related.map(({ path, why }) => [path, why]),
+      [["test/session.test.ts", "tests it: calls signIn"]],
+    );
+    assert.deepEqual(view.map["src/session.ts"], ["signIn()"]);
   });
 });
