@@ -1,3 +1,5 @@
+import { dashboardStyle } from "./dashboard-style.ts";
+
 // The runtime's pages. Everything is served from this origin: the runtime
 // never loads anything from a third-party host.
 
@@ -35,41 +37,11 @@ export function messagePage(title: string, message: string): string {
   return page(title, `<h1>${escapeHtml(title)}</h1><p>${escapeHtml(message)}</p>`);
 }
 
-const dashboardStyle = `
-  main.dashboard { max-width: 52rem; margin: 0 auto; padding: 1.5rem; }
-  header { display: flex; flex-wrap: wrap; gap: .75rem; align-items: center; justify-content: space-between; border-bottom: 1px solid #1f2937; padding-bottom: 1rem; }
-  header h1 { margin: 0; font-size: 1.25rem; }
-  .meta { color: #9ca3af; font-size: .875rem; }
-  .thread { border: 1px solid #1f2937; border-radius: .75rem; padding: 1rem; margin: 1rem 0; }
-  .message { margin: .5rem 0; padding: .5rem .75rem; border-radius: .5rem; background: #0f141d; white-space: pre-wrap; }
-  .message.owner { background: #13213d; margin-left: 3rem; }
-  .message .who { display: block; font-size: .75rem; color: #9ca3af; }
-  .card { border: 1px solid #2563eb; border-radius: .5rem; padding: .75rem; margin-top: .75rem; }
-  .status { font-size: .75rem; text-transform: uppercase; letter-spacing: .05em; color: #9ca3af; }
-  ol { padding-left: 1.25rem; }
-  textarea, input, select { width: 100%; box-sizing: border-box; background: #0a0d14; color: #fff; border: 1px solid #374151; border-radius: .5rem; padding: .5rem; font: inherit; }
-  label { display: block; margin: .5rem 0 .25rem; font-size: .875rem; }
-  button { background: #2563eb; color: #fff; border: 0; border-radius: 999px; padding: .5rem 1rem; font: inherit; cursor: pointer; margin: .5rem .5rem 0 0; }
-  button.secondary { background: #1f2937; }
-  button:focus-visible, textarea:focus-visible, input:focus-visible, select:focus-visible, summary:focus-visible { outline: 2px solid #60a5fa; outline-offset: 2px; }
-  button:disabled { opacity: .5; cursor: default; }
-  .error { color: #ff6b6b; }
-  table { width: 100%; border-collapse: collapse; font-size: .8125rem; }
-  th, td { text-align: left; padding: .25rem .375rem; border-bottom: 1px solid #1f2937; vertical-align: top; }
-  details { margin-top: .75rem; }
-  .scroll { overflow-x: auto; }
-  th, td { white-space: nowrap; }
-  td:nth-child(5) { white-space: normal; min-width: 12rem; }
-  .diff { font-size: .8125rem; overflow-x: auto; background: #0a0d14; padding: .5rem; border-radius: .5rem; }
-  .diff .add { color: #4ade80; }
-  .diff .del { color: #f87171; }
-  .diff .hunk { color: #60a5fa; }
-`;
-
-// The OpenRouter key's own credit limit (key-limit.ts). The management key
-// field is a password field the script empties after every attempt.
-const creditLimit = `<details id="credit-limit-panel">
-<summary>OpenRouter credit limit</summary>
+// Settings: the gateway, the daily limit, and the OpenRouter key's own credit
+// limit (key-limit.ts). The management key field is a password field the
+// script empties after every attempt.
+const creditLimit = `<section id="credit-limit-panel" class="box">
+<h2>OpenRouter credit limit</h2>
 <p id="credit-limit" class="meta" aria-live="polite">Reading the key's limit…</p>
 <label for="limit-usd">Limit in USD (empty for no limit)</label>
 <input id="limit-usd" type="number" min="0.01" step="0.01">
@@ -82,42 +54,86 @@ const creditLimit = `<details id="credit-limit-panel">
 </select>
 <label for="management-key">Management key, from openrouter.ai/settings/management-keys (used for this change only, never stored)</label>
 <input id="management-key" type="password" autocomplete="off" spellcheck="false">
-<button id="save-limit" type="button">Set limit</button>
+<div class="actions"><button id="save-limit" type="button" class="primary">Set limit</button></div>
 <p id="limit-error" class="error" role="alert"></p>
-</details>
-<script type="module" src="/dashboard/settings.js"></script>`;
+</section>`;
 
-// The agency chat (PRD §8). The page itself is static; its script fetches the
-// tasks from /api/tasks and renders them with text nodes only.
+function settingsPage(gateway: string, keyed: boolean): string {
+  return `<section id="settings-view" class="page settings" aria-labelledby="settings-title" hidden>
+<div class="page-head"><h1 id="settings-title">Settings</h1></div>
+<section class="box"><h2>Gateway</h2><p>${gateway}</p></section>
+<section class="box"><h2>Budget</h2><p id="settings-budget" class="meta"></p>
+<p class="meta">Change the daily limit with <code>amora budget --daily &lt;usd&gt;</code>.</p></section>
+${keyed ? creditLimit : ""}
+</section>`;
+}
+
+// The composer is one element the script moves between the new-task page and
+// a task's thread, so what the owner is typing survives every re-render.
+const composer = `<div id="composer" class="composer-wrap" hidden>
+<div class="composer">
+<textarea id="brief" rows="1" aria-label="Message to the agency" placeholder="Message the agency"></textarea>
+<button id="send" type="button" class="send" aria-label="Send" title="Send (Enter)">↑</button>
+</div>
+<div class="composer-row">
+<label id="budget-field" for="budget">Task budget $<input id="budget" type="number" min="0.01" step="0.01" value="1.00"></label>
+<span id="composer-note"></span>
+</div>
+<p id="composer-error" class="error" role="alert"></p>
+</div>`;
+
+const topbar = `<header class="topbar">
+<ul class="status-list">
+<li><button id="toggle-sidebar" type="button" class="secondary only-narrow" aria-label="Show navigation">☰</button></li>
+<li class="here"><svg aria-hidden="true" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg> <span id="address"></span></li>
+<li>Orchestrator <span id="orchestrator-status" class="ok">OK</span></li>
+<li id="gateway-item">Gateway <span id="gateway-status"></span></li>
+</ul>
+<div class="top-right">
+<span id="budget-meter" class="budget wide-only"></span>
+<button id="pause" type="button" class="secondary" hidden>Pause all workers</button>
+</div>
+</header>`;
+
+const sidebar = `<nav class="sidebar" aria-label="Dashboard">
+<a id="new-task" href="#new" class="primary new-task"><span aria-hidden="true">+</span> New task</a>
+<div class="nav">
+<a class="nav-item" data-route="overview" href="#overview">Overview</a>
+<a class="nav-item" data-route="tasks" href="#tasks">Tasks <span id="decision-count" class="count" hidden></span></a>
+<a class="nav-item" data-route="workers" href="#workers">Workers</a>
+<a class="nav-item" data-route="models" href="#models">Models</a>
+<a class="nav-item" data-route="costs" href="#costs">Costs</a>
+<a class="nav-item" data-route="settings" href="#settings">Settings</a>
+</div>
+<p class="section-title">Recent</p>
+<div id="recent" class="recent"></div>
+</nav>`;
+
+// The agency (PRD §8 and the dashboard PRD), after the AMORA website: a top
+// bar with the runtime's state, the budget, and Pause on every page; New task
+// and the pages in the sidebar; Overview, Tasks, a task's thread with its
+// plan, changes, and log beside it, Workers, Models, Costs, and Settings. The
+// page is static; its scripts fetch /api/tasks and the read-only report routes
+// and render with text nodes only.
 export function dashboardPage(state: { maskedKey?: string; chat: boolean }): string {
   const gateway = state.maskedKey
     ? `OpenRouter connected (key <code>${escapeHtml(state.maskedKey)}</code>)`
     : `<a href="/connect/openrouter" target="_blank" rel="noopener">Connect OpenRouter</a> (opens a new tab; reload here when it says connected)`;
-  const chat = state.chat
-    ? `<div id="threads" aria-live="polite"></div>
-<section aria-labelledby="new-task">
-<h2 id="new-task">New task</h2>
-<label for="brief">What should the agency build?</label>
-<textarea id="brief" rows="4"></textarea>
-<label for="budget">Task budget in USD</label>
-<input id="budget" type="number" min="0.01" step="0.01" value="1.00">
-<button id="send" type="button">Send to the agency</button>
-<p id="composer-error" class="error" role="alert"></p>
-</section>
-<script type="module" src="/dashboard/app.js"></script>`
-    : "<p>The agency chat is not running in this process.</p>";
+  const view = state.chat
+    ? `<div id="view" class="main-view"></div>`
+    : `<div class="page"><p class="meta">The agency chat is not running in this process.</p></div>`;
   return page(
     "Agency",
     `<style>${dashboardStyle}</style>
-<header>
-<h1>AMORA agency</h1>
-<p class="meta">${gateway}</p>
-<p class="meta" id="budget-meter"></p>
-<button id="pause" type="button" class="secondary" hidden>Pause all workers</button>
-</header>
-${state.maskedKey ? creditLimit : ""}
-<p id="action-error" class="error" role="alert"></p>
-${chat}`,
+<div class="app" id="app" data-gateway="${state.maskedKey ? "connected" : "missing"}">
+${topbar}
+${sidebar}
+<div class="main"><p id="action-error" class="error" role="alert"></p>${view}${settingsPage(gateway, state.maskedKey !== undefined)}</div>
+<aside id="panel" class="panel" aria-label="Task details" hidden></aside>
+</div>
+${state.chat ? composer : ""}
+<script type="module" src="/dashboard/settings.js"></script>
+${state.chat ? `<script type="module" src="/dashboard/app.js"></script>` : ""}`,
     "dashboard",
   );
 }
