@@ -246,11 +246,22 @@ describe("agency chat API", () => {
     const script = await call(runtime.port, "GET", "/dashboard/app.js", { cookie });
     assert.equal(script.headers["content-type"], "text/javascript; charset=utf-8");
     assert.equal((await call(runtime.port, "GET", "/dashboard/other.js", { cookie })).status, 404);
+    const mascot = await call(runtime.port, "GET", "/dashboard/mascots/forge.svg", { cookie });
+    assert.equal(mascot.headers["content-type"], "image/svg+xml");
+    assert.match(policy, /img-src 'self'/);
     assert.equal((await call(runtime.port, "GET", "/dashboard/app.js")).status, 401);
   });
 
   it("never sets content through innerHTML in the dashboard scripts", async () => {
-    for (const name of ["app.js", "render.js", "log.js", "dom.js"]) {
+    const names = ["app.js", "dom.js", "log.js", "overview.js", "panel.js", "render.js"];
+    for (const name of [
+      ...names,
+      "review.js",
+      "settings.js",
+      "setup.js",
+      "sidebar.js",
+      "tasks.js",
+    ]) {
       const script = await call(runtime.port, "GET", `/dashboard/${name}`, { cookie });
       assert.ok(!/innerHTML|outerHTML|insertAdjacentHTML/.test(script.body), name);
     }
