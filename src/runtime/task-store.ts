@@ -216,9 +216,13 @@ type HandoffRow = {
   cost_usd: number;
   content: string;
   artifacts: string;
+  created_at: string;
 };
 
-function toHandoff(row: HandoffRow): Handoff {
+// As stored, with when it was recorded, so a transcript can place it.
+export type StoredHandoff = Handoff & { createdAt: string };
+
+function toHandoff(row: HandoffRow): StoredHandoff {
   return {
     taskId: row.task_id,
     sender: row.sender,
@@ -235,10 +239,11 @@ function toHandoff(row: HandoffRow): Handoff {
     costUsd: row.cost_usd,
     content: JSON.parse(row.content) as unknown,
     artifacts: JSON.parse(row.artifacts) as string[],
+    createdAt: row.created_at,
   };
 }
 
-export function listHandoffs(storage: Storage, taskId: string): Handoff[] {
+export function listHandoffs(storage: Storage, taskId: string): StoredHandoff[] {
   const rows = storage.database
     .prepare("SELECT * FROM handoffs WHERE task_id = ? ORDER BY id")
     .all(taskId);
