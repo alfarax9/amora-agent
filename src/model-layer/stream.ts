@@ -10,7 +10,10 @@ import {
 // whole files from a reasoning model takes minutes but keeps coming, and a
 // fixed limit cut such answers off (No answer within 300 s, in the heavy
 // tier). A gateway that sends nothing at all, not even OpenRouter's keep-alive
-// comments, for `idleMs` is given up on; `totalMs` still bounds the whole.
+// comments, for `idleMs` is given up on as a 504, which callers retry like
+// any passing gateway failure (four of the heavy tier's failures were such
+// silences, on different workers). `totalMs` still bounds the whole, and an
+// answer that outlasts it is not retried: it was still arriving.
 
 export type StreamLimits = { idleMs: number; totalMs: number };
 
@@ -86,16 +89,15 @@ export async function streamChat(
   { idleMs, totalMs }: StreamLimits,
 ): Promise<ChatResponse> {
   const controller = new AbortController();
-  let stalled = "";
-  const stop = (why: string) => () => ((stalled = why), controller.abort());
-  const total = setTimeout(
-    stop(`The answer from ${url} took more than ${totalMs / 1000} s.`),
-    totalMs,
-  );
-  let idle = setTimeout(stop(`No answer from ${url} for ${idleMs / 1000} s.`), idleMs);
+  let stalled: (() => Error) | undefined;
+  const stop = (why: () => Error) => () => ((stalled = why), controller.abort());
+  const tooLong = () => new Error(`The answer from ${url} took more than ${totalMs / 1000} s.`);
+  const silent = () => new GatewayError(504, `No answer from ${url} for ${idleMs / 1000} s.`);
+  const total = setTimeout(stop(tooLong), totalMs);
+  let idle = setTimeout(stop(silent), idleMs);
   const heard = () => {
     clearTimeout(idle);
-    idle = setTimeout(stop(`No answer from ${url} for ${idleMs / 1000} s.`), idleMs);
+    idle = setTimeout(stop(silent), idleMs);
   };
   try {
     const init = { method: "POST", headers, body: JSON.stringify({ ...body, stream: true }) };
@@ -103,10 +105,10 @@ export async function streamChat(
     if (!response.ok || !response.body) throw await failureOf(response);
     const reply = await readEvents(response.body, heard, controller.signal);
     // A cancelled reader ends like a finished one; the stop is what happened.
-    if (stalled) throw new Error(stalled);
+    if (stalled) throw stalled();
     return toResponse(reply);
   } catch (error) {
-    if (stalled) throw new Error(stalled, { cause: error });
+    if (stalled) throw stalled();
     throw error;
   } finally {
     clearTimeout(total);
