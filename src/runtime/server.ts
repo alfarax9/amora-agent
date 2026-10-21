@@ -7,6 +7,7 @@ import { dashboardPage, messagePage } from "./pages.ts";
 import { maskSecret } from "./secret-scanner.ts";
 import type { SecretStore } from "./secrets.ts";
 import { handleLimitApi } from "./limit-routes.ts";
+import { handleReportApi, type ReportDesk } from "./report-routes.ts";
 import { handleTaskApi, type TaskDesk } from "./task-routes.ts";
 import { dashboardFile } from "./dashboard-files.ts";
 import {
@@ -26,6 +27,8 @@ export type RuntimeDependencies = {
   fetchImpl?: Fetch;
   // The agency chat; without it the runtime only connects gateways.
   tasks?: TaskDesk;
+  // The Workers, Models, and Costs pages, which come with the agency chat.
+  reports?: ReportDesk;
 };
 
 export type Runtime = { port: number; signInUrl(): string; close(): Promise<void> };
@@ -190,6 +193,14 @@ async function taskApi(context: Context): Promise<boolean> {
   return true;
 }
 
+async function reportApi({ request, response, url, deps }: Context): Promise<boolean> {
+  if (!deps.reports) return false;
+  const reply = await handleReportApi(deps.reports, request, url.pathname);
+  if (!reply) return false;
+  send(response, reply.status, JSON.stringify(reply.body));
+  return true;
+}
+
 async function route(context: Context): Promise<void> {
   const { request, response, port, deps } = context;
   const rejection = rejectForeignRequest(request.headers, port);
@@ -210,6 +221,7 @@ async function route(context: Context): Promise<void> {
   }
   if (await limitApi(context)) return;
   if (await taskApi(context)) return;
+  if (await reportApi(context)) return;
   send(response, 404, messagePage("Not found", "There is no page here."));
 }
 
