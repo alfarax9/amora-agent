@@ -2,6 +2,7 @@ import type { IncomingMessage } from "node:http";
 import type { Decision, Orchestrator } from "./orchestrator.ts";
 import { Refusal } from "./orchestrator.ts";
 import { findSecrets } from "./secret-scanner.ts";
+import type { Gap } from "./readiness.ts";
 import type { Storage } from "./storage.ts";
 import { listHandoffs, listMessages, listTasks, spentSince, type Task } from "./task-store.ts";
 
@@ -12,8 +13,12 @@ import { listHandoffs, listMessages, listTasks, spentSince, type Task } from "./
 export type TaskDesk = {
   orchestrator: Orchestrator;
   storage: Storage;
-  // Worker ids to roles, so the page can say who does each step.
+  // Worker ids to roles, so the page can say who does each step, and to
+  // divisions, so it can mark each worker with its division.
   roles: Record<string, string>;
+  divisions: Record<string, string>;
+  // What must be set up before a new task is accepted (readiness.ts).
+  readiness(): Gap[];
   // The folder new tasks work on, set with amora project.
   project(): string | undefined;
 };
@@ -106,6 +111,20 @@ function decision(body: Record<string, unknown>): Decision {
   throw new BadRequest(400, "Choose retry, complete, changes, or cancel.");
 }
 
+function summaryOf(content: unknown): string | null {
+  const summary = (content as { summary?: unknown } | null)?.summary;
+  return typeof summary === "string" ? summary.slice(0, 400) : null;
+}
+
+// A task sent before the agency can work would fail a moment later, so it is
+// refused with the commands that set the agency up.
+function refuseUnready(desk: TaskDesk): void {
+  const gaps = desk.readiness();
+  if (gaps.length === 0) return;
+  const steps = gaps.map(({ problem, command }) => `${problem} Run: ${command}`);
+  throw new BadRequest(409, `The agency is not ready for a task. ${steps.join(" ")}`);
+}
+
 // A task whose every step passed shows what Complete would change, so the
 // owner can review it first.
 function thread(desk: TaskDesk, task: Task) {
@@ -114,7 +133,12 @@ function thread(desk: TaskDesk, task: Task) {
   return {
     ...task,
     messages: listMessages(desk.storage, task.id),
-    handoffs: listHandoffs(desk.storage, task.id),
+    // The output itself is left out: the page shows its summary, and the full
+    // output would be sent again on every poll.
+    handoffs: listHandoffs(desk.storage, task.id).map(({ content, ...handoff }) => ({
+      ...handoff,
+      summary: summaryOf(content),
+    })),
     changes: finished ? desk.orchestrator.changes(task.id) : [],
   };
 }
@@ -131,6 +155,8 @@ function overview(desk: TaskDesk): JsonReply {
     body: {
       tasks: tasks.map((task) => thread(desk, task)),
       roles: desk.roles,
+      divisions: desk.divisions,
+      readiness: desk.readiness(),
       project: desk.project() ?? null,
       paused: storage.getSetting<boolean>("paused") ?? false,
       dailyUsd: storage.getSetting<{ dailyUsd: number }>("budgets")?.dailyUsd ?? null,
@@ -157,6 +183,7 @@ async function post(desk: TaskDesk, path: string, request: IncomingMessage) {
   const body = await readJson(request);
   if (path === "/api/tasks") {
     const brief = text(body, "brief", "Describe what the agency should build first.");
+    refuseUnready(desk);
     const budgetUsd = amount(body, "budgetUsd");
     if (budgetUsd === undefined) throw new BadRequest(400, "Give the task a budget in USD.");
     const task = desk.orchestrator.create(brief, budgetUsd, desk.project());

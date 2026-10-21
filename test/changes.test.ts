@@ -112,7 +112,14 @@ describe("reviewing the changes before Complete", () => {
 
   it("sends the changes with a task that is ready to complete", async () => {
     const { orchestrator, agency } = await finished();
-    const desk = { orchestrator, storage: agency.storage, roles: {}, project: () => undefined };
+    const desk = {
+      orchestrator,
+      storage: agency.storage,
+      roles: {},
+      divisions: {},
+      readiness: () => [],
+      project: () => undefined,
+    };
     const request = { method: "GET", headers: {} } as IncomingMessage;
     const reply = await handleTaskApi(desk, request, "/api/tasks");
     const [task] = (reply?.body.tasks ?? []) as { changes: { path: string }[] }[];

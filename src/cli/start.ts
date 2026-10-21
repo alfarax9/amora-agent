@@ -1,7 +1,9 @@
 import { spawn } from "node:child_process";
 import { createConnectFlows } from "../runtime/connect.ts";
 import { createOrchestrator } from "../runtime/orchestrator.ts";
+import { readinessGaps } from "../runtime/readiness.ts";
 import type { TaskDesk } from "../runtime/task-routes.ts";
+import type { Agency } from "../runtime/agency.ts";
 import { agencyFor } from "./agency.ts";
 import { refreshRegistry } from "../model-layer/registry-source.ts";
 import { scheduleReprobes } from "../model-layer/reprobe.ts";
@@ -40,11 +42,14 @@ function refreshRegistryInBackground(context: AppContext, logger: Logger): void 
     );
 }
 
-function taskDesk(context: AppContext, logger: Logger): TaskDesk {
-  const orchestrator = createOrchestrator(agencyFor(context), { logger, autoResume: true });
+function taskDesk(context: AppContext, agency: Agency, logger: Logger): TaskDesk {
+  const orchestrator = createOrchestrator(agency, { logger, autoResume: true });
   orchestrator.recoverInterrupted();
   const roles = Object.fromEntries(context.manifests.map(({ id, role }) => [id, role]));
-  return { orchestrator, storage: context.storage, roles, project: () => projectPath(context) };
+  const divisions = Object.fromEntries(context.manifests.map(({ id, division }) => [id, division]));
+  const project = () => projectPath(context);
+  const readiness = () => readinessGaps(agency, project());
+  return { orchestrator, storage: context.storage, roles, divisions, readiness, project };
 }
 
 export async function startAmora(
@@ -53,12 +58,13 @@ export async function startAmora(
   { open = true }: { open?: boolean } = {},
 ): Promise<void> {
   const logger = createLogger();
+  const agency = agencyFor(context);
   const runtime = await startRuntime(port, {
     sessions: createSessions(),
     flows: createConnectFlows(),
     secrets: context.secrets,
     logger,
-    tasks: taskDesk(context, logger),
+    tasks: taskDesk(context, agency, logger),
   });
   refreshRegistryInBackground(context, logger);
   // Background re-probes never allow data collection; that is chosen per run.

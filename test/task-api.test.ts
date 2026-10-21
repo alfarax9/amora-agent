@@ -6,6 +6,7 @@ import { createLogger } from "../src/runtime/logger.ts";
 import { memoryStore } from "../src/runtime/secrets.ts";
 import { createSessions } from "../src/runtime/security.ts";
 import { startRuntime, type Runtime } from "../src/runtime/server.ts";
+import type { Gap } from "../src/runtime/readiness.ts";
 import { listTasks } from "../src/runtime/task-store.ts";
 import { passing, plan, setup } from "./agency.ts";
 
@@ -53,6 +54,7 @@ describe("agency chat API", () => {
   const sessions = createSessions();
   let runtime: Runtime;
   let cookie = "";
+  let gaps: Gap[] = [];
   const key = `sk-or-v1-${"a1b2c3d4".repeat(8)}`;
 
   before(async () => {
@@ -65,6 +67,8 @@ describe("agency chat API", () => {
         orchestrator: world.runtime,
         storage: world.storage,
         roles: { builder: "Builder" },
+        divisions: { builder: "forge" },
+        readiness: () => gaps,
         project: () => undefined,
       },
     });
@@ -107,6 +111,37 @@ describe("agency chat API", () => {
     });
     assert.equal(keyed.status, 400);
     assert.ok(!keyed.body.includes(key));
+  });
+
+  it("refuses a new task until the agency is set up, naming the commands", async () => {
+    gaps = [
+      {
+        problem: "The Planner / Decomposer has no model that fits: No model is assigned.",
+        command: "amora models set global <model>",
+      },
+      {
+        problem: "No daily limit is set, so no plan could be approved.",
+        command: "amora budget --daily <usd>",
+      },
+    ];
+    const before = listTasks(world.storage).length;
+    const refused = await call(runtime.port, "POST", "/api/tasks", {
+      cookie,
+      json: { brief: "Add a page", budgetUsd: 1 },
+    });
+    assert.equal(refused.status, 409);
+    assert.match(
+      refused.body,
+      /Run: amora models set global <model>.*Run: amora budget --daily <usd>/,
+    );
+    assert.equal(listTasks(world.storage).length, before);
+    const overview = JSON.parse(
+      (await call(runtime.port, "GET", "/api/tasks", { cookie })).body,
+    ) as {
+      readiness: Gap[];
+    };
+    assert.deepEqual(overview.readiness, gaps);
+    gaps = [];
   });
 
   it("refuses a message that holds a key, without echoing it or storing anything (PRD §8 rule 5)", async () => {
