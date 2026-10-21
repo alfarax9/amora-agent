@@ -123,12 +123,16 @@ type Caller = <T>(path: string, init?: RequestInit) => Promise<T>;
 // whole files from a reasoning model, take longer; their caller says how long.
 const defaultTimeoutMs = 120_000;
 
+// The error a refused or failed request answers with, for this module and for
+// streaming replies (stream.ts).
+export async function failureOf(response: Response): Promise<GatewayError> {
+  const message = await errorMessage(response);
+  return new GatewayError(response.status, message, retryAfterMs(response.headers));
+}
+
 async function request<T>(fetchImpl: Fetch, url: string, init: RequestInit, timeoutMs: number) {
   const response = await fetchImpl(url, { signal: AbortSignal.timeout(timeoutMs), ...init });
-  if (!response.ok) {
-    const message = await errorMessage(response);
-    throw new GatewayError(response.status, message, retryAfterMs(response.headers));
-  }
+  if (!response.ok) throw await failureOf(response);
   const body = (await response.json()) as T & ErrorBody;
   // A failure upstream can arrive as HTTP 200 with an error and no choices,
   // for instance when the provider ran out of capacity after the request was

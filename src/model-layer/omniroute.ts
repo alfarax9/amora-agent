@@ -1,4 +1,5 @@
 import { createCaller, type Chat, type Fetch } from "./gateway.ts";
+import { type StreamLimits, streamChat } from "./stream.ts";
 
 // OmniRoute is a local gateway (PRD §7.2) with an OpenAI-compatible API.
 export const defaultOmniRouteUrl = "http://localhost:20128/v1";
@@ -20,16 +21,30 @@ export type OmniRoute = {
 export function createOmniRoute(
   baseUrl: string,
   apiKey: string,
-  { fetchImpl = fetch, timeoutMs }: { fetchImpl?: Fetch; timeoutMs?: number } = {},
+  {
+    fetchImpl = fetch,
+    timeoutMs,
+    stream,
+  }: { fetchImpl?: Fetch; timeoutMs?: number; stream?: StreamLimits } = {},
 ): OmniRoute {
+  const base = baseUrl.replace(/\/+$/, "");
   const call = createCaller({
-    baseUrl: baseUrl.replace(/\/+$/, ""),
+    baseUrl: base,
     apiKey,
     fetchImpl,
     ...(timeoutMs ? { timeoutMs } : {}),
   });
+  const target = {
+    url: `${base}/chat/completions`,
+    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+    fetchImpl,
+  };
   return {
-    chat: (request) => call("/chat/completions", { method: "POST", body: JSON.stringify(request) }),
+    // Work streams (stream.ts) and asks for usage in the last event; probes do not.
+    chat: (request) =>
+      stream
+        ? streamChat(target, { ...request, stream_options: { include_usage: true } }, stream)
+        : call("/chat/completions", { method: "POST", body: JSON.stringify(request) }),
     models: async () => (await call<{ data?: OmniRouteModel[] }>("/models")).data ?? [],
   };
 }

@@ -1,4 +1,5 @@
 import { createCaller, type Chat, type Fetch } from "./gateway.ts";
+import { type StreamLimits, streamChat } from "./stream.ts";
 
 const apiBase = "https://openrouter.ai/api/v1";
 
@@ -19,7 +20,13 @@ type KeyInfo = {
 
 type DataCollection = "deny" | "allow";
 
-type ClientOptions = { fetchImpl?: Fetch; dataCollection?: DataCollection; timeoutMs?: number };
+type ClientOptions = {
+  fetchImpl?: Fetch;
+  dataCollection?: DataCollection;
+  timeoutMs?: number;
+  // Work replies stream with these limits (stream.ts); probes leave it out.
+  stream?: StreamLimits;
+};
 
 export type OpenRouter = {
   chat: Chat;
@@ -29,7 +36,7 @@ export type OpenRouter = {
 
 export function createOpenRouter(
   apiKey: string,
-  { fetchImpl = fetch, dataCollection = "deny", timeoutMs }: ClientOptions = {},
+  { fetchImpl = fetch, dataCollection = "deny", timeoutMs, stream }: ClientOptions = {},
 ): OpenRouter {
   const call = createCaller({
     baseUrl: apiBase,
@@ -38,18 +45,31 @@ export function createOpenRouter(
     headers: { "X-Title": "AMORA" },
     ...(timeoutMs ? { timeoutMs } : {}),
   });
+  const target = {
+    url: `${apiBase}/chat/completions`,
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+      "X-Title": "AMORA",
+    },
+    fetchImpl,
+  };
   return {
     // Prompts never go to providers that may store or train on them unless
     // the caller opts in (S10), and only to providers that honor every
     // parameter, so a probe is not answered by one that ignored the schema.
-    chat: (request) =>
-      call("/chat/completions", {
+    chat: (request) => {
+      const provider = { data_collection: dataCollection, require_parameters: true };
+      if (stream) {
+        // The cost arrives in the last event when usage is asked for.
+        const body = { ...request, provider, usage: { include: true } };
+        return streamChat(target, body, stream);
+      }
+      return call("/chat/completions", {
         method: "POST",
-        body: JSON.stringify({
-          ...request,
-          provider: { data_collection: dataCollection, require_parameters: true },
-        }),
-      }),
+        body: JSON.stringify({ ...request, provider }),
+      });
+    },
     model: async (id) => {
       const { data } = await call<{ data: ModelInfo[] }>("/models");
       return data.find((model) => model.id === id);
