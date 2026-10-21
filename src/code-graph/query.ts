@@ -125,6 +125,20 @@ export function definitionsOf(graph: CodeGraph, names: string[]) {
   }));
 }
 
+// Where a name is defined, exported or not: `save` finds a function save and
+// a method Store.save.
+export function definitionsNamed(graph: CodeGraph, name: string) {
+  const sql = `SELECT file, name, kind, line, end_line FROM symbols
+    WHERE name = ?1 OR substr(name, -length(?1) - 1) = '.' || ?1 ORDER BY file, line`;
+  return all(graph, sql, name).map((row) => ({
+    file: String(row.file),
+    name: String(row.name),
+    kind: String(row.kind),
+    line: Number(row.line),
+    endLine: Number(row.end_line),
+  }));
+}
+
 // Each file's exported names, `load()` for a function and `Note` for the rest.
 export function outline(graph: CodeGraph): Record<string, string[]> {
   const rows = all(

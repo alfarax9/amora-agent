@@ -9,7 +9,7 @@ import { runDoctor } from "./doctor.ts";
 import { runBudget } from "./budget.ts";
 import { runCreditLimit } from "./credit-limit.ts";
 import { runEval } from "./eval.ts";
-import { runGraph, runImpact } from "./graph.ts";
+import { runGraph, runGraphMcp, runImpact } from "./graph.ts";
 import { listModels, setFamily, setModel, unsetModel } from "./models.ts";
 import { connectOmniRoute } from "./omniroute.ts";
 import { probeAssigned, probeModel } from "./probe.ts";
@@ -49,6 +49,8 @@ Commands:
                                   functions, classes, imports, and calls, in one SQLite file
   graph impact <file|function>    List the files a change to it can reach (its callers, theirs,
                                   and the tests among them), from the project's code graph
+  graph mcp [path]                Serve the code graph to tool-using agents over MCP (stdio):
+                                  impact, callers, dependencies, find, and outline, read-only
   connect omniroute               Connect a local OmniRoute; the key is typed at a hidden prompt
   doctor                          Check gateways, keys, plugins, capabilities, hardware, and port
   models                          Show which worker uses which model
@@ -190,6 +192,7 @@ const commands: Record<string, Command> = {
   graph: async (context, [action, target, ...more]) => {
     if (action === "impact")
       return target && more.length === 0 ? runImpact(context, target) : undefined;
+    if (action === "mcp") return more.length === 0 ? runGraphMcp(context, target) : undefined;
     return target === undefined ? runGraph(context, action) : undefined;
   },
   registry: async (context, [action, model], flags) =>

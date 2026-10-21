@@ -1,8 +1,12 @@
 import { createHash } from "node:crypto";
 import { existsSync, realpathSync } from "node:fs";
 import { join, resolve } from "node:path";
+import packageJson from "../../package.json" with { type: "json" };
 import { openGraph, updateGraph } from "../code-graph/graph.ts";
+import { serveMcp } from "../code-graph/mcp.ts";
+import { graphService } from "../code-graph/mcp-tools.ts";
 import { impactOf } from "../code-graph/query.ts";
+import { createLogger } from "../runtime/logger.ts";
 import { dataDirectory } from "../runtime/storage.ts";
 import type { AppContext } from "./context.ts";
 import { print, printError } from "./output.ts";
@@ -61,6 +65,22 @@ export function runImpact(context: AppContext, target: string): boolean {
     print(
       `${affected.length} files, ${tests} of them tests. 0 is the target, 1 calls it, 2 calls those.`,
     );
+    return true;
+  } finally {
+    graph.close();
+  }
+}
+
+// `amora graph mcp [path]`: the graph as an MCP server on stdin and stdout,
+// for agents that call tools. Errors before it starts go to stderr, which the
+// client shows; stdout carries protocol messages only.
+export async function runGraphMcp(context: AppContext, path: string | undefined): Promise<boolean> {
+  const folder = folderOf(context, path);
+  if (!folder) return false;
+  const graph = openGraph(graphFile(folder));
+  try {
+    const service = graphService(graph, folder, packageJson.version);
+    await serveMcp(service, process.stdin, (line) => process.stdout.write(line), createLogger());
     return true;
   } finally {
     graph.close();
