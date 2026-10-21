@@ -39,13 +39,15 @@ export type WorkerReply = {
 // counts against max_tokens: on the heavy tier, replies with whole files hit
 // the limit and came back empty or cut off mid-JSON. Workers that write code
 // get a larger limit and are asked to think briefly; the others keep 16,000.
+// The thinking is streamed, not excluded: excluded, a long think reached the
+// stream as silence and was given up on (stream.ts). Only the content is kept.
 const codeContracts = ["code_change.v1", "component_pkg.v1", "test_suite.v1"];
 
 type Limits = Pick<ChatRequest, "max_tokens" | "reasoning">;
 
 function limitsFor({ contract }: WorkerCall): Limits {
   if (!codeContracts.includes(contract.id)) return { max_tokens: 16_000 };
-  return { max_tokens: 64_000, reasoning: { effort: "low", exclude: true } };
+  return { max_tokens: 64_000, reasoning: { effort: "low" } };
 }
 
 // Models whose gateway refused the reasoning setting in this process; they

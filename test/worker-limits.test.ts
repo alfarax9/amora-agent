@@ -44,7 +44,7 @@ describe("output limits for a worker's call", () => {
     assert.deepEqual(
       requests.map(({ max_tokens, reasoning }) => ({ max_tokens, reasoning })),
       [
-        { max_tokens: 64_000, reasoning: { effort: "low", exclude: true } },
+        { max_tokens: 64_000, reasoning: { effort: "low" } },
         { max_tokens: 16_000, reasoning: undefined },
       ],
     );
