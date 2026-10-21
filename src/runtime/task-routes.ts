@@ -20,7 +20,7 @@ export type TaskDesk = {
 
 export type JsonReply = { status: number; body: Record<string, unknown> };
 
-class BadRequest extends Error {
+export class BadRequest extends Error {
   readonly status: number;
   constructor(status: number, message: string) {
     super(message);
@@ -32,7 +32,7 @@ const maxBodyBytes = 64 * 1024;
 
 // Only JSON is accepted, so a plain HTML form on another site cannot post here
 // even before the Origin check (S3) refuses it.
-async function readJson(request: IncomingMessage): Promise<Record<string, unknown>> {
+export async function readJson(request: IncomingMessage): Promise<Record<string, unknown>> {
   if (!String(request.headers["content-type"]).startsWith("application/json")) {
     throw new BadRequest(415, "Send JSON.");
   }

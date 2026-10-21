@@ -6,6 +6,7 @@ import type { Logger } from "./logger.ts";
 import { dashboardPage, messagePage } from "./pages.ts";
 import { maskSecret } from "./secret-scanner.ts";
 import type { SecretStore } from "./secrets.ts";
+import { handleLimitApi } from "./limit-routes.ts";
 import { handleTaskApi, type TaskDesk } from "./task-routes.ts";
 import { dashboardScript } from "./dashboard-files.ts";
 import {
@@ -171,6 +172,14 @@ const sessionRoutes: Record<string, Handler> = {
   "GET /connect/openrouter": connectOpenRouter,
 };
 
+// The key's credit limit is a setting of the gateway, so it works without the chat.
+async function limitApi({ request, response, url, deps }: Context): Promise<boolean> {
+  const reply = await handleLimitApi(deps, request, url.pathname);
+  if (!reply) return false;
+  send(response, reply.status, JSON.stringify(reply.body));
+  return true;
+}
+
 async function taskApi(context: Context): Promise<boolean> {
   const { request, response, url, deps } = context;
   if (!deps.tasks || !url.pathname.startsWith("/api/")) return false;
@@ -198,6 +207,7 @@ async function route(context: Context): Promise<void> {
   if (request.method === "GET" && context.url.pathname.startsWith("/dashboard/")) {
     return script(context);
   }
+  if (await limitApi(context)) return;
   if (await taskApi(context)) return;
   send(response, 404, messagePage("Not found", "There is no page here."));
 }

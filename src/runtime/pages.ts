@@ -47,11 +47,11 @@ const dashboardStyle = `
   .card { border: 1px solid #2563eb; border-radius: .5rem; padding: .75rem; margin-top: .75rem; }
   .status { font-size: .75rem; text-transform: uppercase; letter-spacing: .05em; color: #9ca3af; }
   ol { padding-left: 1.25rem; }
-  textarea, input { width: 100%; box-sizing: border-box; background: #0a0d14; color: #fff; border: 1px solid #374151; border-radius: .5rem; padding: .5rem; font: inherit; }
+  textarea, input, select { width: 100%; box-sizing: border-box; background: #0a0d14; color: #fff; border: 1px solid #374151; border-radius: .5rem; padding: .5rem; font: inherit; }
   label { display: block; margin: .5rem 0 .25rem; font-size: .875rem; }
   button { background: #2563eb; color: #fff; border: 0; border-radius: 999px; padding: .5rem 1rem; font: inherit; cursor: pointer; margin: .5rem .5rem 0 0; }
   button.secondary { background: #1f2937; }
-  button:focus-visible, textarea:focus-visible, input:focus-visible { outline: 2px solid #60a5fa; outline-offset: 2px; }
+  button:focus-visible, textarea:focus-visible, input:focus-visible, select:focus-visible, summary:focus-visible { outline: 2px solid #60a5fa; outline-offset: 2px; }
   button:disabled { opacity: .5; cursor: default; }
   .error { color: #ff6b6b; }
   table { width: 100%; border-collapse: collapse; font-size: .8125rem; }
@@ -65,6 +65,27 @@ const dashboardStyle = `
   .diff .del { color: #f87171; }
   .diff .hunk { color: #60a5fa; }
 `;
+
+// The OpenRouter key's own credit limit (key-limit.ts). The management key
+// field is a password field the script empties after every attempt.
+const creditLimit = `<details id="credit-limit-panel">
+<summary>OpenRouter credit limit</summary>
+<p id="credit-limit" class="meta" aria-live="polite">Reading the key's limit…</p>
+<label for="limit-usd">Limit in USD (empty for no limit)</label>
+<input id="limit-usd" type="number" min="0.01" step="0.01">
+<label for="limit-reset">Resets</label>
+<select id="limit-reset">
+<option value="">Never</option>
+<option value="daily">Daily (midnight UTC)</option>
+<option value="weekly">Weekly (Monday, midnight UTC)</option>
+<option value="monthly">Monthly (the 1st, midnight UTC)</option>
+</select>
+<label for="management-key">Management key, from openrouter.ai/settings/management-keys (used for this change only, never stored)</label>
+<input id="management-key" type="password" autocomplete="off" spellcheck="false">
+<button id="save-limit" type="button">Set limit</button>
+<p id="limit-error" class="error" role="alert"></p>
+</details>
+<script type="module" src="/dashboard/settings.js"></script>`;
 
 // The agency chat (PRD §8). The page itself is static; its script fetches the
 // tasks from /api/tasks and renders them with text nodes only.
@@ -94,6 +115,7 @@ export function dashboardPage(state: { maskedKey?: string; chat: boolean }): str
 <p class="meta" id="budget-meter"></p>
 <button id="pause" type="button" class="secondary" hidden>Pause all workers</button>
 </header>
+${state.maskedKey ? creditLimit : ""}
 <p id="action-error" class="error" role="alert"></p>
 ${chat}`,
     "dashboard",

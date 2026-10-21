@@ -9,7 +9,7 @@ import { createCaller, type Fetch, GatewayError } from "./gateway.ts";
 const apiBase = "https://openrouter.ai/api/v1";
 
 export const limitResets = ["daily", "weekly", "monthly"] as const;
-type LimitReset = (typeof limitResets)[number];
+export type LimitReset = (typeof limitResets)[number];
 
 export type KeyLimit = {
   // OpenRouter's masked form of the key, such as "sk-or-v1-0e6...1c96".
