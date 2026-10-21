@@ -45,7 +45,7 @@ export function reviewCard(task, act) {
       "p",
       {},
       el("strong", {}, "Review the changes. "),
-      `Completing changes ${task.changes.length} files. Open one to see its diff; a note on it sends that work back before you complete.`,
+      `Completing changes ${task.changes.length === 1 ? "1 file" : `${task.changes.length} files`}. Open one to see its diff; a note on it sends that work back before you complete.`,
     ),
     task.changes.map((change, index) => fileBlock(task, change, index)),
     el("button", { type: "button", class: "secondary", onclick: send }, "Send the notes back"),
