@@ -15,6 +15,8 @@ export type ChatRequest = {
   response_format?: Record<string, unknown>;
   tools?: Record<string, unknown>[];
   tool_choice?: unknown;
+  // How hard a reasoning model thinks; its thinking counts against max_tokens.
+  reasoning?: { effort: "low" | "medium" | "high"; exclude?: boolean };
 };
 
 export type ChatResponse = {
@@ -23,6 +25,8 @@ export type ChatResponse = {
       content: string | null;
       tool_calls?: { function: { name: string; arguments: string } }[];
     };
+    // "length" when the reply hit max_tokens and was cut off.
+    finish_reason?: string | null;
   }[];
   // The model that actually answered, which for a combo is the member it fell
   // back to, not the combo's name.
