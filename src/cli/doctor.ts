@@ -1,6 +1,7 @@
 import { createServer } from "node:net";
 import { availableParallelism, freemem, totalmem } from "node:os";
 import { GatewayError } from "../model-layer/gateway.ts";
+import { readKeyLimit } from "../model-layer/key-limit.ts";
 import { createOpenRouter } from "../model-layer/openrouter.ts";
 import { probeMaxAgeDays, staleProbes } from "../model-layer/known-models.ts";
 import { assignedModels, resolveWorker } from "../model-layer/slots.ts";
@@ -8,6 +9,7 @@ import { formatUsd } from "../runtime/money.ts";
 import { dayMs } from "../runtime/time.ts";
 import { bindAddress } from "../runtime/security.ts";
 import { type AppContext, defaultPort } from "./context.ts";
+import { describeLimit } from "./credit-limit.ts";
 import { omniRouteClient } from "./measure.ts";
 import { print } from "./output.ts";
 import { openRouterDataCollection } from "./privacy.ts";
@@ -44,7 +46,21 @@ async function checkKeychainAndGateway(context: AppContext): Promise<Check[]> {
     const detail = "not connected; run amora and choose Connect OpenRouter";
     return [keychain, { status: "warn", label: "OpenRouter", detail }];
   }
-  return [keychain, await checkOpenRouter(key)];
+  return [keychain, await checkOpenRouter(key), await checkCreditLimit(key)];
+}
+
+// OpenRouter's own ceiling on the key holds even when AMORA's count is wrong,
+// so a key without one is worth a warning.
+async function checkCreditLimit(key: string): Promise<Check> {
+  const label = "Credit limit";
+  try {
+    const limit = await readKeyLimit(key);
+    if (limit.limitUsd !== null) return { status: "pass", label, detail: describeLimit(limit) };
+    const detail = `${describeLimit(limit)} (or in the dashboard)`;
+    return { status: "warn", label, detail };
+  } catch (error) {
+    return { status: "warn", label, detail: `could not be read: ${(error as Error).message}` };
+  }
 }
 
 async function checkOpenRouter(key: string): Promise<Check> {

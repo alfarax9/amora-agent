@@ -7,6 +7,7 @@ import { redactSecrets } from "../runtime/secret-scanner.ts";
 import { type AppContext, defaultPort, openContext } from "./context.ts";
 import { runDoctor } from "./doctor.ts";
 import { runBudget } from "./budget.ts";
+import { runCreditLimit } from "./credit-limit.ts";
 import { runEval } from "./eval.ts";
 import { listModels, setFamily, setModel, unsetModel } from "./models.ts";
 import { connectOmniRoute } from "./omniroute.ts";
@@ -27,6 +28,9 @@ Commands:
   (none)                          Start the runtime and open the dashboard
   budget                          Show the daily spending limit and today's spend
   budget --daily <usd>            Set the daily limit across all tasks (needed before a first task)
+  credit-limit [<usd>|none]       Show or set the OpenRouter key's own credit limit, kept by
+                                  OpenRouter; a change asks for a management key at a hidden
+                                  prompt and does not store it
   project [path]                  Show or set the project folder new tasks work on
   roster [auto|slim|full]         Show or choose the workers new tasks plan with (default: auto,
                                   which gives heavy briefs every worker and light ones the slim roster)
@@ -65,6 +69,7 @@ Options:
                            (auto twice in parallel, keeping the attempt whose gates passed), and
                            baseline
   --baseline-model <id>    With eval: the baseline's model (default: the global model)
+  --reset <period>         With credit-limit: daily, weekly, monthly, or never
   --budget <usd>           With eval or run: each AMORA task's budget (default 1)
   --approve                With run: approve the plan and run every step
   --complete               With run and --approve: deliver the work when every step passed
@@ -92,6 +97,7 @@ type Flags = {
   license: string | undefined;
   url: string | undefined;
   daily: string | undefined;
+  reset: string | undefined;
   denyDataCollection: boolean;
   noOpen: boolean;
   briefs: string[];
@@ -170,6 +176,8 @@ const commands: Record<string, Command> = {
     args.length === 0 ? runPrivacy(context, privacyChoice(flags)) : undefined,
   budget: async (context, args, flags) =>
     args.length === 0 ? runBudget(context, flags.daily) : undefined,
+  "credit-limit": async (context, args, flags) =>
+    args.length <= 1 ? runCreditLimit(context, args[0], flags.reset) : undefined,
   connect: async (context, [target], flags) =>
     target === "omniroute"
       ? connectOmniRoute(context, flags.url ?? defaultOmniRouteUrl)
@@ -197,6 +205,7 @@ const options = {
   assigned: { type: "boolean", default: false },
   url: { type: "string" },
   daily: { type: "string" },
+  reset: { type: "string" },
   brief: { type: "string", multiple: true },
   system: { type: "string", default: "all" },
   "baseline-model": { type: "string" },
@@ -232,6 +241,7 @@ async function main(): Promise<void> {
     license: values.license,
     url: values.url,
     daily: values.daily,
+    reset: values.reset,
     denyDataCollection: values["deny-data-collection"],
     noOpen: values["no-open"],
     briefs: values.brief ?? [],
