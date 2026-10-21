@@ -44,7 +44,7 @@ async function measureOpenRouter(context: AppContext, model: string, options: Me
 
 export async function omniRouteClient(
   context: AppContext,
-  options: { timeoutMs?: number } = {},
+  options: { timeoutMs?: number; stream?: { idleMs: number; totalMs: number } } = {},
 ): Promise<OmniRoute> {
   const key = await context.secrets.get("omniroute");
   if (!key) throw new Error("Connect OmniRoute first: amora connect omniroute");

@@ -17,20 +17,21 @@ import { openRouterDataCollection } from "./privacy.ts";
 // Real work goes through the gateway each slot names. OpenRouter requests deny
 // data collection (S10) unless the owner allowed it with amora privacy: a task
 // carries the owner's project, unlike a probe's fixed test prompts.
-// A worker's answer can be whole files from a reasoning model: the first real
-// run had a 96 s reply and a review still unfinished at 120 s.
-const workTimeoutMs = 300_000;
+// A worker's answer can be whole files from a reasoning model, minutes long, so
+// work replies stream and the wait is on silence (stream.ts): a fixed 300 s
+// cut off answers that were still arriving.
+const workStream = { idleMs: 180_000, totalMs: 1_800_000 };
 
 async function connect(context: AppContext, model: string) {
   const { gateway, name } = parseModelId(model);
   if (gateway === "omniroute") {
-    return { chat: (await omniRouteClient(context, { timeoutMs: workTimeoutMs })).chat, name };
+    return { chat: (await omniRouteClient(context, { stream: workStream })).chat, name };
   }
   const key = await context.secrets.get("openrouter");
   if (!key) throw new Error("Connect OpenRouter first: run amora and choose Connect OpenRouter.");
   const dataCollection = openRouterDataCollection(context);
   return {
-    chat: createOpenRouter(key, { dataCollection, timeoutMs: workTimeoutMs }).chat,
+    chat: createOpenRouter(key, { dataCollection, stream: workStream }).chat,
     name,
   };
 }
