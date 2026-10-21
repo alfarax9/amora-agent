@@ -178,8 +178,9 @@ export function createCaller(options: {
 // for a moment, and 500, 502, and 503 are the provider failing for a moment
 // (the first real run met a 500 from a free model's provider). None of them
 // says anything about the model or the work, so probes and workers alike wait
-// and try again a couple of times before giving up.
-const transientStatuses = [429, 500, 502, 503];
+// and try again a couple of times before giving up. A 504 is a streamed reply
+// that went silent (stream.ts), which a second try usually gets past.
+const transientStatuses = [429, 500, 502, 503, 504];
 const defaultRetryDelaysMs = [4000, 12000];
 // A gateway that says how long to wait knows better than a fixed delay (an
 // OmniRoute cooldown lasts about half a minute), but a call must not stall
