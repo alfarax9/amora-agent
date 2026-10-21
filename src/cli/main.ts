@@ -9,6 +9,7 @@ import { runDoctor } from "./doctor.ts";
 import { runBudget } from "./budget.ts";
 import { runCreditLimit } from "./credit-limit.ts";
 import { runEval } from "./eval.ts";
+import { runGraph, runImpact } from "./graph.ts";
 import { listModels, setFamily, setModel, unsetModel } from "./models.ts";
 import { connectOmniRoute } from "./omniroute.ts";
 import { probeAssigned, probeModel } from "./probe.ts";
@@ -44,6 +45,10 @@ Commands:
   privacy                         Show whether OpenRouter providers may keep or train on prompts
   eval                            Run the benchmark set through AMORA and one strong agent, and
                                   report success and cost per successful task (calls your models)
+  graph [path]                    Build or update the code graph of the project (or of path): its
+                                  functions, classes, imports, and calls, in one SQLite file
+  graph impact <file|function>    List the files a change to it can reach (its callers, theirs,
+                                  and the tests among them), from the project's code graph
   connect omniroute               Connect a local OmniRoute; the key is typed at a hidden prompt
   doctor                          Check gateways, keys, plugins, capabilities, hardware, and port
   models                          Show which worker uses which model
@@ -182,6 +187,11 @@ const commands: Record<string, Command> = {
     target === "omniroute"
       ? connectOmniRoute(context, flags.url ?? defaultOmniRouteUrl)
       : undefined,
+  graph: async (context, [action, target, ...more]) => {
+    if (action === "impact")
+      return target && more.length === 0 ? runImpact(context, target) : undefined;
+    return target === undefined ? runGraph(context, action) : undefined;
+  },
   registry: async (context, [action, model], flags) =>
     action === "draft" && model ? draftEntry(context, model, flags) : undefined,
 };
