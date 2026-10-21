@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { Refusal } from "../src/runtime/orchestrator.ts";
+import type { ChatRequest } from "../src/model-layer/gateway.ts";
+import { createLogger } from "../src/runtime/logger.ts";
+import { createOrchestrator, Refusal } from "../src/runtime/orchestrator.ts";
 import { assertMove, canMove } from "../src/runtime/task-states.ts";
-import { getTask, listHandoffs } from "../src/runtime/task-store.ts";
+import { getTask, listHandoffs, listMessages } from "../src/runtime/task-store.ts";
 import { failing, passing, plan, setup } from "./agency.ts";
 
 const brief = "Add a pricing card to the landing page.";
@@ -273,5 +275,46 @@ describe("orchestrator: budgets, pause, and failures", () => {
     const { orchestrator, task } = await planned({ plan_v1: [plan(["builder"])] });
     assert.equal(orchestrator.cancel(task.id).status, "cancelled");
     assert.throws(() => orchestrator.cancel(task.id), /already finished/);
+  });
+
+  it("cancels a running task: the step in flight is recorded, and no step after it runs", async () => {
+    const world = setup(
+      {
+        plan_v1: [plan(["builder", "builder"])],
+        note_v1: [{ text: "done" }],
+        review_v1: [passing],
+      },
+      { dailyUsd: 5, costPerCall: 0.01 },
+    );
+    const contractOf = (request: ChatRequest) =>
+      (request.response_format?.json_schema as { name: string }).name;
+    let id = "";
+    // The owner presses Cancel while the first builder call is out.
+    const runtime = createOrchestrator(
+      {
+        ...world.agency,
+        connect: async (model) => {
+          const { chat, name } = await world.agency.connect(model);
+          return {
+            name,
+            chat: async (request) => {
+              if (contractOf(request) === "note_v1") runtime.cancel(id);
+              return chat(request);
+            },
+          };
+        },
+      },
+      { logger: createLogger(() => undefined) },
+    );
+    id = runtime.create(brief, 1).id;
+    await runtime.settled(id);
+    await runtime.approve(id);
+    await runtime.settled(id);
+    const task = getTask(world.storage, id);
+    assert.equal(task?.status, "cancelled");
+    assert.equal(task?.step, 0);
+    assert.ok((task?.spentUsd ?? 0) > 0.01, "the calls already made are counted");
+    assert.equal(world.requests.filter((request) => contractOf(request) === "note_v1").length, 1);
+    assert.match(listMessages(world.storage, id).at(-1)?.text ?? "", /cancelled/);
   });
 });
