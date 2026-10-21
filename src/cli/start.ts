@@ -59,12 +59,15 @@ export async function startAmora(
 ): Promise<void> {
   const logger = createLogger();
   const agency = agencyFor(context);
+  const { storage, secrets, manifests, registry } = context;
   const runtime = await startRuntime(port, {
     sessions: createSessions(),
     flows: createConnectFlows(),
     secrets: context.secrets,
     logger,
     tasks: taskDesk(context, agency, logger),
+    // The same cached price lookup the agency estimates plans with.
+    reports: { storage, secrets, manifests, registry, price: agency.price },
   });
   refreshRegistryInBackground(context, logger);
   // Background re-probes never allow data collection; that is chosen per run.
