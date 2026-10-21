@@ -39,11 +39,10 @@ export function handoffLog(task, roles) {
     {},
     columns.map((label) => el("th", { scope: "col" }, label)),
   );
+  // The log is wider than the panel; it scrolls on its own, not the page.
   return el(
-    "details",
-    { id: `log-${task.id}` },
-    el("summary", {}, `Handoff log (${task.handoffs.length})`),
-    // The log is wider than a phone; it scrolls on its own, not the page.
-    el("div", { class: "scroll" }, el("table", {}, el("thead", {}, head), el("tbody", {}, rows))),
+    "div",
+    { class: "scroll" },
+    el("table", {}, el("thead", {}, head), el("tbody", {}, rows)),
   );
 }
