@@ -1,7 +1,8 @@
 import { usd } from "./dom.js";
 
-// The OpenRouter key's credit limit: shown when the page opens, changed with a
-// management key that is sent once and emptied from the field right away.
+// Settings: the OpenRouter key's credit limit, read when the page opens and
+// changed with a management key that is sent once and emptied from the field
+// right away.
 
 const shown = document.getElementById("credit-limit");
 const amount = document.getElementById("limit-usd");
@@ -49,7 +50,7 @@ async function load() {
   }
 }
 
-save.addEventListener("click", async () => {
+save?.addEventListener("click", async () => {
   error.textContent = "";
   const key = managementKey.value;
   managementKey.value = "";
@@ -68,4 +69,9 @@ save.addEventListener("click", async () => {
   save.disabled = false;
 });
 
-void load();
+// Read each time Settings opens, so the figures are current.
+const onSettings = () => globalThis.location.hash === "#settings";
+globalThis.addEventListener("hashchange", () => {
+  if (shown && onSettings()) void load();
+});
+if (shown && onSettings()) void load();
