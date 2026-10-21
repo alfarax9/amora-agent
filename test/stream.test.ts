@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { type Fetch, GatewayError } from "../src/model-layer/gateway.ts";
+import { type Fetch, GatewayError, withRetries } from "../src/model-layer/gateway.ts";
 import { createOmniRoute } from "../src/model-layer/omniroute.ts";
 import { createOpenRouter } from "../src/model-layer/openrouter.ts";
 import { streamChat } from "../src/model-layer/stream.ts";
@@ -86,9 +86,10 @@ describe("streamed replies", () => {
         ask,
         quick,
       ),
-      {
-        message: "No answer from https://gw.test/chat for 0.05 s.",
-      },
+      (error) =>
+        error instanceof GatewayError &&
+        error.status === 504 &&
+        error.message === "No answer from https://gw.test/chat for 0.05 s.",
     );
     const slow = Array.from({ length: 8 }, () => event({ choices: [{ delta: { content: "y" } }] }));
     const reply = await streamChat(
@@ -107,8 +108,45 @@ describe("streamed replies", () => {
         ask,
         { idleMs: 1000, totalMs: 100 },
       ),
-      { message: "The answer from https://gw.test/chat took more than 0.1 s." },
+      (error) =>
+        !(error instanceof GatewayError) &&
+        error instanceof Error &&
+        error.message === "The answer from https://gw.test/chat took more than 0.1 s.",
     );
+  });
+
+  it("hears a long think as the reasoning streams, and keeps only the content", async () => {
+    const thinking = Array.from({ length: 8 }, () =>
+      event({ choices: [{ delta: { reasoning: "hmm " } }] }),
+    );
+    const pieces = [
+      ...thinking,
+      event({ choices: [{ delta: { content: "{}" }, finish_reason: "stop" }] }),
+    ];
+    const reply = await streamChat(
+      target(async () => sse(pieces, { gapMs: 30 })),
+      ask,
+      { idleMs: 50, totalMs: 5000 },
+    );
+    assert.equal(reply.choices[0]?.message.content, "{}");
+  });
+
+  it("is tried again when it goes silent, like a gateway failing for a moment", async () => {
+    let calls = 0;
+    const fetchImpl: Fetch = async () => {
+      calls += 1;
+      const pieces = [event({ choices: [{ delta: { content: "ok" } }] })];
+      return calls === 1 ? sse([], { stall: true }) : sse(pieces);
+    };
+    const retried: number[] = [];
+    const chat = withRetries(
+      createOpenRouter("k", { fetchImpl, stream: { idleMs: 50, totalMs: 5000 } }).chat,
+      { retryDelaysMs: [0], onRetry: (status) => void retried.push(status) },
+    );
+    const reply = await chat(ask);
+    assert.equal(reply.choices[0]?.message.content, "ok");
+    assert.deepEqual(retried, [504]);
+    assert.equal(calls, 2);
   });
 
   it("asks OpenRouter and OmniRoute for a stream with its usage", async () => {
