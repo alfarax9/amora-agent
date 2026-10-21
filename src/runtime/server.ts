@@ -8,7 +8,7 @@ import { maskSecret } from "./secret-scanner.ts";
 import type { SecretStore } from "./secrets.ts";
 import { handleLimitApi } from "./limit-routes.ts";
 import { handleTaskApi, type TaskDesk } from "./task-routes.ts";
-import { dashboardScript } from "./dashboard-files.ts";
+import { dashboardFile } from "./dashboard-files.ts";
 import {
   bindAddress,
   readCookie,
@@ -123,11 +123,12 @@ const openRouterCallback: Handler = async ({ response, url, deps }) => {
   send(response, 200, messagePage("OpenRouter connected", message));
 };
 
-// The dashboard page runs its own script, served from this origin, which
-// talks only to this origin; nothing else may load or connect.
+// The dashboard page runs its own script and shows its own mascots, served
+// from this origin, and talks only to this origin; nothing else may load or
+// connect.
 const dashboardSecurity = {
   "Content-Security-Policy":
-    "default-src 'none'; script-src 'self'; connect-src 'self'; style-src 'unsafe-inline'; form-action 'none'; frame-ancestors 'none'; base-uri 'none'",
+    "default-src 'none'; script-src 'self'; connect-src 'self'; img-src 'self'; style-src 'unsafe-inline'; form-action 'none'; frame-ancestors 'none'; base-uri 'none'",
 };
 
 const home: Handler = async ({ response, deps }) => {
@@ -140,10 +141,10 @@ const home: Handler = async ({ response, deps }) => {
 };
 
 const script: Handler = ({ response, url }) => {
-  const body = dashboardScript(url.pathname);
-  if (body === undefined)
+  const file = dashboardFile(url.pathname);
+  if (file === undefined)
     return send(response, 404, messagePage("Not found", "There is no page here."));
-  send(response, 200, body, { "Content-Type": "text/javascript; charset=utf-8" });
+  send(response, 200, file.body, { "Content-Type": file.type });
 };
 
 const status: Handler = async ({ response, deps }) => {

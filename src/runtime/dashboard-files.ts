@@ -1,22 +1,64 @@
 import { readFileSync } from "node:fs";
 
-// The dashboard's scripts, read once at start. Only these names are served,
-// so a path in a request can never reach another file.
-const files: Record<string, URL> = {
-  "/dashboard/app.js": new URL("../dashboard/app.js", import.meta.url),
-  "/dashboard/render.js": new URL("../dashboard/render.js", import.meta.url),
-  "/dashboard/log.js": new URL("../dashboard/log.js", import.meta.url),
-  "/dashboard/dom.js": new URL("../dashboard/dom.js", import.meta.url),
-  "/dashboard/review.js": new URL("../dashboard/review.js", import.meta.url),
-  "/dashboard/settings.js": new URL("../dashboard/settings.js", import.meta.url),
-};
+// The dashboard's scripts and division mascots, read once and kept. Only these
+// names are served, so a path in a request can never reach another file.
+
+const scripts = [
+  "app.js",
+  "costs.js",
+  "dom.js",
+  "log.js",
+  "models.js",
+  "overview.js",
+  "panel.js",
+  "render.js",
+  "reports.js",
+  "review.js",
+  "settings.js",
+  "setup.js",
+  "sidebar.js",
+  "tasks.js",
+  "workers.js",
+];
+
+// The divisions' pixel mascots, from the AMORA website.
+const divisions = [
+  "atelier",
+  "atlas",
+  "bastion",
+  "bridge",
+  "compass",
+  "crucible",
+  "forge",
+  "harbor",
+  "ledger",
+  "lens",
+  "lyceum",
+  "nexus",
+];
+
+type Served = { file: URL; type: string };
+
+const files = new Map<string, Served>([
+  ...scripts.map((name): [string, Served] => [
+    `/dashboard/${name}`,
+    {
+      file: new URL(`../dashboard/${name}`, import.meta.url),
+      type: "text/javascript; charset=utf-8",
+    },
+  ]),
+  ...divisions.map((name): [string, Served] => [
+    `/dashboard/mascots/${name}.svg`,
+    { file: new URL(`../dashboard/mascots/${name}.svg`, import.meta.url), type: "image/svg+xml" },
+  ]),
+]);
 
 const cache = new Map<string, string>();
 
-export function dashboardScript(path: string): string | undefined {
-  const file = files[path];
-  if (!file) return undefined;
-  const cached = cache.get(path) ?? readFileSync(file, "utf8");
-  cache.set(path, cached);
-  return cached;
+export function dashboardFile(path: string): { body: string; type: string } | undefined {
+  const served = files.get(path);
+  if (!served) return undefined;
+  const body = cache.get(path) ?? readFileSync(served.file, "utf8");
+  cache.set(path, body);
+  return { body, type: served.type };
 }
