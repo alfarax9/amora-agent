@@ -4,6 +4,7 @@ import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import { describe, it } from "node:test";
+import { chooseFolder } from "../src/runtime/folder-dialog.ts";
 import {
   addProject,
   chooseProject,
@@ -85,5 +86,27 @@ describe("projects", () => {
       inspectProject({ name: "b", path: broken }, undefined).problems[0] ?? "",
       /not valid JSON/,
     );
+  });
+});
+
+describe("the system's folder dialog", () => {
+  it("runs a fixed command per system, and tells a choice from a cancel and a missing dialog", async () => {
+    const calls: string[] = [];
+    const answers: Record<string, { code: number; stdout: string; missing?: boolean }> = {
+      osascript: { code: 0, stdout: "/Users/you/shop/\n" },
+      zenity: { code: 0, stdout: "", missing: true },
+      kdialog: { code: 1, stdout: "" },
+      powershell: { code: 0, stdout: "" },
+    };
+    const run = async (command: string) => (
+      calls.push(command),
+      answers[command] ?? { code: 1, stdout: "" }
+    );
+    assert.deepEqual(await chooseFolder("darwin", run), { path: "/Users/you/shop" });
+    assert.deepEqual(await chooseFolder("linux", run), { cancelled: true });
+    assert.deepEqual(await chooseFolder("win32", run), { cancelled: true });
+    assert.deepEqual(calls, ["osascript", "zenity", "kdialog", "powershell"]);
+    const none = async () => ({ code: 1, stdout: "", missing: true });
+    assert.match(JSON.stringify(await chooseFolder("linux", none)), /no folder dialog/);
   });
 });
