@@ -40,11 +40,30 @@ export function messagePage(title: string, message: string): string {
 // Settings: the gateway, the daily limit, and the OpenRouter key's own credit
 // limit (key-limit.ts). The management key field is a password field the
 // script empties after every attempt.
+// What a task costs depends on the models the owner assigns, so the limit is
+// a choice of ceilings from a small test to heavy use, or none, or any amount.
+const presetLimits = [2, 5, 10, 20, 50, 100, 200, 500, 1000];
+
+const limitChoice = (value: string, label: string) =>
+  `<label class="choice"><input type="radio" name="limit-choice" value="${value}"><span>${label}</span></label>`;
+
+const limitChoices = [
+  ...presetLimits.map((usd) => limitChoice(String(usd), `$${usd}`)),
+  limitChoice("none", "No limit"),
+  limitChoice("other", "Other"),
+].join("\n");
+
 const creditLimit = `<section id="credit-limit-panel" class="box">
 <h2>OpenRouter credit limit</h2>
 <p id="credit-limit" class="meta" aria-live="polite">Reading the key's limit…</p>
-<label for="limit-usd">Limit in USD (empty for no limit)</label>
+<fieldset class="choices">
+<legend>Limit in USD. What a task costs depends on the models you assign, so pick the ceiling that fits them; OpenRouter stops this key there.</legend>
+${limitChoices}
+</fieldset>
+<div id="other-limit" hidden>
+<label for="limit-usd">Other amount in USD</label>
 <input id="limit-usd" type="number" min="0.01" step="0.01">
+</div>
 <label for="limit-reset">Resets</label>
 <select id="limit-reset">
 <option value="">Never</option>

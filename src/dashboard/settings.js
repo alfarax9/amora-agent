@@ -6,6 +6,8 @@ import { usd } from "./dom.js";
 
 const shown = document.getElementById("credit-limit");
 const amount = document.getElementById("limit-usd");
+const other = document.getElementById("other-limit");
+const choices = [...document.querySelectorAll('input[name="limit-choice"]')];
 const reset = document.getElementById("limit-reset");
 const managementKey = document.getElementById("management-key");
 const save = document.getElementById("save-limit");
@@ -36,10 +38,33 @@ function describe(limit) {
   return `Key ${limit.label}: limit ${usd(limit.limitUsd)}, ${resets}${left}; spent today ${usd(limit.usageTodayUsd)}.`;
 }
 
+// The current limit picks its preset, No limit, or Other with the amount.
+function choose(limitUsd) {
+  const value = limitUsd === null ? "none" : String(limitUsd);
+  const preset = choices.find((choice) => choice.value === value);
+  for (const choice of choices) choice.checked = choice === (preset ?? choices.at(-1));
+  amount.value = limitUsd === null ? "" : String(limitUsd);
+  other.hidden = Boolean(preset);
+}
+
+// null for No limit, otherwise the amount chosen or typed.
+function chosenLimit() {
+  const value = choices.find((choice) => choice.checked)?.value;
+  if (value === "none") return null;
+  return value === "other" ? Number(amount.value) : Number(value);
+}
+
 function show(limit) {
   shown.textContent = describe(limit);
-  amount.value = limit.limitUsd === null ? "" : String(limit.limitUsd);
+  choose(limit.limitUsd);
   reset.value = limit.reset ?? "";
+}
+
+for (const choice of choices) {
+  choice.addEventListener("change", () => {
+    other.hidden = choice.value !== "other" || !choice.checked;
+    if (!other.hidden) amount.focus();
+  });
 }
 
 async function load() {
@@ -58,7 +83,7 @@ save?.addEventListener("click", async () => {
   try {
     show(
       await call("POST", {
-        limitUsd: amount.value.trim() === "" ? null : Number(amount.value),
+        limitUsd: chosenLimit(),
         reset: reset.value === "" ? null : reset.value,
         managementKey: key,
       }),
