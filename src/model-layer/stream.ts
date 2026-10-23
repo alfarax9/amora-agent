@@ -1,4 +1,5 @@
 import {
+  type ChatOptions,
   type ChatRequest,
   type ChatResponse,
   failureOf,
@@ -38,15 +39,23 @@ function failIfError({ error }: Chunk): void {
   throw new GatewayError(status, error.message ?? "upstream error");
 }
 
-function apply(reply: Reply, data: string): void {
+// The reply's finish, model, and usage, which come in the last events.
+function note(reply: Reply, chunk: Chunk): void {
+  reply.finish = chunk.choices?.[0]?.finish_reason ?? reply.finish;
+  reply.model = chunk.model ?? reply.model;
+  reply.usage = chunk.usage ?? reply.usage;
+}
+
+function apply(reply: Reply, data: string, onText?: (text: string) => void): void {
   if (data === "[DONE]") return;
   const chunk = JSON.parse(data) as Chunk;
   failIfError(chunk);
-  const choice = chunk.choices?.[0];
-  reply.content += choice?.delta?.content ?? "";
-  reply.finish = choice?.finish_reason ?? reply.finish;
-  reply.model = chunk.model ?? reply.model;
-  reply.usage = chunk.usage ?? reply.usage;
+  const text = chunk.choices?.[0]?.delta?.content;
+  if (text) {
+    reply.content += text;
+    onText?.(text);
+  }
+  note(reply, chunk);
 }
 
 // Aborting the request does not always end a body already being read, so a
@@ -55,6 +64,7 @@ async function readEvents(
   body: ReadableStream<Uint8Array>,
   heard: () => void,
   signal: AbortSignal,
+  onText?: (text: string) => void,
 ): Promise<Reply> {
   const reader = body.getReader();
   signal.addEventListener("abort", () => void reader.cancel().catch(() => undefined));
@@ -68,7 +78,9 @@ async function readEvents(
     pending += decoder.decode(value, { stream: true });
     const lines = pending.split("\n");
     pending = lines.pop() ?? "";
-    for (const line of lines) if (line.startsWith("data:")) apply(reply, line.slice(5).trim());
+    for (const line of lines) {
+      if (line.startsWith("data:")) apply(reply, line.slice(5).trim(), onText);
+    }
   }
   return reply;
 }
@@ -87,6 +99,7 @@ export async function streamChat(
   { url, headers, fetchImpl }: StreamTarget,
   body: ChatRequest & Record<string, unknown>,
   { idleMs, totalMs }: StreamLimits,
+  { onText }: ChatOptions = {},
 ): Promise<ChatResponse> {
   const controller = new AbortController();
   let stalled: (() => Error) | undefined;
@@ -103,7 +116,7 @@ export async function streamChat(
     const init = { method: "POST", headers, body: JSON.stringify({ ...body, stream: true }) };
     const response = await fetchImpl(url, { ...init, signal: controller.signal });
     if (!response.ok || !response.body) throw await failureOf(response);
-    const reply = await readEvents(response.body, heard, controller.signal);
+    const reply = await readEvents(response.body, heard, controller.signal, onText);
     // A cancelled reader ends like a finished one; the stop is what happened.
     if (stalled) throw stalled();
     return toResponse(reply);
