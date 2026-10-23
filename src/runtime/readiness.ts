@@ -1,5 +1,6 @@
 import { resolveWorker } from "../model-layer/slots.ts";
 import type { Agency } from "./agency.ts";
+import { folderProblem } from "./projects.ts";
 import { plannerId } from "./roster.ts";
 
 // What must be in place before a task is worth starting: every task begins
@@ -8,7 +9,8 @@ import { plannerId } from "./roster.ts";
 // moment later ("Planner / Decomposer has no model that fits"), so new tasks
 // are refused up front, each gap with the command that closes it.
 
-export type Gap = { problem: string; command: string };
+// `fix` names a gap the dashboard can close itself, with the project picker.
+export type Gap = { problem: string; command: string; fix?: "project" };
 
 type Setup = Pick<Agency, "manifests" | "slots" | "lookup" | "storage">;
 
@@ -29,6 +31,18 @@ function plannerGap(setup: Setup): Gap | undefined {
   return { problem, command: "amora models set global <model>" };
 }
 
+// A project chosen before a folder was refused, or one that moved, would
+// fail as surely as none.
+function projectGap(project: string | undefined): Gap | undefined {
+  const fix = "project" as const;
+  if (!project) {
+    const problem = "No project folder is set, so workers have no code to work on.";
+    return { problem, command: "amora project <path>", fix };
+  }
+  const problem = folderProblem(project);
+  return problem ? { problem, command: "amora project <path>", fix } : undefined;
+}
+
 export function readinessGaps(setup: Setup, project: string | undefined): Gap[] {
   const gaps: Gap[] = [];
   const planner = plannerGap(setup);
@@ -37,9 +51,7 @@ export function readinessGaps(setup: Setup, project: string | undefined): Gap[] 
     const problem = "No daily limit is set, so no plan could be approved.";
     gaps.push({ problem, command: "amora budget --daily <usd>" });
   }
-  if (!project) {
-    const problem = "No project folder is set, so workers have no code to work on.";
-    gaps.push({ problem, command: "amora project <path>" });
-  }
+  const gap = projectGap(project);
+  if (gap) gaps.push(gap);
   return gaps;
 }
