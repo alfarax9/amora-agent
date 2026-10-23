@@ -262,10 +262,14 @@ export function listHandoffs(storage: Storage, taskId: string): StoredHandoff[] 
   return (rows as HandoffRow[]).map(toHandoff);
 }
 
-// Spend across every task since a moment, for the daily limit (PRD §11).
+// Spend across every task and chat since a moment, for the daily limit (PRD
+// §11): a chat's replies are paid for like a task's handoffs.
 export function spentSince(storage: Storage, since: Date): number {
   const row = storage.database
-    .prepare("SELECT COALESCE(SUM(cost_usd), 0) AS total FROM handoffs WHERE created_at >= ?")
+    .prepare(
+      `SELECT (SELECT COALESCE(SUM(cost_usd), 0) FROM handoffs WHERE created_at >= ?1)
+            + (SELECT COALESCE(SUM(cost_usd), 0) FROM chat_messages WHERE created_at >= ?1) AS total`,
+    )
     .get(since.toISOString()) as { total: number };
   return row.total;
 }
