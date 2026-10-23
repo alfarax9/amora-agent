@@ -74,10 +74,11 @@ async function prepare(agency: Agency, workerId: string): Promise<Ready | { prob
   const { name } = connected;
   const prompt = agency.readPrompt(manifest);
   const structured = capabilities.structured_output;
+  const rules = agency.storage.getSetting<{ text: string }>("rules")?.text.trim();
   return {
     manifest,
     model: resolution.model,
-    call: { chat, model: name, structured, prompt, contract },
+    call: { chat, model: name, structured, prompt, contract, ...(rules ? { rules } : {}) },
   };
 }
 
