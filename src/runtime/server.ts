@@ -7,6 +7,8 @@ import { dashboardPage, messagePage } from "./pages.ts";
 import { maskSecret } from "./secret-scanner.ts";
 import type { SecretStore } from "./secrets.ts";
 import { handleLimitApi } from "./limit-routes.ts";
+import { chooseFolder, type Chosen } from "./folder-dialog.ts";
+import { handleProjectApi } from "./project-routes.ts";
 import { handleReportApi, type ReportDesk } from "./report-routes.ts";
 import { handleTaskApi, type TaskDesk } from "./task-routes.ts";
 import { dashboardFile } from "./dashboard-files.ts";
@@ -27,6 +29,8 @@ export type RuntimeDependencies = {
   fetchImpl?: Fetch;
   // The agency chat; without it the runtime only connects gateways.
   tasks?: TaskDesk;
+  // The system's folder dialog for Add project; tests pass a stand-in.
+  chooseFolder?: () => Promise<Chosen>;
   // The Workers, Models, and Costs pages, which come with the agency chat.
   reports?: ReportDesk;
 };
@@ -193,6 +197,16 @@ async function taskApi(context: Context): Promise<boolean> {
   return true;
 }
 
+// Projects come with the agency chat; they are the folders its tasks work on.
+async function projectApi({ request, response, url, deps }: Context): Promise<boolean> {
+  if (!deps.tasks) return false;
+  const desk = { storage: deps.tasks.storage, chooseFolder: deps.chooseFolder ?? chooseFolder };
+  const reply = await handleProjectApi(desk, request, url);
+  if (!reply) return false;
+  send(response, reply.status, JSON.stringify(reply.body));
+  return true;
+}
+
 async function reportApi({ request, response, url, deps }: Context): Promise<boolean> {
   if (!deps.reports) return false;
   const reply = await handleReportApi(deps.reports, request, url.pathname);
@@ -219,7 +233,7 @@ async function route(context: Context): Promise<void> {
   if (request.method === "GET" && context.url.pathname.startsWith("/dashboard/")) {
     return script(context);
   }
-  for (const api of [limitApi, taskApi, reportApi]) {
+  for (const api of [limitApi, projectApi, taskApi, reportApi]) {
     if (await api(context)) return;
   }
   send(response, 404, messagePage("Not found", "There is no page here."));
