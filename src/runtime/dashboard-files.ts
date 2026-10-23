@@ -11,6 +11,7 @@ const scripts = [
   "models.js",
   "overview.js",
   "panel.js",
+  "projects.js",
   "render.js",
   "reports.js",
   "review.js",
