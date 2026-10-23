@@ -7,6 +7,7 @@ import { setupNotice } from "./setup.js";
 import { renderThread, threadHead } from "./render.js";
 import { needsOwner, renderRecent } from "./sidebar.js";
 import { renderTasks } from "./tasks.js";
+import { drawTopbar } from "./topbar.js";
 
 // The dashboard, after the AMORA website. It polls the runtime every two
 // seconds and re-renders only when something changed. The page is in the
@@ -75,35 +76,6 @@ function keep(container, render) {
     part.scrollTop = scrolled[index] ?? 0;
   });
   if (focused && container.contains($(focused))) $(focused).focus();
-}
-
-function drawTopbar() {
-  $("address").textContent = globalThis.location.host;
-  const gateway = app.dataset.gateway === "connected";
-  $("gateway-status").textContent = gateway ? "OK" : "Not connected";
-  $("gateway-status").className = gateway ? "ok" : "off";
-  $("orchestrator-status").textContent = data.paused ? "Paused" : "OK";
-  $("orchestrator-status").className = data.paused ? "off" : "ok";
-  const meter = $("budget-meter");
-  if (data.dailyUsd === null) {
-    meter.replaceChildren(`Today ${usd(data.spentTodayUsd)}, no daily limit`);
-  } else {
-    const percent = Math.min(100, Math.round((data.spentTodayUsd / data.dailyUsd) * 100));
-    const bar = el(
-      "span",
-      { class: percent >= 100 ? "bar over" : "bar" },
-      el("span", { style: `width: ${percent}%` }),
-    );
-    meter.replaceChildren(
-      "Today",
-      bar,
-      el("b", {}, usd(data.spentTodayUsd)),
-      `/ ${usd(data.dailyUsd)}`,
-    );
-  }
-  const pause = $("pause");
-  pause.hidden = false;
-  pause.textContent = data.paused ? "Resume all workers" : "Pause all workers";
 }
 
 function drawSidebar() {
@@ -238,7 +210,7 @@ function draw(force = false) {
   const snapshot = JSON.stringify([data, view.route, view.tab, view.panelOpen]);
   if (snapshot === shown && !force) return;
   shown = snapshot;
-  drawTopbar();
+  drawTopbar(data, app);
   drawSidebar();
   $("settings-view").hidden = view.route.page !== "settings";
   main.hidden = view.route.page === "settings";
