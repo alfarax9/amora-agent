@@ -80,8 +80,9 @@ function entry(item, data) {
 
 // The worker whose turn it is, typing.
 function typing(task, data) {
-  const worker =
-    task.status === "planning" ? "planner-decomposer" : task.plan?.steps[task.step]?.worker;
+  // A task without a project is a question the Assistant answers (answer.ts).
+  const first = task.project ? "planner-decomposer" : "assistant";
+  const worker = task.status === "planning" ? first : task.plan?.steps[task.step]?.worker;
   if (!(task.status === "planning" || task.status === "running") || !worker) return null;
   const division = data.divisions?.[worker];
   const dots = el(
