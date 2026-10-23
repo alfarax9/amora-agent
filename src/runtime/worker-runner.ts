@@ -23,6 +23,8 @@ export type WorkerCall = {
   input: unknown;
   // Checks the schema cannot express, such as a plan naming only real workers.
   check?: (output: unknown) => string[];
+  // The owner's rules from Settings, such as the language to write in.
+  rules?: string;
 };
 
 export type WorkerReply = {
@@ -87,9 +89,16 @@ function responseFormat({ contract, structured }: WorkerCall) {
   return structured === "json_mode" ? { type: "json_object" } : undefined;
 }
 
-function systemPrompt({ prompt, contract }: WorkerCall): string {
+// What the owner reads follows the language they wrote in, or their rules: a
+// model left alone may answer an Indonesian brief in English, or in Chinese.
+const language =
+  "Write the text a person reads (summaries, goals, notes, answers) in the language the owner wrote the brief in, unless the owner's rules say otherwise. Code, identifiers, and file names stay as the project writes them.";
+
+function systemPrompt({ prompt, contract, rules }: WorkerCall): string {
   return [
     prompt.trim(),
+    language,
+    ...(rules ? [`The owner's rules, which always apply:\n${rules}`] : []),
     "Reply with one JSON object that matches this JSON Schema, and nothing else:",
     JSON.stringify(contract.schema),
   ].join("\n\n");
