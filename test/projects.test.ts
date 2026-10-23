@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from "node:fs";
 import { request } from "node:http";
-import { tmpdir } from "node:os";
-import { basename, join } from "node:path";
+import { homedir, tmpdir } from "node:os";
+import { basename, dirname, join } from "node:path";
 import { after, before, describe, it } from "node:test";
 import { createConnectFlows } from "../src/runtime/connect.ts";
 import { type Chosen, chooseFolder } from "../src/runtime/folder-dialog.ts";
@@ -44,6 +44,16 @@ describe("projects", () => {
     addProject(storage, shop, "Shop");
     assert.deepEqual(listProjects(storage), [{ name: "Shop", path: shop }]);
     assert.equal(currentProject(storage), shop);
+  });
+
+  it("refuses the home folder and the folders above it, even with a package.json", () => {
+    const { storage } = setup({});
+    assert.throws(() => addProject(storage, homedir()), /holds your whole home folder/);
+    assert.throws(() => addProject(storage, dirname(homedir())), /holds your whole home folder/);
+    assert.match(
+      inspectProject({ name: "home", path: homedir() }, undefined).problems[0] ?? "",
+      /holds your whole home folder/,
+    );
   });
 
   it("takes a project off the list without touching it, and the current one with it", () => {

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { mkdtempSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, it } from "node:test";
 import { emptySlots } from "../src/model-layer/slots.ts";
@@ -21,5 +21,10 @@ describe("readiness for a new task", () => {
     assert.deepEqual(readinessGaps(unprobed, project)[0]?.command, "amora models probe fake/alpha");
     agency.storage.setSetting("budgets", { dailyUsd: 1 });
     assert.deepEqual(readinessGaps(agency, project), []);
+    // A home folder chosen before it was refused counts as no project.
+    assert.match(
+      readinessGaps(agency, homedir())[0]?.problem ?? "",
+      /holds your whole home folder/,
+    );
   });
 });

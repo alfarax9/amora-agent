@@ -1,5 +1,6 @@
 import { existsSync, readFileSync, statSync } from "node:fs";
-import { basename, isAbsolute, join, resolve } from "node:path";
+import { homedir } from "node:os";
+import { basename, isAbsolute, join, relative, resolve } from "node:path";
 import { isGitProject } from "./git-delivery.ts";
 import type { Storage } from "./storage.ts";
 
@@ -36,8 +37,19 @@ export function listProjects(storage: Storage): Project[] {
   return [...listed, { name: basename(current), path: current }];
 }
 
-export function folderProblem(path: string): string | undefined {
+// The home folder and the folders above it hold far more than a project: a
+// task copies its whole project into a workspace, so they are refused even
+// when a stray package.json sits in them.
+export function holdsHome(path: string, home = homedir()): boolean {
+  const down = relative(path, home);
+  return !down.startsWith("..") && !isAbsolute(down);
+}
+
+export function folderProblem(path: string, home = homedir()): string | undefined {
   if (!isAbsolute(path)) return "Give the folder's full path, such as /Users/you/my-app.";
+  if (holdsHome(path, home)) {
+    return `${path} holds your whole home folder. Choose the project's own folder inside it.`;
+  }
   if (!existsSync(path) || !statSync(path).isDirectory()) return `${path} is not a folder.`;
   if (!existsSync(join(path, "package.json"))) {
     return `${path} has no package.json. AMORA checks work with the project's npm scripts.`;
