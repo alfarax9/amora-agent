@@ -33,7 +33,7 @@ export function renderTasks(data) {
   const head = el(
     "tr",
     {},
-    el("th", {}, "Task"),
+    el("th", {}, "Session"),
     el("th", {}, "Status"),
     el("th", { class: "wide-only" }, "Step"),
     el("th", { class: "wide-only" }, "Attempt"),
@@ -44,15 +44,15 @@ export function renderTasks(data) {
   const body =
     tasks.length > 0
       ? el("table", { class: "row-link" }, el("thead", {}, head), el("tbody", {}, tasks.map(row)))
-      : el("p", { class: "empty-note" }, "No tasks yet. Start one with New task.");
+      : el("p", { class: "empty-note" }, "No sessions yet. Start one with New session.");
   return el(
     "div",
     { class: "page" },
     el(
       "div",
       { class: "page-head" },
-      el("h1", {}, "Tasks"),
-      el("a", { class: "primary", href: "#new" }, "New task"),
+      el("h1", {}, "Sessions"),
+      el("a", { class: "primary", href: "#new" }, "New session"),
     ),
     el("section", { class: "box" }, body),
   );
