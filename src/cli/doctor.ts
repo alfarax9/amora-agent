@@ -13,6 +13,7 @@ import { describeLimit } from "./credit-limit.ts";
 import { omniRouteClient } from "./measure.ts";
 import { print } from "./output.ts";
 import { openRouterDataCollection } from "./privacy.ts";
+import { teamNames } from "../runtime/roster.ts";
 import { rosterProfile } from "./profile.ts";
 
 type Status = "pass" | "warn" | "fail";
@@ -209,9 +210,9 @@ function checkRoster(context: AppContext): Check {
   const profile = rosterProfile(context);
   const detail =
     profile === "auto"
-      ? "new tasks are weighed: slim roster for light briefs, every worker for heavy ones"
-      : `new tasks plan with the ${profile} roster`;
-  return { status: "pass", label: "Roster", detail };
+      ? "new tasks are weighed: the Small team for light briefs, the Full team for heavy ones"
+      : `new tasks plan with the ${teamNames[profile] ?? profile}`;
+  return { status: "pass", label: "Team", detail };
 }
 
 // Allowed is the owner's choice, so it warns rather than fails.
