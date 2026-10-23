@@ -163,6 +163,14 @@ export const dashboardStyle = `
   .diff .add { color: var(--success); } .diff .del { color: var(--danger); } .diff .hunk { color: var(--highlight); }
   .panel textarea, .settings input, .settings select { width: 100%; }
   .settings { max-width: 40rem; }
+  .choices { border: 0; padding: 0; margin: .75rem 0 0; display: flex; flex-wrap: wrap; gap: .5rem; }
+  .choices legend { font-size: .75rem; color: var(--text-3); margin-bottom: .5rem; padding: 0; }
+  .choice { margin: 0; position: relative; }
+  .choice input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+  .choice span { display: inline-block; border: 1px solid var(--border-strong); border-radius: 999px; padding: .35rem .8rem; font-size: .8125rem; color: var(--text-2); cursor: pointer; }
+  .choice span:hover { background: var(--overlay); color: var(--text); }
+  .choice input:checked + span { color: var(--text); border-color: transparent; background: linear-gradient(var(--surface), var(--surface)) padding-box, var(--duo) border-box; }
+  .choice input:focus-visible + span { outline: 2px solid var(--accent-glow); outline-offset: 2px; }
 
   .strong { color: var(--text); } .small { font-size: .75rem; margin: .25rem 0 0; }
   .chip.passed, .chip.failed, .chip.waiting { border-color: currentColor; }
