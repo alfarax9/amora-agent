@@ -2,7 +2,7 @@
 // same roster and the reason can be shown to the owner. A heavy brief needs
 // the specialists (the full roster): a whole product, a new screen to design,
 // requirements to work out, an outside service, or a lot to do. A light one
-// is a feature the Frontend Engineer and the Tester can carry (the slim
+// is a feature the Software Engineer and the Tester can carry (the Small
 // roster, which won the benchmark on such briefs).
 
 type Signal = { reason: string; weight: number; found: (brief: string) => boolean };

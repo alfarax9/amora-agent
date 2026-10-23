@@ -6,7 +6,7 @@ mission: Write unit and integration tests that check every acceptance criterion 
 requires: # minimum brain requirements
   vision: false
   tool_use: true
-  # JSON mode is enough, as for the Frontend Engineer: test_suite.v1 is
+  # JSON mode is enough, as for the Software Engineer: test_suite.v1 is
   # validated by code with one repair round, and the Reality Checker (strict
   # schema, another family) reviews it. Strict schema here left a roster with
   # one strict-schema family no way to staff both Tester and reviewer.
