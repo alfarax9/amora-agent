@@ -60,7 +60,7 @@ export async function readJson(request: IncomingMessage): Promise<Record<string,
 
 // Chat never accepts secrets (PRD §8 rule 5, S4). The message names the kind of
 // key, never the key, and points to where keys belong.
-function refuseKeys(text: string): string {
+export function refuseKeys(text: string): string {
   const [found] = findSecrets(text);
   if (found) {
     throw new BadRequest(
