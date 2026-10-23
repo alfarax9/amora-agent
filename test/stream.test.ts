@@ -131,6 +131,25 @@ describe("streamed replies", () => {
     assert.equal(reply.choices[0]?.message.content, "{}");
   });
 
+  it("hands each piece of the content to the page as it arrives, without the thinking", async () => {
+    const pieces = [
+      event({ choices: [{ delta: { reasoning: "hmm" } }] }),
+      event({ choices: [{ delta: { content: "Hel" } }] }),
+      event({ choices: [{ delta: { content: "lo" }, finish_reason: "stop" }] }),
+    ];
+    const heard: string[] = [];
+    const reply = await streamChat(
+      target(async () => sse(pieces)),
+      ask,
+      limits,
+      {
+        onText: (text) => heard.push(text),
+      },
+    );
+    assert.deepEqual(heard, ["Hel", "lo"]);
+    assert.equal(reply.choices[0]?.message.content, "Hello");
+  });
+
   it("is tried again when it goes silent, like a gateway failing for a moment", async () => {
     let calls = 0;
     const fetchImpl: Fetch = async () => {
