@@ -34,7 +34,12 @@ export type ChatResponse = {
   usage?: { cost?: number; prompt_tokens?: number; completion_tokens?: number };
 };
 
-export type Chat = (request: ChatRequest) => Promise<ChatResponse>;
+// `onText` hears a streamed reply as it arrives, piece by piece, for a page
+// that shows it the way a chat app does; a reply that is not streamed arrives
+// whole, and nothing is heard before it.
+export type ChatOptions = { onText?: (text: string) => void };
+
+export type Chat = (request: ChatRequest, options?: ChatOptions) => Promise<ChatResponse>;
 
 // Carries the HTTP status so callers can tell "this model cannot do that"
 // (400, 404) apart from "try again later" (401, 402, 429, 5xx). A 404 that
@@ -196,10 +201,10 @@ export function withRetries(
   chat: Chat,
   { retryDelaysMs = defaultRetryDelaysMs, onRetry }: RetryOptions,
 ): Chat {
-  return async (request) => {
+  return async (request, options) => {
     for (const delayMs of retryDelaysMs) {
       try {
-        return await chat(request);
+        return await chat(request, options);
       } catch (error) {
         const isTransient =
           error instanceof GatewayError && transientStatuses.includes(error.status);
@@ -209,6 +214,6 @@ export function withRetries(
         await new Promise((resolve) => setTimeout(resolve, waitMs));
       }
     }
-    return chat(request);
+    return chat(request, options);
   };
 }
