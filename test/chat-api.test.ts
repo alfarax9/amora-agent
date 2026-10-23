@@ -213,6 +213,17 @@ describe("chat API", () => {
     assert.equal(retried.messages.at(-1)?.text, "Hello there");
   });
 
+  it("takes one message at a time", async () => {
+    let release = () => undefined as void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    script.push(async () => (await gate, answer("Done")));
+    const id = await start("First");
+    const busy = await post(`/api/chats/${id}/messages`, { message: "Second" });
+    assert.equal(busy.status, 409);
+    release();
+    assert.equal((await settled(id)).messages.length, 2);
+  });
+
   it("chooses among the owner's models and says when there is none", async () => {
     const id = await start("Hi");
     await settled(id);

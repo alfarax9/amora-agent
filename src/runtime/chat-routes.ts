@@ -68,7 +68,14 @@ function thread(desk: ChatDesk, id: string): JsonReply {
   return { status: 200, body: { chat, messages, pending: liveReply(id) ?? null } };
 }
 
+// One reply at a time, as in a chat app: the next message waits for it.
+function refuseBusy(id: string): void {
+  const now = liveReply(id);
+  if (now && !now.error) throw new BadRequest(409, "Wait for the reply to finish first.");
+}
+
 function send(desk: ChatDesk, id: string, text: string): JsonReply {
+  refuseBusy(id);
   refuseOverLimit(desk);
   addChatMessage(desk.storage, id, { role: "user", text });
   startReply(desk, id);
@@ -80,6 +87,7 @@ type Action = (desk: ChatDesk, id: string, body: Record<string, unknown>) => Jso
 const actions: Record<string, Action> = {
   messages: (desk, id, body) => send(desk, id, messageOf(body)),
   retry: (desk, id) => (
+    refuseBusy(id),
     refuseOverLimit(desk),
     startReply(desk, id),
     { ...thread(desk, id), status: 202 }
