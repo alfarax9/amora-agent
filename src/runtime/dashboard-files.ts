@@ -5,6 +5,7 @@ import { readFileSync } from "node:fs";
 
 const scripts = [
   "app.js",
+  "chat.js",
   "costs.js",
   "dom.js",
   "log.js",
