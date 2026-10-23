@@ -163,6 +163,25 @@ export const dashboardStyle = `
   .diff .add { color: var(--success); } .diff .del { color: var(--danger); } .diff .hunk { color: var(--highlight); }
   .panel textarea, .settings input, .settings select { width: 100%; }
   .settings { max-width: 40rem; }
+  .project-chip { display: inline-flex; align-items: center; gap: .375rem; border: 1px solid var(--border-strong); border-radius: 999px; padding: .2rem .65rem; color: var(--text-2); font-size: .75rem; }
+  .project-chip:hover { background: var(--overlay); color: var(--text); }
+  dialog.picker { background: var(--surface); color: var(--text-2); border: 1px solid var(--border-strong); border-radius: 1rem; padding: 1rem 1.125rem; width: min(32rem, calc(100vw - 2rem)); box-shadow: 0 1rem 3rem rgb(0 0 0 / .5); }
+  dialog.picker::backdrop { background: rgb(0 0 0 / .55); }
+  dialog.picker h2 { font-size: 1rem; margin-bottom: .75rem; }
+  dialog.picker input { width: 100%; }
+  .picker-list { display: flex; flex-direction: column; gap: 2px; margin: .5rem 0; max-height: 18rem; overflow-y: auto; }
+  .picker-item { display: grid; gap: .1rem; width: 100%; text-align: left; border-radius: var(--radius); padding: .5rem .65rem; }
+  .picker-item:hover:not(:disabled) { background: var(--overlay); }
+  .picker-item[aria-current="true"] { background: var(--overlay); }
+  .picker-name { color: var(--text); } .check { color: var(--highlight); }
+  .picker-row { display: flex; align-items: flex-start; gap: .25rem; }
+  .picker-row .picker-item { flex: 1; }
+  .remove { color: var(--text-3); border-radius: var(--radius); padding: .35rem .6rem; font-size: 1rem; line-height: 1; }
+  .remove:hover { background: var(--overlay); color: var(--danger); }
+  .picker-add { display: flex; align-items: center; justify-content: space-between; gap: .5rem; border-top: 1px solid var(--border); margin-top: .25rem; padding-top: .25rem; }
+  .picker-item.add { width: auto; color: var(--text); }
+  .warn { color: var(--warning); font-size: .75rem; }
+  .setup li .primary { margin: 0 .5rem .375rem 0; }
   .choices { border: 0; padding: 0; margin: .75rem 0 0; display: flex; flex-wrap: wrap; gap: .5rem; }
   .choices legend { font-size: .75rem; color: var(--text-3); margin-bottom: .5rem; padding: 0; }
   .choice { margin: 0; position: relative; }
