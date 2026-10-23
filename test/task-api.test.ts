@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readdirSync } from "node:fs";
 import { request } from "node:http";
 import { after, before, describe, it } from "node:test";
 import { createConnectFlows } from "../src/runtime/connect.ts";
@@ -252,17 +253,14 @@ describe("agency chat API", () => {
     assert.equal((await call(runtime.port, "GET", "/dashboard/app.js")).status, 401);
   });
 
-  it("never sets content through innerHTML in the dashboard scripts", async () => {
-    const names = ["app.js", "dom.js", "log.js", "overview.js", "panel.js", "render.js"];
-    for (const name of [
-      ...names,
-      "review.js",
-      "settings.js",
-      "setup.js",
-      "sidebar.js",
-      "tasks.js",
-    ]) {
+  // Every script in the folder, so a new one that is not served fails here.
+  it("serves every dashboard script, none setting content through innerHTML", async () => {
+    const names = readdirSync(new URL("../src/dashboard/", import.meta.url)).filter((name) =>
+      name.endsWith(".js"),
+    );
+    for (const name of names) {
       const script = await call(runtime.port, "GET", `/dashboard/${name}`, { cookie });
+      assert.equal(script.status, 200, name);
       assert.ok(!/innerHTML|outerHTML|insertAdjacentHTML/.test(script.body), name);
     }
   });
