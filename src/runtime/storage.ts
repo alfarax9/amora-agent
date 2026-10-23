@@ -100,6 +100,28 @@ const migrations = [
      delivered_at TEXT NOT NULL,
      undone_at TEXT
    )`,
+  // Chat: plain conversations with a model, apart from the code team's tasks
+  // (chat-store.ts). Each reply keeps its model, tokens, and cost, which count
+  // toward the daily limit like a task's handoffs.
+  `CREATE TABLE chats (
+     id TEXT PRIMARY KEY,
+     title TEXT NOT NULL,
+     model TEXT NOT NULL,
+     created_at TEXT NOT NULL,
+     updated_at TEXT NOT NULL,
+     deleted_at TEXT
+   )`,
+  `CREATE TABLE chat_messages (
+     id INTEGER PRIMARY KEY AUTOINCREMENT,
+     chat_id TEXT NOT NULL REFERENCES chats (id),
+     role TEXT NOT NULL,
+     text TEXT NOT NULL,
+     model TEXT,
+     tokens_in INTEGER NOT NULL DEFAULT 0,
+     tokens_out INTEGER NOT NULL DEFAULT 0,
+     cost_usd REAL NOT NULL DEFAULT 0,
+     created_at TEXT NOT NULL
+   )`,
 ];
 
 // S6: nothing is written to the database before it has been scanned. Secrets
