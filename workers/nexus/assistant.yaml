@@ -1,0 +1,26 @@
+# Answers the owner's questions at once, as a chat model does: one call, with
+# no plan, no approval, and no copy of the project. A brief that asks for code
+# still goes to the Planner (src/runtime/question.ts tells them apart).
+id: assistant
+division: nexus
+wave: 1
+role: Assistant
+mission: Answer the owner's questions directly, without a plan or a copy of the project.
+requires: # minimum brain requirements
+  vision: false
+  tool_use: false
+  structured_output: false
+  min_context: 32000
+  reviewer_family_rule: none
+model_slot: assistant
+prompt: prompts/nexus/assistant.md
+plugins: []
+memory: { project: false, global_patterns: false }
+input_contract: brief.v1
+output_contract: answer.v1
+quality_gate:
+  - schema_valid
+permissions:
+  shell: []
+  network: false
+budget: { max_usd_per_task: 0.05, max_retries: 1 }

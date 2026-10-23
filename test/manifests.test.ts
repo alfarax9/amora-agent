@@ -25,7 +25,7 @@ describe("manifest loader", () => {
   it("loads the thin-path workers, the PRD example among them", () => {
     const { items, errors } = loadManifests(fileURLToPath(new URL("../workers", import.meta.url)));
     assert.deepEqual(errors, []);
-    assert.equal(items.length, 10);
+    assert.equal(items.length, 11);
     const slice = items.find(({ id }) => id === "fe-slice-engineer");
     assert.equal(slice?.requires.vision, true);
   });

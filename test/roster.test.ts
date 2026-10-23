@@ -17,6 +17,7 @@ describe("roster", () => {
     const problems = rosterProblems(workers, contracts, (path) => existsSync(join(root, path)));
     assert.deepEqual(problems, []);
     assert.deepEqual(workers.map(({ id }) => id).sort(), [
+      "assistant",
       "fe-api-integration",
       "fe-logic-developer",
       "fe-performance",

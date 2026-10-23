@@ -1,4 +1,6 @@
 import { type Agency, perform, taskWorkspace } from "./agency.ts";
+import { assistantId, firstStep } from "./answer.ts";
+import { isQuestion } from "./question.ts";
 import { resumeTask, wakeLater } from "./resume.ts";
 import { ship } from "./ship.ts";
 import { type FileChange, requestChanges, type ReviewNote, taskChanges } from "./changes.ts";
@@ -64,7 +66,8 @@ export type Orchestrator = {
 function roster(agency: Agency, offeredIds: string[] | undefined) {
   const offered = (id: string) => offeredIds?.includes(id) ?? true;
   return agency.manifests
-    .filter(({ id, output_contract }) => id !== plannerId && output_contract !== "review.v1")
+    .filter(({ id }) => id !== plannerId && id !== assistantId)
+    .filter(({ output_contract }) => output_contract !== "review.v1")
     .filter(({ id }) => offered(id))
     .map(({ id, role, mission, input_contract, output_contract }) => ({
       id,
@@ -130,6 +133,8 @@ async function plan(desk: Desk, id: string): Promise<Task> {
   }
 }
 
+const begin = (desk: Desk, id: string) => firstStep(desk, id, plan);
+
 // Says why a plan's estimate cannot be approved, or nothing when it can. An
 // unknown price is a reason: guessing it would make the budget check a guess.
 function estimateProblem(task: Task, estimate: Estimate): string | undefined {
@@ -190,7 +195,7 @@ function retry(desk: Desk, task: Task, budgetUsd: number | undefined): Task {
   const next = { ...task, budgetUsd: budget, attempt: 0 };
   const status = task.plan ? "running" : "planning";
   const moved = move(desk, next, status);
-  startWork(desk, task.id, () => (task.plan ? drive(desk, task.id) : plan(desk, task.id)));
+  startWork(desk, task.id, () => (task.plan ? drive(desk, task.id) : begin(desk, task.id)));
   return moved;
 }
 
@@ -228,7 +233,7 @@ function decide(desk: Desk, id: string, decision: Decision): Task {
 function resumeAll(desk: Desk): void {
   desk.agency.storage.setSetting("paused", false);
   for (const task of listTasks(desk.agency.storage)) {
-    if (task.status === "paused") resumeTask(desk, task, (id) => plan(desk, id));
+    if (task.status === "paused") resumeTask(desk, task, (id) => begin(desk, id));
   }
 }
 
@@ -254,13 +259,15 @@ export function createOrchestrator(
 ): Orchestrator {
   const desk: Desk = { agency, logger, now, work: new Map() };
   // Only the runtime resumes tasks by itself; a benchmark run or a test must not.
-  if (autoResume) desk.wake = wakeLater(desk, (id) => plan(desk, id));
+  if (autoResume) desk.wake = wakeLater(desk, (id) => begin(desk, id));
   return {
     create(brief, budgetUsd, project) {
       if (!(budgetUsd > 0)) throw new Refusal("A task needs a budget above $0.");
-      const task = createTask(agency.storage, brief, budgetUsd, now(), project);
+      // A question needs no project: answering it copies nothing.
+      const folder = isQuestion(brief) ? undefined : project;
+      const task = createTask(agency.storage, brief, budgetUsd, now(), folder);
       say(desk, task.id, "owner", brief);
-      startWork(desk, task.id, () => plan(desk, task.id));
+      startWork(desk, task.id, () => begin(desk, task.id));
       return task;
     },
     approve: (id) => approve(desk, id),
