@@ -99,7 +99,7 @@ describe("benchmark runner, with scripted models", () => {
     // Planner, PM, UX, then the Slice Engineer, Logic Developer, and Tester,
     // each with its review.
     assert.equal(rows[0]?.calls, 9);
-    // Planner, then the Frontend Engineer and the Tester, each with its review.
+    // Planner, then the Software Engineer and the Tester, each with its review.
     assert.equal(rows[1]?.calls, 5);
     assert.equal(rows[2]?.calls, 1);
     assert.equal(rows[2]?.tokensIn, 100);

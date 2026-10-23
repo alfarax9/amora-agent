@@ -14,7 +14,7 @@ export const plannerId = "planner-decomposer";
 // the full chain of specialists lost to one agent (docs/decisions.md).
 export const rosterProfiles: Record<string, string[] | undefined> = {
   full: undefined,
-  small: ["fe-engineer", "unit-integration-tester"],
+  small: ["software-engineer", "unit-integration-tester"],
 };
 
 // The names the owner reads for each team.
@@ -39,7 +39,7 @@ export function chooseRoster(setting: string, brief: string): RosterChoice {
   }
   return {
     offered: rosterProfiles.small,
-    note: "AMORA weighed this as a light task, so the Planner uses the Small team: the Frontend Engineer and the Unit & Integration Tester.",
+    note: "AMORA weighed this as a light task, so the Planner uses the Small team: the Software Engineer and the Unit & Integration Tester.",
   };
 }
 

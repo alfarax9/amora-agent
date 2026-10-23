@@ -23,7 +23,7 @@ async function finished(review?: unknown) {
   const requests: ChatRequest[] = [];
   const agency: Agency = {
     ...base,
-    roster: () => ({ offered: ["fe-engineer", "unit-integration-tester"] }),
+    roster: () => ({ offered: ["software-engineer", "unit-integration-tester"] }),
     connect: async (model) => {
       const connected = await base.connect(model);
       const chat: Chat = (request) => (requests.push(request), connected.chat(request));
@@ -40,7 +40,7 @@ async function finished(review?: unknown) {
 
 const engineerAsked = (requests: ChatRequest[]) =>
   requests.filter((request) =>
-    String(request.messages[0]?.content).startsWith("You are the Frontend Engineer"),
+    String(request.messages[0]?.content).startsWith("You are the Software Engineer"),
   );
 
 describe("reviewing the changes before Complete", () => {

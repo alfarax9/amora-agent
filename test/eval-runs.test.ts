@@ -6,7 +6,7 @@ describe("benchmark runner, whatever the owner's default team", () => {
   it("runs the full system with every worker even when the agency offers the Small team", async () => {
     const agency = {
       ...fakeAgency(taxSolution),
-      roster: () => ({ offered: ["fe-engineer", "unit-integration-tester"] }),
+      roster: () => ({ offered: ["software-engineer", "unit-integration-tester"] }),
     };
     const [row] = await runWith(agency, ["full"]);
     assert.equal(row?.calls, 9);
@@ -17,7 +17,7 @@ describe("benchmark runner, with the team chosen by weighing the brief", () => {
   it("runs a light brief with the Small team", async () => {
     const [row] = await runWith(fakeAgency(taxSolution), ["auto"]);
     assert.equal(row?.success, true);
-    // Planner, then the Frontend Engineer and the Tester, each with its review.
+    // Planner, then the Software Engineer and the Tester, each with its review.
     assert.equal(row?.calls, 5);
   });
 });

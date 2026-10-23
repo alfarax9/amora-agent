@@ -104,7 +104,7 @@ function replies(taxCode: string, review: unknown = pass): Record<string, unknow
     },
     slim_plan: {
       summary: "Tax.",
-      steps: ["fe-engineer", "unit-integration-tester"].map((worker) => ({
+      steps: ["software-engineer", "unit-integration-tester"].map((worker) => ({
         worker,
         goal: worker,
         acceptance: "Tax is added.",
@@ -116,12 +116,12 @@ function replies(taxCode: string, review: unknown = pass): Record<string, unknow
 }
 
 // Which scripted answer a request gets: by contract, except for the
-// single agent, the Small team's plan, and the Frontend Engineer.
+// single agent, the Small team's plan, and the Software Engineer.
 function answerFor(request: ChatRequest): string {
   const contract = (request.response_format?.json_schema as { name: string }).name;
   const prompt = String(request.messages[0]?.content);
   if (prompt.startsWith("Do it all.")) return "baseline";
-  if (prompt.startsWith("You are the Frontend Engineer")) return "engineer";
+  if (prompt.startsWith("You are the Software Engineer")) return "engineer";
   const offered = String(request.messages[1]?.content);
   if (contract === "plan_v1" && !offered.includes("product-manager")) return "slim_plan";
   return contract;

@@ -93,7 +93,7 @@ describe("structured output requirements", () => {
     };
     assert.deepEqual(
       [
-        "fe-engineer",
+        "software-engineer",
         "fe-slice-engineer",
         "fe-logic-developer",
         "fe-api-integration",

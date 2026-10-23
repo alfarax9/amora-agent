@@ -127,13 +127,13 @@ describe("CLI: budget and model families", () => {
     const offered = (text: string) => agencyFor(context).roster?.(text).offered;
     const light = "Add a Delete button to each note.";
     const heavy = "Build me a CMS project";
-    assert.deepEqual(offered(light), ["fe-engineer", "unit-integration-tester"]);
+    assert.deepEqual(offered(light), ["software-engineer", "unit-integration-tester"]);
     assert.equal(offered(heavy), undefined);
     assert.match(agencyFor(context).roster?.(heavy).note ?? "", /heavy task \(a whole product/);
     assert.match(run(["team", "full"], fresh).out, /Full team: the Planner may use every worker/);
     // A home set up before the teams were named keeps its choice.
     storage.setSetting("roster", { profile: "slim" });
-    assert.deepEqual(offered(heavy), ["fe-engineer", "unit-integration-tester"]);
+    assert.deepEqual(offered(heavy), ["software-engineer", "unit-integration-tester"]);
     assert.equal(agencyFor(context).roster?.(heavy).note, undefined);
     storage.setSetting("roster", { profile: "full" });
     assert.equal(offered(light), undefined);

@@ -1,0 +1,46 @@
+# One engineer for a feature's whole code, whatever the project is: a web app,
+# a server or API, a CLI, or a library. It began as the Frontend Engineer,
+# added after the first benchmark showed the specialists' chain had no route
+# for code without UI and lost the project's real data shapes; it was made
+# general when owners' projects turned out not to be all frontends
+# (docs/decisions.md).
+id: software-engineer
+division: forge
+sub_division: general
+wave: 1
+role: Software Engineer
+mission: "Deliver a feature's whole code from the brief, whatever the project is (a web app, a server or API, a CLI, or a library), built on the project's existing code."
+requires: # minimum brain requirements
+  vision: false
+  tool_use: true
+  structured_output: false
+  min_context: 128000
+  reviewer_family_rule: none
+model_slot: software-engineer
+prompt: prompts/forge/software-engineer.md
+# The places projects keep their code; tests stay the Tester's, and package
+# files, lock files, and secrets are refused for every worker.
+plugins:
+  - filesystem: { scope: "src/**" }
+  - filesystem: { scope: "lib/**" }
+  - filesystem: { scope: "app/**" }
+  - filesystem: { scope: "server/**" }
+  - filesystem: { scope: "api/**" }
+  - filesystem: { scope: "bin/**" }
+  - filesystem: { scope: "cli/**" }
+  - filesystem: { scope: "packages/*/src/**" }
+  - filesystem: { scope: "public/**" }
+  - filesystem: { scope: "index.*" }
+  - filesystem: { scope: "main.*" }
+memory: { project: true, global_patterns: true }
+input_contract: brief.v1
+output_contract: code_change.v1
+quality_gate:
+  - schema_valid
+  - files_in_scope
+  - lint_and_typecheck_pass
+  - { reviewed_by: reality-checker }
+permissions:
+  shell: [npm, npx]
+  network: false
+budget: { max_usd_per_task: 0.5, max_retries: 3 }
