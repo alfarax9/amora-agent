@@ -1,6 +1,7 @@
 import { el, usd } from "./dom.js";
 import { renderOverview } from "./overview.js";
 import { renderPanel } from "./panel.js";
+import { drawProjectChip, initProjects } from "./projects.js";
 import { loadReport, renderReport, reportPages } from "./reports.js";
 import { setupNotice } from "./setup.js";
 import { renderThread, threadHead } from "./render.js";
@@ -193,6 +194,7 @@ function placeComposer(task) {
     closed: closedNotes[task?.status] ?? "This task has ended. Start a new one with New task.",
   }[mode];
   brief.disabled = mode === "closed";
+  drawProjectChip(data, mode === "new");
   $("budget-field").hidden = mode !== "new";
   $("composer-note").textContent = composerNote(mode);
   readySend();
@@ -288,6 +290,7 @@ async function submit() {
 }
 
 function wire() {
+  initProjects({ call, changed: refresh });
   // Enter sends and Shift+Enter starts a new line, as in a chat.
   brief.addEventListener("keydown", (event) => {
     if (event.key !== "Enter" || event.shiftKey || event.isComposing) return;

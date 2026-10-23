@@ -95,11 +95,13 @@ const composer = `<div id="composer" class="composer-wrap" hidden>
 <button id="send" type="button" class="send" aria-label="Send" title="Send (Enter)">↑</button>
 </div>
 <div class="composer-row">
+<button id="project-chip" type="button" class="project-chip" aria-haspopup="dialog" hidden>Choose a project</button>
 <label id="budget-field" for="budget">Task budget $<input id="budget" type="number" min="0.01" step="0.01" value="1.00"></label>
 <span id="composer-note"></span>
 </div>
 <p id="composer-error" class="error" role="alert"></p>
-</div>`;
+</div>
+<dialog id="project-picker" class="picker" aria-labelledby="picker-title"></dialog>`;
 
 const topbar = `<header class="topbar">
 <ul class="status-list">
