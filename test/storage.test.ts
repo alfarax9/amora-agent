@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { describe, it } from "node:test";
 import { probedCapabilities, saveProbeResults } from "../src/model-layer/known-models.ts";
 import { openStorage } from "../src/runtime/storage.ts";
+import { createTask, getTask, saveTask } from "../src/runtime/task-store.ts";
 
 const key = `sk-or-v1-${"a1b2c3d4".repeat(8)}`;
 
@@ -53,5 +54,15 @@ describe("secrets never reach the database (S6)", () => {
       n: number;
     };
     assert.equal(rows.n, 0);
+  });
+});
+
+describe("tasks stored before a worker was renamed", () => {
+  it("resume with the Software Engineer where the plan names the Frontend Engineer", () => {
+    const storage = tempStorage();
+    const task = createTask(storage, "Add a page", 1);
+    const step = { worker: "fe-engineer", goal: "Build it", acceptance: "It shows" };
+    saveTask(storage, { ...task, plan: { summary: "One step", steps: [step] } });
+    assert.equal(getTask(storage, task.id)?.plan?.steps[0]?.worker, "software-engineer");
   });
 });

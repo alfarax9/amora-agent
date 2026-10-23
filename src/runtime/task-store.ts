@@ -77,6 +77,18 @@ type TaskRow = {
   updated_at: string;
 };
 
+// Plans made before the Frontend Engineer became the Software Engineer name
+// the old id; they resume with the worker it became.
+const renamedWorkers: Record<string, string> = { "fe-engineer": "software-engineer" };
+
+function currentNames(plan: Plan): Plan {
+  const steps = plan.steps.map((step) => ({
+    ...step,
+    worker: renamedWorkers[step.worker] ?? step.worker,
+  }));
+  return { ...plan, steps };
+}
+
 function toTask(row: TaskRow): Task {
   return {
     id: row.id,
@@ -84,7 +96,7 @@ function toTask(row: TaskRow): Task {
     status: row.status,
     budgetUsd: row.budget_usd,
     spentUsd: row.spent_usd,
-    ...(row.plan === null ? {} : { plan: JSON.parse(row.plan) as Plan }),
+    ...(row.plan === null ? {} : { plan: currentNames(JSON.parse(row.plan) as Plan) }),
     step: row.step,
     attempt: row.attempt,
     feedback: JSON.parse(row.feedback) as string[],
