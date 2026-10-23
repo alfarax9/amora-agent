@@ -58,12 +58,12 @@ export function createOpenRouter(
     // Prompts never go to providers that may store or train on them unless
     // the caller opts in (S10), and only to providers that honor every
     // parameter, so a probe is not answered by one that ignored the schema.
-    chat: (request) => {
+    chat: (request, options) => {
       const provider = { data_collection: dataCollection, require_parameters: true };
       if (stream) {
         // The cost arrives in the last event when usage is asked for.
         const body = { ...request, provider, usage: { include: true } };
-        return streamChat(target, body, stream);
+        return streamChat(target, body, stream, options);
       }
       return call("/chat/completions", {
         method: "POST",
