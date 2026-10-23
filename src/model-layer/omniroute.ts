@@ -41,9 +41,14 @@ export function createOmniRoute(
   };
   return {
     // Work streams (stream.ts) and asks for usage in the last event; probes do not.
-    chat: (request) =>
+    chat: (request, options) =>
       stream
-        ? streamChat(target, { ...request, stream_options: { include_usage: true } }, stream)
+        ? streamChat(
+            target,
+            { ...request, stream_options: { include_usage: true } },
+            stream,
+            options,
+          )
         : call("/chat/completions", { method: "POST", body: JSON.stringify(request) }),
     models: async () => (await call<{ data?: OmniRouteModel[] }>("/models")).data ?? [],
   };
