@@ -49,7 +49,11 @@ async function call(method, path, body) {
     throw new Error("The runtime is not answering. Is amora still running?");
   }
   const reply = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(reply.error ?? "The runtime could not do that. Check its log.");
+  // The status rides along, so a caller can tell a refusal from a missing feature.
+  if (!response.ok) {
+    const message = reply.error ?? "The runtime could not do that. Check its log.";
+    throw Object.assign(new Error(message), { status: response.status });
+  }
   return reply;
 }
 
