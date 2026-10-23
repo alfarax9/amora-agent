@@ -116,7 +116,7 @@ const openTask = (id, tab) => {
 };
 
 function startPage() {
-  const project = data.project ? `New tasks work on a copy of ${data.project}.` : null;
+  const project = data.project ? `New sessions work on a copy of ${data.project}.` : null;
   return el(
     "div",
     { class: "start" },
@@ -146,7 +146,7 @@ function pageFor(task) {
       el(
         "div",
         { class: "page" },
-        el("p", { class: "empty-note" }, "This task is not among the recent ones."),
+        el("p", { class: "empty-note" }, "This session is not among the recent ones."),
       ),
     ];
   if (view.route.page === "new") return [startPage()];
@@ -175,7 +175,8 @@ function placeComposer(task) {
   brief.placeholder = {
     new: "Message the agency",
     revise: "Ask for changes to the plan",
-    closed: closedNotes[task?.status] ?? "This task has ended. Start a new one with New task.",
+    closed:
+      closedNotes[task?.status] ?? "This session has ended. Start a new one with New session.",
   }[mode];
   brief.disabled = mode === "closed";
   drawProjectChip(data, mode === "new");

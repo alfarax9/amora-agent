@@ -139,10 +139,10 @@ const sidebar = `<nav class="sidebar" aria-label="Dashboard">
 <a class="mode" data-mode="code" href="#new">${codeIcon} Octa Code</a>
 </div>
 <a href="#chat" class="primary new-task for-chat"><span aria-hidden="true">+</span> New chat</a>
-<a id="new-task" href="#new" class="primary new-task for-code"><span aria-hidden="true">+</span> New task</a>
+<a id="new-task" href="#new" class="primary new-task for-code"><span aria-hidden="true">+</span> New session</a>
 <div class="nav for-code">
 <a class="nav-item" data-route="overview" href="#overview">Overview</a>
-<a class="nav-item" data-route="tasks" href="#tasks">Tasks <span id="decision-count" class="count" hidden></span></a>
+<a class="nav-item" data-route="tasks" href="#tasks">Sessions <span id="decision-count" class="count" hidden></span></a>
 <a class="nav-item" data-route="workers" href="#workers">Workers</a>
 <a class="nav-item" data-route="models" href="#models">Models</a>
 <a class="nav-item" data-route="costs" href="#costs">Costs</a>
@@ -166,8 +166,8 @@ const chatComposer = `<div id="chat-composer" class="composer-wrap" hidden>
 
 // The agency (PRD §8 and the dashboard PRD), after the AMORA website: a top
 // bar with the runtime's state, the budget, and Pause on every page; Chat and
-// Octa Code in the sidebar, Octa Code with New task, Overview, Tasks, a
-// task's thread with its plan, changes, and log beside it, Workers, Models,
+// Octa Code in the sidebar, Octa Code with New session, Overview, Sessions, a
+// session's thread with its plan, changes, and log beside it, Workers, Models,
 // and Costs; Settings for both. The page is static; its scripts fetch the API
 // and render with text nodes only.
 export function dashboardPage(state: { maskedKey?: string; chat: boolean }): string {
