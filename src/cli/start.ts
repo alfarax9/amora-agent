@@ -52,23 +52,27 @@ function taskDesk(context: AppContext, agency: Agency, logger: Logger): TaskDesk
   return { orchestrator, storage: context.storage, roles, divisions, readiness, project };
 }
 
+function dependencies(context: AppContext, logger: Logger) {
+  const agency = agencyFor(context);
+  const { storage, secrets, manifests, registry } = context;
+  return {
+    sessions: createSessions(),
+    flows: createConnectFlows(),
+    secrets,
+    logger,
+    tasks: taskDesk(context, agency, logger),
+    // The same cached price lookup the agency estimates plans with.
+    reports: { storage, secrets, manifests, registry, price: agency.price },
+  };
+}
+
 export async function startAmora(
   context: AppContext,
   port: number,
   { open = true }: { open?: boolean } = {},
 ): Promise<void> {
   const logger = createLogger();
-  const agency = agencyFor(context);
-  const { storage, secrets, manifests, registry } = context;
-  const runtime = await startRuntime(port, {
-    sessions: createSessions(),
-    flows: createConnectFlows(),
-    secrets: context.secrets,
-    logger,
-    tasks: taskDesk(context, agency, logger),
-    // The same cached price lookup the agency estimates plans with.
-    reports: { storage, secrets, manifests, registry, price: agency.price },
-  });
+  const runtime = await startRuntime(port, dependencies(context, logger));
   refreshRegistryInBackground(context, logger);
   // Background re-probes never allow data collection; that is chosen per run.
   const stopReprobes = scheduleReprobes({
