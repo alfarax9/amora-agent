@@ -36,6 +36,9 @@ function gitHead(project: string): string | undefined {
   return tryGit(gitIn(project), ["rev-parse", "--verify", "--quiet", "HEAD^{commit}"]);
 }
 
+// Whether a completed task's work can arrive on a branch of its own.
+export const isGitProject = (project: string) => gitHead(project) !== undefined;
+
 // Commits need an author; AMORA signs as itself when the repo names nobody.
 function identity(git: Git): NodeJS.ProcessEnv {
   if (tryGit(git, ["config", "user.email"])) return {};
