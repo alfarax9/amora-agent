@@ -8,6 +8,7 @@ const scripts = [
   "costs.js",
   "dom.js",
   "log.js",
+  "markdown.js",
   "models.js",
   "overview.js",
   "panel.js",
