@@ -1,7 +1,7 @@
 import { el, usd } from "./dom.js";
 import { renderOverview } from "./overview.js";
 import { renderPanel } from "./panel.js";
-import { drawProjectChip, initProjects } from "./projects.js";
+import { drawProjectChip, initProjects, openPicker } from "./projects.js";
 import { loadReport, renderReport, reportPages } from "./reports.js";
 import { setupNotice } from "./setup.js";
 import { renderThread, threadHead } from "./render.js";
@@ -138,7 +138,7 @@ function startPage() {
     { class: "start" },
     el("h1", {}, "What should the agency build?"),
     project ? el("p", { class: "meta" }, project) : null,
-    setupNotice(data.readiness),
+    setupNotice(data.readiness, () => void openPicker()),
   );
 }
 

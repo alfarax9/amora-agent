@@ -5,7 +5,9 @@ import { el } from "./dom.js";
 // new task until the list is empty, so the page says so before the owner
 // writes a brief.
 
-export function setupNotice(gaps) {
+// A gap the page can close itself gets a button; `chooseProject` opens the
+// project picker.
+export function setupNotice(gaps, chooseProject) {
   if (!gaps?.length) return null;
   return el(
     "section",
@@ -14,10 +16,26 @@ export function setupNotice(gaps) {
     el(
       "ol",
       {},
-      gaps.map(({ problem, command }) =>
-        el("li", {}, el("p", {}, problem), el("code", { class: "command" }, command)),
+      gaps.map(({ problem, command, fix }) =>
+        el(
+          "li",
+          {},
+          el("p", {}, problem),
+          fix === "project" && chooseProject
+            ? el(
+                "button",
+                { type: "button", class: "primary", onclick: chooseProject },
+                "Choose a project",
+              )
+            : null,
+          el("code", { class: "command" }, command),
+        ),
       ),
     ),
-    el("p", { class: "meta" }, "Run these in a terminal; this page updates by itself."),
+    el(
+      "p",
+      { class: "meta" },
+      "Use the buttons, or run the commands in a terminal; this page updates by itself.",
+    ),
   );
 }
