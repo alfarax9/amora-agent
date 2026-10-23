@@ -172,7 +172,7 @@ function pageFor(task) {
 }
 
 const closedNotes = {
-  planning: "The Planner is drafting a plan…",
+  planning: "The agency is on it…",
   running: "The agency is working on this task…",
   paused: "This task is paused.",
   awaiting_decision: "Decide above: complete, try again, or cancel.",
@@ -201,11 +201,18 @@ function placeComposer(task) {
 }
 
 // A new task waits for the setup the runtime asks for; it would be refused.
-const blocked = () => view.composer === "new" && data?.readiness?.length > 0;
+// A question needs no project, so a missing project alone does not hold
+// sending; the runtime refuses a task that needs one, and says why.
+const blocked = () =>
+  view.composer === "new" && (data?.readiness ?? []).some(({ fix }) => fix !== "project");
+
+const noProject = () => (data?.readiness ?? []).some(({ fix }) => fix === "project");
 
 function composerNote(mode) {
   if (mode === "revise") return "Your reply revises the plan.";
-  return mode === "new" && blocked() ? "Sending opens once the setup above is done." : "";
+  if (mode !== "new") return "";
+  if (blocked()) return "Sending opens once the setup above is done.";
+  return noProject() ? "Questions are answered now; work needs a project." : "";
 }
 
 function readySend() {
