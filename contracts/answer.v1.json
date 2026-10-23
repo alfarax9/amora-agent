@@ -1,0 +1,12 @@
+{
+  "description": "The answer to a question the owner asked, given at once without a plan.",
+  "type": "object",
+  "properties": {
+    "answer": {
+      "type": "string",
+      "description": "The answer in the owner's language: plain text, short paragraphs or lists."
+    }
+  },
+  "required": ["answer"],
+  "additionalProperties": false
+}

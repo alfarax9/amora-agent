@@ -22,6 +22,7 @@ describe("contracts", () => {
   it("load from contracts/ without errors", () => {
     assert.deepEqual(errors, []);
     assert.deepEqual(contracts.map(({ id }) => id).sort(), [
+      "answer.v1",
       "brief.v1",
       "code_change.v1",
       "component_pkg.v1",
