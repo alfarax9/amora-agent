@@ -12,6 +12,7 @@ import type { RosterChoice } from "./roster.ts";
 import type { Storage } from "./storage.ts";
 import { recordHandoff, type Task } from "./task-store.ts";
 import { callWorker, type WorkerCall, type WorkerReply } from "./worker-runner.ts";
+import { holdsHome } from "./projects.ts";
 import { openWorkspace } from "./workspace.ts";
 
 // Runs one worker's turn: finds its model through its slot, calls it, puts the
@@ -44,6 +45,12 @@ export type Agency = {
 // has no project folder.
 export function taskWorkspace(agency: Agency, task: Task): string | undefined {
   if (!task.project) return undefined;
+  // A task made before such folders were refused must not copy a whole home.
+  if (holdsHome(task.project)) {
+    throw new Error(
+      `${task.project} holds your whole home folder; choose the project's own folder.`,
+    );
+  }
   const workspace = join(agency.workspaces, task.id);
   openWorkspace(task.project, workspace);
   return workspace;
