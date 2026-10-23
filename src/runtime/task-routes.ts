@@ -2,6 +2,7 @@ import type { IncomingMessage } from "node:http";
 import type { Decision, Orchestrator } from "./orchestrator.ts";
 import { Refusal } from "./orchestrator.ts";
 import { findSecrets } from "./secret-scanner.ts";
+import { isQuestion } from "./question.ts";
 import type { Gap } from "./readiness.ts";
 import type { Storage } from "./storage.ts";
 import { listHandoffs, listMessages, listTasks, spentSince, type Task } from "./task-store.ts";
@@ -117,9 +118,11 @@ function summaryOf(content: unknown): string | null {
 }
 
 // A task sent before the agency can work would fail a moment later, so it is
-// refused with the commands that set the agency up.
-function refuseUnready(desk: TaskDesk): void {
-  const gaps = desk.readiness();
+// refused with the commands that set the agency up. A question needs no
+// project: the Assistant answers it without one.
+function refuseUnready(desk: TaskDesk, brief: string): void {
+  const question = isQuestion(brief);
+  const gaps = desk.readiness().filter(({ fix }) => !(question && fix === "project"));
   if (gaps.length === 0) return;
   const steps = gaps.map(({ problem, command }) => `${problem} Run: ${command}`);
   throw new BadRequest(409, `The agency is not ready for a task. ${steps.join(" ")}`);
@@ -183,7 +186,7 @@ async function post(desk: TaskDesk, path: string, request: IncomingMessage) {
   const body = await readJson(request);
   if (path === "/api/tasks") {
     const brief = text(body, "brief", "Describe what the agency should build first.");
-    refuseUnready(desk);
+    refuseUnready(desk, brief);
     const budgetUsd = amount(body, "budgetUsd");
     if (budgetUsd === undefined) throw new BadRequest(400, "Give the task a budget in USD.");
     const task = desk.orchestrator.create(brief, budgetUsd, desk.project());
