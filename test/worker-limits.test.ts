@@ -83,6 +83,19 @@ describe("output limits for a worker's call", () => {
     assert.match(result.problems[0] ?? "", /Send only the files you change/);
   });
 
+  it("asks for the owner's language and passes on their rules", async () => {
+    const requests: ChatRequest[] = [];
+    const chat = async (request: ChatRequest) => (requests.push(request), answer(change));
+    const call = { chat, structured: "json_schema" as const, prompt: "Work." };
+    const worker = { ...call, model: "m-rules", contract: contract("code_change.v1"), input: {} };
+    await callWorker(worker);
+    await callWorker({ ...worker, rules: "Always answer in Indonesian." });
+    const [plain, ruled] = requests.map(({ messages }) => String(messages[0]?.content));
+    assert.match(plain ?? "", /in the language the owner wrote the brief in/);
+    assert.doesNotMatch(plain ?? "", /owner's rules, which always apply/);
+    assert.match(ruled ?? "", /owner's rules, which always apply:\nAlways answer in Indonesian\./);
+  });
+
   it("still passes other errors through", async () => {
     await assert.rejects(
       run("code_change.v1", "m-busy", async () => {
