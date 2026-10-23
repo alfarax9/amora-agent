@@ -169,11 +169,34 @@ describe("chat API", () => {
     assert.equal(listed.chats[0]?.id, id);
   });
 
-  it("refuses a message with a key, and never repeats the key", async () => {
+  it("sends the owner's rules and the conversation so far to the model", async () => {
+    const saved = await post("/api/rules", { text: "  Always answer in Indonesian.  " });
+    assert.deepEqual(JSON.parse(saved.body), { text: "Always answer in Indonesian." });
+    const id = await start("Hi");
+    await settled(id);
+    await post(`/api/chats/${id}/messages`, { message: "And then?" });
+    await settled(id);
+    const [system, ...rest] = requests.at(-1)?.messages ?? [];
+    assert.equal(system?.role, "system");
+    assert.match(String(system?.content), /AMORA chat assistant[\s\S]*Always answer in Indonesian/);
+    assert.deepEqual(
+      rest.map(({ role, content }) => [role, content]),
+      [
+        ["user", "Hi"],
+        ["assistant", "Hello there"],
+        ["user", "And then?"],
+      ],
+    );
+    await post("/api/rules", { text: "" });
+  });
+
+  it("refuses keys in messages and rules, and stores neither", async () => {
     const key = `sk-or-v1-${"a1b2c3d4".repeat(8)}`;
     const message = await post("/api/chats", { message: `use ${key}` });
     assert.equal(message.status, 400);
     assert.ok(!message.body.includes(key));
+    assert.equal((await post("/api/rules", { text: key })).status, 400);
+    assert.equal(JSON.parse((await get("/api/rules")).body).text, "");
   });
 
   it("says why a reply failed, then tries again", async () => {

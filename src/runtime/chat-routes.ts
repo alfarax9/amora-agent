@@ -98,6 +98,11 @@ async function post(desk: ChatDesk, request: IncomingMessage, path: string) {
     const chat = createChat(desk.storage, text, modelOf(desk, body.model));
     return { ...send(desk, chat.id, text), status: 201 };
   }
+  if (path === "/api/rules") {
+    const text = typeof body.text === "string" ? body.text.trim().slice(0, 4_000) : "";
+    desk.storage.setSetting("rules", { text: refuseKeys(text) });
+    return rulesOf(desk);
+  }
   if (path === "/api/chat/model") {
     desk.storage.setSetting("chat", { model: modelOf(desk, body.model) });
     return overview(desk);
@@ -122,8 +127,16 @@ function events(id: string): EventStream {
   };
 }
 
+// The owner's rules: how replies should be written (a language, a tone, what
+// to leave out), kept with their settings and given to every chat.
+const rulesOf = (desk: ChatDesk): JsonReply => ({
+  status: 200,
+  body: { text: desk.storage.getSetting<{ text: string }>("rules")?.text ?? "" },
+});
+
 function get(desk: ChatDesk, path: string): JsonReply | EventStream | undefined {
   if (path === "/api/chats") return overview(desk);
+  if (path === "/api/rules") return rulesOf(desk);
   const [, id = "", rest] = /^\/api\/chats\/([0-9a-f-]{36})(\/events)?$/.exec(path) ?? [];
   if (!id) return undefined;
   return rest ? events(id) : thread(desk, id);

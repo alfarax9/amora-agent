@@ -10,7 +10,7 @@ import { redactSecrets } from "./secret-scanner.ts";
 import type { Storage } from "./storage.ts";
 
 // A chat's replies, written the way a chat app writes them: the conversation
-// so far goes to the chat's model, the reply streams to
+// so far goes to the chat's model with the owner's rules, the reply streams to
 // the page piece by piece (chat-routes.ts serves it as server-sent events),
 // and the finished reply is stored with its model, tokens, and cost.
 
@@ -64,7 +64,11 @@ function conversation(desk: ChatDesk, chatId: string): ChatRequest["messages"] {
     used += text.length;
     kept.unshift({ role, content: text });
   }
-  return [{ role: "system", content: desk.prompt.trim() }, ...kept];
+  const rules = desk.storage.getSetting<{ text: string }>("rules")?.text?.trim();
+  const system = rules
+    ? `${desk.prompt.trim()}\n\nThe owner's rules, which always apply:\n${rules}`
+    : desk.prompt.trim();
+  return [{ role: "system", content: system }, ...kept];
 }
 
 function store(desk: ChatDesk, chatId: string, model: string, reply: ChatResponse, text: string) {
