@@ -84,24 +84,24 @@ describe("CLI: budget and model families", () => {
   });
 
   it("checks an eval before it calls any model", () => {
-    const noModel = run(["eval", "--system", "baseline"]);
+    const noModel = run(["eval", "--system", "single-agent"]);
     assert.equal(noModel.code, 1);
-    assert.match(noModel.out, /Name the baseline's model/);
+    assert.match(noModel.out, /Name the single agent's model/);
     const fresh = { AMORA_HOME: mkdtempSync(join(tmpdir(), "amora-cli-")) };
-    const noLimit = run(["eval", "--system", "amora"], fresh);
+    const noLimit = run(["eval", "--system", "full"], fresh);
     assert.equal(noLimit.code, 1);
     assert.match(noLimit.out, /AMORA's tasks need a daily limit first/);
-    assert.match(run(["eval", "--system", "slim"], fresh).out, /need a daily limit first/);
+    assert.match(run(["eval", "--system", "small"], fresh).out, /need a daily limit first/);
     for (const runs of ["0", "11", "1.5"]) {
       const refused = run(["eval", "--runs", runs]);
       assert.equal(refused.code, 1);
       assert.match(refused.out, /--runs <n>/);
     }
     run(["budget", "--daily", "1"]);
-    for (const system of ["slim,nope", "slim,slim", ""]) {
+    for (const system of ["small,nope", "small,small", ""]) {
       assert.match(run(["eval", "--system", system]).out, /--system must be all, both, or/);
     }
-    const listed = ["--system", "slim,baseline", "--baseline-model", "fake/x"];
+    const listed = ["--system", "small,single-agent", "--single-agent-model", "fake/x"];
     assert.match(run(["eval", ...listed, "--brief", "nope"]).out, /No brief is named nope/);
     assert.match(run(["eval", ...listed, "--tier", "nope"]).out, /--tier must be all, regression/);
     const heavy = run(["eval", ...listed, "--tier", "heavy", "--brief", "tax"]).out;
@@ -111,7 +111,7 @@ describe("CLI: budget and model families", () => {
       realistic,
       /No brief is named tax\. Briefs: app-add-note, .*app-states, app-toggle-done$/m,
     );
-    const unknown = run(["eval", "--system", "amora", "--brief", "nope"]);
+    const unknown = run(["eval", "--system", "full", "--brief", "nope"]);
     assert.equal(unknown.code, 1);
     assert.match(
       unknown.out,
@@ -119,9 +119,9 @@ describe("CLI: budget and model families", () => {
     );
   });
 
-  it("weighs each new task's brief unless the owner chooses a roster", async () => {
+  it("weighs each new task's brief unless the owner chooses a team", async () => {
     const fresh = { AMORA_HOME: mkdtempSync(join(tmpdir(), "amora-cli-")) };
-    assert.match(run(["roster"], fresh).out, /New tasks are weighed one by one/);
+    assert.match(run(["team"], fresh).out, /New tasks are weighed one by one/);
     const { storage } = setup({});
     const context = { storage } as unknown as AppContext;
     const offered = (text: string) => agencyFor(context).roster?.(text).offered;
@@ -130,18 +130,16 @@ describe("CLI: budget and model families", () => {
     assert.deepEqual(offered(light), ["fe-engineer", "unit-integration-tester"]);
     assert.equal(offered(heavy), undefined);
     assert.match(agencyFor(context).roster?.(heavy).note ?? "", /heavy task \(a whole product/);
-    assert.match(
-      run(["roster", "full"], fresh).out,
-      /full roster: the Planner may use every worker/,
-    );
+    assert.match(run(["team", "full"], fresh).out, /Full team: the Planner may use every worker/);
+    // A home set up before the teams were named keeps its choice.
     storage.setSetting("roster", { profile: "slim" });
     assert.deepEqual(offered(heavy), ["fe-engineer", "unit-integration-tester"]);
     assert.equal(agencyFor(context).roster?.(heavy).note, undefined);
     storage.setSetting("roster", { profile: "full" });
     assert.equal(offered(light), undefined);
-    const tiny = run(["roster", "tiny"], fresh);
+    const tiny = run(["team", "tiny"], fresh);
     assert.equal(tiny.code, 1);
-    assert.match(tiny.out, /Choose auto, full, slim\./);
+    assert.match(tiny.out, /Choose auto, full, small\./);
   });
 
   it("refuses an AMORA_HOME that is set but empty", () => {

@@ -59,8 +59,8 @@ describe("roster", () => {
       'workers/nexus/d.yaml: reviewed_by names "ghost", which is not a worker',
       "workers/nexus/e.yaml: contract note.v1 is not in contracts/",
       "workers/nexus/e.yaml: reviewed_by names a, which does not return review.v1",
-      "Roster profile slim names fe-engineer, which is not a worker the Planner can use.",
-      "Roster profile slim names unit-integration-tester, which is not a worker the Planner can use.",
+      "The small team names fe-engineer, which is not a worker the Planner can use.",
+      "The small team names unit-integration-tester, which is not a worker the Planner can use.",
     ]);
   });
 

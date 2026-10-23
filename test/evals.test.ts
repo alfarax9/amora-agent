@@ -90,9 +90,9 @@ describe("benchmark runner, with scripted models", () => {
     assert.deepEqual(
       rows.map(({ system, delivered, success, failed }) => [system, delivered, success, failed]),
       [
-        ["amora", true, true, 0],
-        ["slim", true, true, 0],
-        ["baseline", true, true, 0],
+        ["full", true, true, 0],
+        ["small", true, true, 0],
+        ["single-agent", true, true, 0],
       ],
       why,
     );

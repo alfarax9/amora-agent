@@ -13,7 +13,7 @@ import { getTask } from "../src/runtime/task-store.ts";
 import { openWorkspace } from "../src/runtime/workspace.ts";
 import { briefOf, fakeAgency, taxSolution } from "./eval-fixture.ts";
 
-// The tax brief through the slim roster on a copy of the cart project, with
+// The tax brief through the Small team on a copy of the cart project, with
 // every request kept; the project already has an old src/tax.js.
 async function finished(review?: unknown) {
   const project = join(mkdtempSync(join(tmpdir(), "amora-review-")), "cart");

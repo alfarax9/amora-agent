@@ -27,9 +27,9 @@ describe("best of parallel attempts", () => {
   });
 
   it("runs a brief twice at once and scores the attempt it kept", async () => {
-    const [row] = await runWith(fakeAgency(taxSolution), ["best2"]);
+    const [row] = await runWith(fakeAgency(taxSolution), ["best-of-2"]);
     assert.equal(row?.success, true);
-    // Two slim runs: the Planner, the Engineer, and the Tester with their reviews, twice.
+    // Two Small-team runs: the Planner, the Engineer, and the Tester with their reviews, twice.
     assert.equal(row?.calls, 10);
     assert.match(row?.project ?? "", /attempt-[12][\\/]project$/);
     assert.match(row?.reason ?? "", /\(attempt [12] of 2\)$/);

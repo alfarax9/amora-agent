@@ -9,16 +9,19 @@ import type { WorkerManifest } from "./manifest-schema.ts";
 
 export const plannerId = "planner-decomposer";
 
-// Named sets of workers the Planner may use; reviewers work through gates and
-// are never offered. "slim" came from the first benchmark, where the full
-// chain of specialists lost to one agent (docs/decisions.md).
+// Named teams of workers the Planner may use; reviewers work through gates
+// and are never offered. The Small team came from the first benchmark, where
+// the full chain of specialists lost to one agent (docs/decisions.md).
 export const rosterProfiles: Record<string, string[] | undefined> = {
   full: undefined,
-  slim: ["fe-engineer", "unit-integration-tester"],
+  small: ["fe-engineer", "unit-integration-tester"],
 };
 
-// The owner's roster setting: a profile, or "auto", which weighs each brief and
-// gives a heavy one every worker and a light one the slim roster.
+// The names the owner reads for each team.
+export const teamNames: Record<string, string> = { full: "Full team", small: "Small team" };
+
+// The owner's team setting: a team, or "auto", which weighs each brief and
+// gives a heavy one the Full team and a light one the Small team.
 export const rosterSettings = ["auto", ...Object.keys(rosterProfiles)];
 
 // The workers a task's Planner may use (all when absent), and why, when AMORA
@@ -31,12 +34,12 @@ export function chooseRoster(setting: string, brief: string): RosterChoice {
   if (heavy) {
     return {
       offered: rosterProfiles.full,
-      note: `AMORA weighed this as a heavy task (${reasons.join("; ")}), so the Planner may use every worker.`,
+      note: `AMORA weighed this as a heavy task (${reasons.join("; ")}), so the Planner may use the Full team: every worker.`,
     };
   }
   return {
-    offered: rosterProfiles.slim,
-    note: "AMORA weighed this as a light task, so the Planner uses the slim roster: the Frontend Engineer and the Unit & Integration Tester.",
+    offered: rosterProfiles.small,
+    note: "AMORA weighed this as a light task, so the Planner uses the Small team: the Frontend Engineer and the Unit & Integration Tester.",
   };
 }
 
@@ -110,7 +113,7 @@ export function rosterProblems(
       const worker = manifests.find((manifest) => manifest.id === id);
       if (!worker || worker.output_contract === "review.v1") {
         problems.push(
-          `Roster profile ${profile} names ${id}, which is not a worker the Planner can use.`,
+          `The ${profile} team names ${id}, which is not a worker the Planner can use.`,
         );
       }
     }

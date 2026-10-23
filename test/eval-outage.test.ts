@@ -34,16 +34,16 @@ const quota = () => {
 describe("benchmark runner, when a provider fails", () => {
   it("stops, and scores the brief it stopped on for no system", async () => {
     const { agency, count } = failing((request) => (isBaseline(request) ? undefined : quota()));
-    const result = await runSuiteWith(agency, ["baseline", "slim"], ["tax", "discount"]);
+    const result = await runSuiteWith(agency, ["single-agent", "small"], ["tax", "discount"]);
     assert.deepEqual(result.rows, []);
-    assert.match(result.stopped ?? "", /^tax \(slim, run 1\): All accounts have exhausted/);
+    assert.match(result.stopped ?? "", /^tax \(small, run 1\): All accounts have exhausted/);
     // The baseline's one call on tax, then the Planner's call and its two retries.
     assert.equal(count.calls, 4);
   });
 
   it("keeps scoring when a retried call succeeds", async () => {
     const { agency } = failing((_request, call) => (call === 1 ? quota() : undefined));
-    const result = await runSuiteWith(agency, ["slim"]);
+    const result = await runSuiteWith(agency, ["small"]);
     assert.equal(result.stopped, undefined);
     assert.equal(result.rows[0]?.success, true);
   });
@@ -51,7 +51,7 @@ describe("benchmark runner, when a provider fails", () => {
   it("scores the system's own failure after a provider failure it got past", async () => {
     const rejected = { verdict: "fail", findings: ["Not good enough."] };
     const { agency } = failing((_request, call) => (call === 1 ? quota() : undefined), rejected);
-    const result = await runSuiteWith(agency, ["slim"]);
+    const result = await runSuiteWith(agency, ["small"]);
     assert.equal(result.stopped, undefined);
     assert.match(result.rows[0]?.reason ?? "", /did not pass its gate/);
   });
@@ -60,7 +60,7 @@ describe("benchmark runner, when a provider fails", () => {
     const { agency } = failing(() => {
       throw new GatewayError(400, "The request was malformed.");
     });
-    const result = await runSuiteWith(agency, ["baseline"]);
+    const result = await runSuiteWith(agency, ["single-agent"]);
     assert.equal(result.stopped, undefined);
     assert.equal(result.rows[0]?.delivered, false);
     assert.match(result.rows[0]?.reason ?? "", /malformed/);

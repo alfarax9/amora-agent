@@ -14,7 +14,7 @@ import { openStorage } from "../src/runtime/storage.ts";
 import { openWorkspace } from "../src/runtime/workspace.ts";
 
 // Scripted models and a fake agency for the benchmark tests: the real thin
-// path, the slim roster, and the baseline, all answering from fixed replies.
+// path, the Small team, and the single agent, all answering from fixed replies.
 
 export const root = fileURLToPath(new URL("..", import.meta.url));
 export const suite = loadSuite(join(root, "evals"));
@@ -58,7 +58,7 @@ test("adds tax", () => {
 
 const file = (path: string, content: string) => ({ path, content });
 
-// Replies per contract for the real thin path, plus the slim roster's plan and
+// Replies per contract for the real thin path, plus the Small team's plan and
 // engineer, and the baseline's one answer.
 const pass = { verdict: "pass", findings: [] };
 
@@ -116,7 +116,7 @@ function replies(taxCode: string, review: unknown = pass): Record<string, unknow
 }
 
 // Which scripted answer a request gets: by contract, except for the
-// baseline, the slim roster's plan, and the Frontend Engineer.
+// single agent, the Small team's plan, and the Frontend Engineer.
 function answerFor(request: ChatRequest): string {
   const contract = (request.response_format?.json_schema as { name: string }).name;
   const prompt = String(request.messages[0]?.content);
@@ -168,7 +168,7 @@ export function fakeAgency(taxCode: string, review: unknown = pass) {
 }
 
 export function benchmark(taxCode: string) {
-  return runWith(fakeAgency(taxCode), ["amora", "slim", "baseline"]);
+  return runWith(fakeAgency(taxCode), ["full", "small", "single-agent"]);
 }
 
 // Runs briefs through the given systems with an agency the test built, and

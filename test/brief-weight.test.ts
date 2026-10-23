@@ -46,7 +46,7 @@ describe("weighing a brief", () => {
     assert.equal(weighBrief(`${list}\n${long}`).heavy, true);
   });
 
-  // So on the benchmark the weighed roster is the slim one for the regression
+  // So on the benchmark the weighed team is the Small team for the regression
   // and realistic tiers, and the full one for the heavy tier.
   it("weighs exactly the heavy tier's briefs as heavy", () => {
     const weighed = suite.items.filter((brief) => weighBrief(brief.brief).heavy);

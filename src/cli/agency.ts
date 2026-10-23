@@ -52,7 +52,7 @@ export function agencyFor(context: AppContext): Agency {
     connect: (model) => connect(context, model),
     workspaces: join(dataDirectory(), "workspaces"),
     backups: join(dataDirectory(), "backups"),
-    // Read when a plan is drafted, so `amora roster` applies to the next task.
+    // Read when a plan is drafted, so `amora team` applies to the next task.
     roster: (brief) => chooseRoster(rosterProfile(context), brief),
     // Looked up once per model in this process; OpenRouter's list is large.
     price: (model) => {

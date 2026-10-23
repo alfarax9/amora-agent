@@ -23,13 +23,13 @@ export type EvalOptions = {
   tier: string;
 };
 
-const systemNames: System[] = ["amora", "slim", "auto", "best2", "baseline"];
+const systemNames: System[] = ["full", "small", "auto", "best-of-2", "single-agent"];
 const systemAliases: Record<string, string> = {
-  all: "amora,slim,baseline",
-  both: "amora,baseline",
+  all: "full,small,single-agent",
+  both: "full,single-agent",
 };
 
-// A shorthand or a comma-separated list such as slim,baseline; an unknown or
+// A shorthand or a comma-separated list such as small,single-agent; an unknown or
 // repeated name refuses the whole list.
 function systemsOf(option: string): System[] | undefined {
   const listed = (systemAliases[option] ?? option).split(",");
@@ -45,14 +45,14 @@ function describeRow(row: EvalRow): string {
 // Everything that would make a run spend quota for nothing is refused first.
 function preflight(context: AppContext, options: EvalOptions, systems: System[] | undefined) {
   if (!systems) {
-    return "--system must be all, both, or a comma-separated list of amora, slim, auto, best2, and baseline.";
+    return "--system must be all, both, or a comma-separated list of full, small, auto, best-of-2, and single-agent.";
   }
   const baselineModel = options.baselineModel ?? context.slots.global;
-  if (systems.includes("baseline") && !baselineModel) {
-    return "Name the baseline's model with --baseline-model, or set a global model.";
+  if (systems.includes("single-agent") && !baselineModel) {
+    return "Name the single agent's model with --single-agent-model, or set a global model.";
   }
   const daily = context.storage.getSetting<{ dailyUsd: number }>("budgets")?.dailyUsd;
-  if (systems.some((system) => system !== "baseline") && daily === undefined) {
+  if (systems.some((system) => system !== "single-agent") && daily === undefined) {
     return "AMORA's tasks need a daily limit first: amora budget --daily <usd>";
   }
   return undefined;

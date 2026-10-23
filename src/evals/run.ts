@@ -20,10 +20,10 @@ import { runThinPath } from "./thin-path.ts";
 // a provider failure stops the benchmark, and that brief is scored for no
 // system, so the systems are still compared on the same briefs.
 
-// AMORA with every worker, AMORA with the slim roster, AMORA choosing between
+// AMORA with the Full team, AMORA with the Small team, AMORA choosing between
 // them by weighing each brief, the same twice in parallel keeping the better
 // attempt (best-of.ts), and one agent.
-export type System = "amora" | "slim" | "auto" | "best2" | "baseline";
+export type System = "full" | "small" | "auto" | "best-of-2" | "single-agent";
 
 export type EvalRow = Meter & {
   brief: string;
@@ -132,11 +132,11 @@ async function attempt(
   meter: Meter,
   watch: Watch,
 ): Promise<SystemRun & { project?: string }> {
-  if (system === "best2") return bestOfTwo(run, brief, folder, meter, watch);
+  if (system === "best-of-2") return bestOfTwo(run, brief, folder, meter, watch);
   const agency = meteredAgency(run.agency, meter, watch, folder);
   try {
-    if (system === "baseline") return await baseline(run, agency, brief, folder);
-    return await thinPath(run, system === "amora" ? "full" : system, brief, folder, agency);
+    if (system === "single-agent") return await baseline(run, agency, brief, folder);
+    return await thinPath(run, system, brief, folder, agency);
   } catch (error) {
     return stoppedBy(error);
   }
@@ -155,7 +155,7 @@ async function runOne(
   const meter = emptyMeter();
   const watch: Watch = { failure: undefined };
   const started = Date.now();
-  // best2 scores the attempt it kept, in that attempt's own folder.
+  // best-of-2 scores the attempt it kept, in that attempt's own folder.
   const { project: kept = project, ...outcome } = await attempt(
     run,
     system,

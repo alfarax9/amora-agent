@@ -15,7 +15,7 @@ import { connectOmniRoute } from "./omniroute.ts";
 import { probeAssigned, probeModel } from "./probe.ts";
 import { setPrice } from "./prices.ts";
 import { runPrivacy } from "./privacy.ts";
-import { runRoster } from "./profile.ts";
+import { runTeam } from "./profile.ts";
 import { runTaskCommand } from "./run.ts";
 import { runDelivery, runProject } from "./project.ts";
 import { print, printError } from "./output.ts";
@@ -33,8 +33,10 @@ Commands:
                                   OpenRouter; a change asks for a management key at a hidden
                                   prompt and does not store it
   project [path]                  Show or set the project folder new tasks work on
-  roster [auto|slim|full]         Show or choose the workers new tasks plan with (default: auto,
-                                  which gives heavy briefs every worker and light ones the slim roster)
+  team [auto|small|full]          Show or choose the team new tasks plan with: the Small team
+                                  (Software Engineer and Tester), the Full team (every worker), or
+                                  auto (default), which gives light briefs the Small team and heavy
+                                  ones the Full team
   run "<brief>"                   Run a task without the dashboard, for scripts, CI, and other agents:
                                   plans it, and with --approve and --complete goes on (exit code 0
                                   reached, 1 needs a decision, 3 paused for quota)
@@ -71,11 +73,13 @@ Options:
   --assigned               With models probe: every model in use
   --daily <usd>            With budget: the daily limit in USD
   --brief <id>             With eval: run only this brief (repeatable)
-  --system <names>         With eval: all (default: amora, slim, and baseline), both (amora and
-                           baseline), or a comma-separated list of amora, slim, auto, best2
-                           (auto twice in parallel, keeping the attempt whose gates passed), and
-                           baseline
-  --baseline-model <id>    With eval: the baseline's model (default: the global model)
+  --system <names>         With eval: all (default: full, small, and single-agent), both (full and
+                           single-agent), or a comma-separated list of full (the Full team),
+                           small (the Small team), auto, best-of-2 (auto twice in parallel,
+                           keeping the attempt whose gates passed), and single-agent (one agent
+                           with the same tools, to compare against)
+  --single-agent-model <id>
+                           With eval: the single agent's model (default: the global model)
   --reset <period>         With credit-limit: daily, weekly, monthly, or never
   --budget <usd>           With eval or run: each AMORA task's budget (default 1)
   --approve                With run: approve the plan and run every step
@@ -165,7 +169,7 @@ const commands: Record<string, Command> = {
   doctor: (context, _args, flags) => runDoctor(context, flags.port),
   models: (context, args, flags) => runModels(context, args, flags),
   project: async (context, args) => (args.length <= 1 ? runProject(context, args[0]) : undefined),
-  roster: async (context, args) => (args.length <= 1 ? runRoster(context, args[0]) : undefined),
+  team: async (context, args) => (args.length <= 1 ? runTeam(context, args[0]) : undefined),
   run: async (context, args, flags) =>
     args.length === 1 && args[0] ? runTaskCommand(context, args[0], flags) : undefined,
   delivery: async (context, args) => (args.length <= 1 ? runDelivery(context, args[0]) : undefined),
@@ -221,7 +225,7 @@ const options = {
   reset: { type: "string" },
   brief: { type: "string", multiple: true },
   system: { type: "string", default: "all" },
-  "baseline-model": { type: "string" },
+  "single-agent-model": { type: "string" },
   budget: { type: "string", default: "1" },
   runs: { type: "string", default: "1" },
   tier: { type: "string", default: "all" },
@@ -259,7 +263,7 @@ async function main(): Promise<void> {
     noOpen: values["no-open"],
     briefs: values.brief ?? [],
     system: values.system,
-    baselineModel: values["baseline-model"],
+    baselineModel: values["single-agent-model"],
     budget: values.budget,
     runs: values.runs,
     tier: values.tier,
