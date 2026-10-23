@@ -1,3 +1,4 @@
+import { leaveChat, initChat, renderChatList, showChat } from "./chat.js";
 import { el, usd } from "./dom.js";
 import { renderOverview } from "./overview.js";
 import { renderPanel } from "./panel.js";
@@ -9,10 +10,11 @@ import { needsOwner, renderRecent } from "./sidebar.js";
 import { renderTasks } from "./tasks.js";
 import { drawTopbar } from "./topbar.js";
 
-// The dashboard, after the AMORA website. It polls the runtime every two
-// seconds and re-renders only when something changed. The page is in the
-// address: #overview, #tasks, #new, #workers, #models, #costs, #settings, or
-// #task-<id>.
+// The dashboard, after the AMORA website, in two modes as the Claude app has
+// chat and code: Chat (#chat, #chat-<id>, chat.js) talks with a model, and
+// Octa Code works with the team (#new, #task-<id>, #overview, #tasks,
+// #workers, #models, #costs). #settings belongs to both. The code side polls
+// the runtime every two seconds and re-renders only when something changed.
 
 const $ = (id) => document.getElementById(id);
 const app = $("app");
@@ -30,13 +32,20 @@ let data;
 let shown = "";
 let heard = "";
 
+// A first visit opens a new chat, as the Claude app does.
 function routeOf() {
   const hash = globalThis.location.hash;
-  const task = /^#task-([0-9a-f-]{36})$/.exec(hash);
-  if (task) return { page: "task", id: task[1] };
-  const page = hash.slice(1);
-  const pages = ["tasks", "new", "settings", ...reportPages];
+  const [, kind, id] = /^#(task|chat)-([0-9a-f-]{36})$/.exec(hash) ?? [];
+  if (kind) return { page: kind, id };
+  const page = hash.slice(1) || "chat";
+  const pages = ["chat", "tasks", "new", "settings", ...reportPages];
   return { page: pages.includes(page) ? page : "overview" };
+}
+
+// Settings keeps whichever mode the owner came from.
+function modeOf(route) {
+  if (route.page === "settings") return app.dataset.mode;
+  return route.page === "chat" ? "chat" : "code";
 }
 
 async function call(method, path, body) {
@@ -90,6 +99,9 @@ function drawSidebar() {
   $("decision-count").hidden = waiting === 0;
   $("decision-count").textContent = String(waiting);
   $("recent").replaceChildren(...renderRecent(data.tasks, view.route.id));
+  for (const mode of document.querySelectorAll(".mode")) {
+    mode.toggleAttribute("aria-current", mode.dataset.mode === app.dataset.mode);
+  }
   const limit =
     data.dailyUsd === null
       ? "No daily limit is set yet, so no task can be approved."
@@ -212,6 +224,7 @@ function draw(force = false) {
   shown = snapshot;
   drawTopbar(data, app);
   drawSidebar();
+  if (view.route.page === "chat") return void (panel.hidden = true);
   $("settings-view").hidden = view.route.page !== "settings";
   main.hidden = view.route.page === "settings";
   document.body.append(composer);
@@ -268,8 +281,22 @@ async function submit() {
   await refresh();
 }
 
+// Chat draws its own pages; the code side's composer and pages step aside.
+function enter() {
+  app.dataset.mode = modeOf(view.route);
+  main.hidden = false;
+  if (view.route.page !== "chat") return leaveChat();
+  composer.hidden = true;
+  $("settings-view").hidden = true;
+  const listed = () => $("chat-list").replaceChildren(...renderChatList());
+  showChat(main, view.route.id ?? null, listed).catch((error) => {
+    actionError.textContent = error.message;
+  });
+}
+
 function wire() {
   initProjects({ call, changed: refresh });
+  initChat({ call });
   // Enter sends and Shift+Enter starts a new line, as in a chat.
   brief.addEventListener("keydown", (event) => {
     if (event.key !== "Enter" || event.shiftKey || event.isComposing) return;
@@ -294,6 +321,7 @@ function wire() {
   globalThis.addEventListener("hashchange", () => {
     view.route = routeOf();
     app.classList.remove("sidebar-open");
+    enter();
     draw(true);
     void loadReport(view.route.page, () => draw(true));
     if (view.route.page === "new") brief.focus();
@@ -301,5 +329,6 @@ function wire() {
 }
 
 wire();
+enter();
 void refresh().then(() => view.route.page === "new" && brief.focus());
 setInterval(refresh, 2000);

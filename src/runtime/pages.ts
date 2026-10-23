@@ -1,3 +1,4 @@
+import { chatStyle } from "./chat-style.ts";
 import { dashboardStyle } from "./dashboard-style.ts";
 
 // The runtime's pages. Everything is served from this origin: the runtime
@@ -116,25 +117,47 @@ const topbar = `<header class="topbar">
 </div>
 </header>`;
 
+// Two modes, as the Claude app has chat and code: Chat talks with a model;
+// Octa Code works with the team on a project. Each shows its own sidebar.
+const chatIcon = `<svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.4A8 8 0 1 1 21 12z"/></svg>`;
+const codeIcon = `<svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m8 6-6 6 6 6M16 6l6 6-6 6M14 4l-4 16"/></svg>`;
+
 const sidebar = `<nav class="sidebar" aria-label="Dashboard">
-<a id="new-task" href="#new" class="primary new-task"><span aria-hidden="true">+</span> New task</a>
-<div class="nav">
+<div class="modes" role="group" aria-label="Mode">
+<a class="mode" data-mode="chat" href="#chat">${chatIcon} Chat</a>
+<a class="mode" data-mode="code" href="#new">${codeIcon} Octa Code</a>
+</div>
+<a href="#chat" class="primary new-task for-chat"><span aria-hidden="true">+</span> New chat</a>
+<a id="new-task" href="#new" class="primary new-task for-code"><span aria-hidden="true">+</span> New task</a>
+<div class="nav for-code">
 <a class="nav-item" data-route="overview" href="#overview">Overview</a>
 <a class="nav-item" data-route="tasks" href="#tasks">Tasks <span id="decision-count" class="count" hidden></span></a>
 <a class="nav-item" data-route="workers" href="#workers">Workers</a>
 <a class="nav-item" data-route="models" href="#models">Models</a>
 <a class="nav-item" data-route="costs" href="#costs">Costs</a>
-<a class="nav-item" data-route="settings" href="#settings">Settings</a>
 </div>
-<p class="section-title">Recent</p>
-<div id="recent" class="recent"></div>
+<p class="section-title for-chat">Chats</p>
+<div id="chat-list" class="recent for-chat"></div>
+<div id="recent" class="recent for-code"></div>
+<div class="sidebar-foot"><a class="nav-item" data-route="settings" href="#settings">Settings</a></div>
 </nav>`;
 
+// The chat composer, which the chat script moves between a new chat and a
+// chat's thread, with the model the chat talks to.
+const chatComposer = `<div id="chat-composer" class="composer-wrap" hidden>
+<div class="composer">
+<textarea id="chat-input" rows="1" aria-label="Message" placeholder="How can I help you today?"></textarea>
+<button id="chat-send" type="button" class="send" aria-label="Send" title="Send (Enter)">↑</button>
+</div>
+<div class="composer-row"><label class="model-chip" for="chat-model">Model <select id="chat-model"></select></label></div>
+<p id="chat-error" class="error" role="alert"></p>
+</div>`;
+
 // The agency (PRD §8 and the dashboard PRD), after the AMORA website: a top
-// bar with the runtime's state, the budget, and Pause on every page; New task
-// and the pages in the sidebar; Overview, Tasks, a task's thread with its
-// plan, changes, and log beside it, Workers, Models, Costs, and Settings. The
-// page is static; its scripts fetch /api/tasks and the read-only report routes
+// bar with the runtime's state, the budget, and Pause on every page; Chat and
+// Octa Code in the sidebar, Octa Code with New task, Overview, Tasks, a
+// task's thread with its plan, changes, and log beside it, Workers, Models,
+// and Costs; Settings for both. The page is static; its scripts fetch the API
 // and render with text nodes only.
 export function dashboardPage(state: { maskedKey?: string; chat: boolean }): string {
   const gateway = state.maskedKey
@@ -145,14 +168,14 @@ export function dashboardPage(state: { maskedKey?: string; chat: boolean }): str
     : `<div class="page"><p class="meta">The agency chat is not running in this process.</p></div>`;
   return page(
     "Agency",
-    `<style>${dashboardStyle}</style>
-<div class="app" id="app" data-gateway="${state.maskedKey ? "connected" : "missing"}">
+    `<style>${dashboardStyle}${chatStyle}</style>
+<div class="app" id="app" data-mode="chat" data-gateway="${state.maskedKey ? "connected" : "missing"}">
 ${topbar}
 ${sidebar}
 <div class="main"><p id="action-error" class="error" role="alert"></p>${view}${settingsPage(gateway, state.maskedKey !== undefined)}</div>
 <aside id="panel" class="panel" aria-label="Task details" hidden></aside>
 </div>
-${state.chat ? composer : ""}
+${state.chat ? composer + chatComposer : ""}
 <script type="module" src="/dashboard/settings.js"></script>
 ${state.chat ? `<script type="module" src="/dashboard/app.js"></script>` : ""}`,
     "dashboard",
