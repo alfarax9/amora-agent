@@ -1,10 +1,13 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from "node:fs";
+import { request } from "node:http";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
-import { describe, it } from "node:test";
-import { chooseFolder } from "../src/runtime/folder-dialog.ts";
+import { after, before, describe, it } from "node:test";
+import { createConnectFlows } from "../src/runtime/connect.ts";
+import { type Chosen, chooseFolder } from "../src/runtime/folder-dialog.ts";
+import { createLogger } from "../src/runtime/logger.ts";
 import {
   addProject,
   chooseProject,
@@ -14,6 +17,9 @@ import {
   ProjectError,
   removeProject,
 } from "../src/runtime/projects.ts";
+import { memoryStore } from "../src/runtime/secrets.ts";
+import { createSessions } from "../src/runtime/security.ts";
+import { startRuntime, type Runtime } from "../src/runtime/server.ts";
 import { setup } from "./agency.ts";
 
 function folderWith(files: Record<string, string>): string {
@@ -86,6 +92,111 @@ describe("projects", () => {
       inspectProject({ name: "b", path: broken }, undefined).problems[0] ?? "",
       /not valid JSON/,
     );
+  });
+});
+
+type Reply = { status: number; body: string };
+
+function call(port: number, method: string, path: string, cookie: string, json?: unknown) {
+  const body = json === undefined ? undefined : JSON.stringify(json);
+  const headers: Record<string, string> = {
+    host: `127.0.0.1:${port}`,
+    cookie,
+    ...(body === undefined ? {} : { "content-type": "application/json" }),
+  };
+  return new Promise<Reply>((resolve, reject) => {
+    const outgoing = request({ host: "127.0.0.1", port, path, method, headers }, (incoming) => {
+      let text = "";
+      incoming.on("data", (chunk) => (text += chunk));
+      incoming.on("end", () => resolve({ status: incoming.statusCode ?? 0, body: text }));
+    });
+    outgoing.on("error", reject);
+    outgoing.end(body);
+  });
+}
+
+describe("the project picker's API", () => {
+  const world = setup({});
+  const sessions = createSessions();
+  let runtime: Runtime;
+  let cookie = "";
+  let picked: Chosen = { cancelled: true };
+
+  before(async () => {
+    runtime = await startRuntime(40000 + Math.floor(Math.random() * 10000), {
+      sessions,
+      flows: createConnectFlows(),
+      secrets: memoryStore(),
+      logger: createLogger(() => undefined),
+      chooseFolder: async () => picked,
+      tasks: {
+        orchestrator: world.runtime,
+        storage: world.storage,
+        roles: {},
+        divisions: {},
+        readiness: () => [],
+        project: () => currentProject(world.storage),
+      },
+    });
+    const token = new URL(runtime.signInUrl()).searchParams.get("token") ?? "";
+    cookie = await new Promise<string>((resolve) => {
+      const headers = { host: `127.0.0.1:${runtime.port}` };
+      const path = `/auth/sign-in?token=${token}`;
+      request({ host: "127.0.0.1", port: runtime.port, path, headers }, (incoming) =>
+        resolve(String(incoming.headers["set-cookie"]).split(";")[0] ?? ""),
+      ).end();
+    });
+  });
+  after(() => runtime.close());
+
+  it("adds, lists, and chooses projects, and refuses what is not one", async () => {
+    const shop = app({ lint: "x" });
+    const added = await call(runtime.port, "POST", "/api/projects", cookie, {
+      path: shop,
+      name: "Shop",
+    });
+    assert.equal(added.status, 201);
+    const listed = JSON.parse(added.body) as {
+      projects: { name: string; current: boolean; missingScripts: string[] }[];
+      delivery: string;
+    };
+    assert.deepEqual(
+      listed.projects.map(({ name, current }) => [name, current]),
+      [["Shop", true]],
+    );
+    assert.deepEqual(listed.projects[0]?.missingScripts, ["typecheck", "test"]);
+    assert.equal(listed.delivery, "branch");
+    const empty = folderWith({});
+    const refused = await call(runtime.port, "POST", "/api/projects", cookie, { path: empty });
+    assert.equal(refused.status, 400);
+    assert.match(refused.body, /has no package\.json/);
+    const unknown = await call(runtime.port, "POST", "/api/projects/current", cookie, {
+      path: app({}),
+    });
+    assert.equal(unknown.status, 400);
+    assert.match(unknown.body, /Add the project first/);
+    assert.equal((await call(runtime.port, "GET", "/api/projects", "")).status, 401);
+  });
+
+  it("adds the folder picked in the system's dialog, or says why it cannot be a project", async () => {
+    const choose = () => call(runtime.port, "POST", "/api/folders/choose", cookie);
+    const docs = app({});
+    picked = { path: docs };
+    const added = await choose();
+    assert.equal(added.status, 201);
+    assert.ok(added.body.includes(JSON.stringify(docs)));
+    picked = { path: folderWith({}) };
+    const refused = await choose();
+    assert.equal(refused.status, 400);
+    assert.match(refused.body, /has no package\.json/);
+    picked = { cancelled: true };
+    assert.deepEqual(JSON.parse((await choose()).body), { cancelled: true });
+    picked = { unavailable: "This computer has no folder dialog AMORA can open." };
+    assert.equal((await choose()).status, 501);
+    const removed = await call(runtime.port, "POST", "/api/projects/remove", cookie, {
+      path: docs,
+    });
+    assert.ok(!removed.body.includes(JSON.stringify(docs)));
   });
 });
 
