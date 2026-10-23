@@ -1,8 +1,8 @@
 import { usd } from "./dom.js";
 
-// Settings: the OpenRouter key's credit limit, read when the page opens and
-// changed with a management key that is sent once and emptied from the field
-// right away.
+// Settings: the owner's rules, and the OpenRouter key's credit limit, read
+// when the page opens and changed with a management key that is sent once and
+// emptied from the field right away.
 
 const shown = document.getElementById("credit-limit");
 const amount = document.getElementById("limit-usd");
@@ -12,11 +12,13 @@ const reset = document.getElementById("limit-reset");
 const managementKey = document.getElementById("management-key");
 const save = document.getElementById("save-limit");
 const error = document.getElementById("limit-error");
+const rules = document.getElementById("rules-text");
+const saveRules = document.getElementById("save-rules");
 
-async function call(method, body) {
+async function call(method, body, path = "/api/openrouter/limit") {
   let response;
   try {
-    response = await fetch("/api/openrouter/limit", {
+    response = await fetch(path, {
       method,
       headers: body === undefined ? {} : { "Content-Type": "application/json" },
       body: body === undefined ? undefined : JSON.stringify(body),
@@ -26,7 +28,7 @@ async function call(method, body) {
   }
   const data = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(data.error ?? "The runtime could not do that. Check its log.");
-  return data.limit;
+  return data;
 }
 
 function describe(limit) {
@@ -69,11 +71,32 @@ for (const choice of choices) {
 
 async function load() {
   try {
-    show(await call("GET"));
+    show((await call("GET")).limit);
   } catch (failure) {
     shown.textContent = `The limit could not be read: ${failure.message}`;
   }
 }
+
+async function loadRules() {
+  try {
+    rules.value = (await call("GET", undefined, "/api/rules")).text;
+  } catch (failure) {
+    document.getElementById("rules-error").textContent = failure.message;
+  }
+}
+
+saveRules?.addEventListener("click", async () => {
+  const saved = document.getElementById("rules-saved");
+  const problem = document.getElementById("rules-error");
+  problem.textContent = "";
+  saved.textContent = "";
+  try {
+    rules.value = (await call("POST", { text: rules.value }, "/api/rules")).text;
+    saved.textContent = "Saved. New replies follow them.";
+  } catch (failure) {
+    problem.textContent = failure.message;
+  }
+});
 
 save?.addEventListener("click", async () => {
   error.textContent = "";
@@ -81,13 +104,12 @@ save?.addEventListener("click", async () => {
   managementKey.value = "";
   save.disabled = true;
   try {
-    show(
-      await call("POST", {
-        limitUsd: chosenLimit(),
-        reset: reset.value === "" ? null : reset.value,
-        managementKey: key,
-      }),
-    );
+    const changed = await call("POST", {
+      limitUsd: chosenLimit(),
+      reset: reset.value === "" ? null : reset.value,
+      managementKey: key,
+    });
+    show(changed.limit);
   } catch (failure) {
     error.textContent = failure.message;
   }
@@ -96,7 +118,10 @@ save?.addEventListener("click", async () => {
 
 // Read each time Settings opens, so the figures are current.
 const onSettings = () => globalThis.location.hash === "#settings";
-globalThis.addEventListener("hashchange", () => {
-  if (shown && onSettings()) void load();
-});
-if (shown && onSettings()) void load();
+const opened = () => {
+  if (!onSettings()) return;
+  if (rules) void loadRules();
+  if (shown) void load();
+};
+globalThis.addEventListener("hashchange", opened);
+opened();

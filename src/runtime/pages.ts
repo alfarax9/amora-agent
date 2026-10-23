@@ -78,9 +78,20 @@ ${limitChoices}
 <p id="limit-error" class="error" role="alert"></p>
 </section>`;
 
+// The owner's rules go to Chat and to every worker of the code team.
+const rules = `<section class="box">
+<h2>Your rules</h2>
+<p class="meta">Chat and the team follow these in every reply: the language to answer in, a tone, what to leave out. Without rules, replies follow the language you write in.</p>
+<label for="rules-text">Rules</label>
+<textarea id="rules-text" rows="5" maxlength="4000" placeholder="Always answer in Indonesian. Keep answers short."></textarea>
+<div class="actions"><button id="save-rules" type="button" class="primary">Save rules</button><span id="rules-saved" class="meta" aria-live="polite"></span></div>
+<p id="rules-error" class="error" role="alert"></p>
+</section>`;
+
 function settingsPage(gateway: string, keyed: boolean): string {
   return `<section id="settings-view" class="page settings" aria-labelledby="settings-title" hidden>
 <div class="page-head"><h1 id="settings-title">Settings</h1></div>
+${rules}
 <section class="box"><h2>Gateway</h2><p>${gateway}</p></section>
 <section class="box"><h2>Budget</h2><p id="settings-budget" class="meta"></p>
 <p class="meta">Change the daily limit with <code>amora budget --daily &lt;usd&gt;</code>.</p></section>
