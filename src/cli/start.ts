@@ -1,7 +1,11 @@
 import { spawn } from "node:child_process";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { createConnectFlows } from "../runtime/connect.ts";
 import { createOrchestrator } from "../runtime/orchestrator.ts";
 import { readinessGaps } from "../runtime/readiness.ts";
+import type { ChatDesk } from "../runtime/chat.ts";
+import { assignedModels } from "../model-layer/slots.ts";
 import type { TaskDesk } from "../runtime/task-routes.ts";
 import type { Agency } from "../runtime/agency.ts";
 import { agencyFor } from "./agency.ts";
@@ -10,7 +14,7 @@ import { scheduleReprobes } from "../model-layer/reprobe.ts";
 import { createLogger, type Logger } from "../runtime/logger.ts";
 import { createSessions } from "../runtime/security.ts";
 import { startRuntime } from "../runtime/server.ts";
-import type { AppContext } from "./context.ts";
+import { type AppContext, packageRoot } from "./context.ts";
 import { measureModel } from "./measure.ts";
 import { print } from "./output.ts";
 import { projectPath } from "./project.ts";
@@ -52,6 +56,21 @@ function taskDesk(context: AppContext, agency: Agency, logger: Logger): TaskDesk
   return { orchestrator, storage: context.storage, roles, divisions, readiness, project };
 }
 
+// Chat talks to the owner's own models: the one they chose for chat, or the
+// global model, from those they have assigned.
+function chatDesk(context: AppContext, agency: Agency, logger: Logger): ChatDesk {
+  const { storage } = context;
+  const chosen = () => storage.getSetting<{ model: string }>("chat")?.model;
+  return {
+    storage,
+    connect: (model) => agency.connect(model),
+    defaultModel: () => chosen() ?? agency.slots().global,
+    models: () => assignedModels(agency.slots()),
+    prompt: readFileSync(join(packageRoot, "prompts", "chat", "system.md"), "utf8"),
+    logger,
+  };
+}
+
 function dependencies(context: AppContext, logger: Logger) {
   const agency = agencyFor(context);
   const { storage, secrets, manifests, registry } = context;
@@ -61,6 +80,7 @@ function dependencies(context: AppContext, logger: Logger) {
     secrets,
     logger,
     tasks: taskDesk(context, agency, logger),
+    chats: chatDesk(context, agency, logger),
     // The same cached price lookup the agency estimates plans with.
     reports: { storage, secrets, manifests, registry, price: agency.price },
   };
