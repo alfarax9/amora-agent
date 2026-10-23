@@ -219,9 +219,9 @@ async function route(context: Context): Promise<void> {
   if (request.method === "GET" && context.url.pathname.startsWith("/dashboard/")) {
     return script(context);
   }
-  if (await limitApi(context)) return;
-  if (await taskApi(context)) return;
-  if (await reportApi(context)) return;
+  for (const api of [limitApi, taskApi, reportApi]) {
+    if (await api(context)) return;
+  }
   send(response, 404, messagePage("Not found", "There is no page here."));
 }
 
