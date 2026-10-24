@@ -33,6 +33,8 @@ Commands:
                                   OpenRouter; a change asks for a management key at a hidden
                                   prompt and does not store it
   project [path]                  Show or set the project folder new tasks work on
+  project [path] --setup          Write AMORA's starter package.json into a project that has none
+                                  (an empty folder for new code), so its checks can run
   team [auto|small|full]          Show or choose the team new tasks plan with: the Small team
                                   (Software Engineer and Tester), the Full team (every worker), or
                                   auto (default), which gives light briefs the Small team and heavy
@@ -89,6 +91,7 @@ Options:
   --tier <name>            With eval: all (default), regression (small and quick), realistic
                            (a React app with real dependencies), or heavy (a product from
                            scratch and new screens with an API)
+  --setup                  With project: write AMORA's starter package.json and scripts/check.mjs
   --force                  With undo: undo even files changed since the delivery, keeping a copy
   --allow-data-collection  With privacy: let providers that keep or train on prompts serve
                            tasks in this AMORA home; --deny-data-collection turns it off
@@ -121,6 +124,7 @@ type Flags = {
   approve: boolean;
   complete: boolean;
   json: boolean;
+  setup: boolean;
 };
 
 function privacyChoice(flags: Flags): "allow" | "deny" | undefined {
@@ -168,7 +172,8 @@ type Command = (context: AppContext, args: string[], flags: Flags) => Promise<bo
 const commands: Record<string, Command> = {
   doctor: (context, _args, flags) => runDoctor(context, flags.port),
   models: (context, args, flags) => runModels(context, args, flags),
-  project: async (context, args) => (args.length <= 1 ? runProject(context, args[0]) : undefined),
+  project: async (context, args, flags) =>
+    args.length <= 1 ? runProject(context, args[0], flags.setup) : undefined,
   team: async (context, args) => (args.length <= 1 ? runTeam(context, args[0]) : undefined),
   run: async (context, args, flags) =>
     args.length === 1 && args[0] ? runTaskCommand(context, args[0], flags) : undefined,
@@ -233,6 +238,7 @@ const options = {
   approve: { type: "boolean", default: false },
   complete: { type: "boolean", default: false },
   json: { type: "boolean", default: false },
+  setup: { type: "boolean", default: false },
   family: { type: "string" },
   license: { type: "string" },
   version: { type: "boolean", default: false },
@@ -271,6 +277,7 @@ async function main(): Promise<void> {
     approve: values.approve,
     complete: values.complete,
     json: values.json,
+    setup: values.setup,
   };
   if (!(await run(command, rest, flags))) process.exitCode = 1;
 }

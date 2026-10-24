@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from "node:fs";
+import { execFileSync, spawnSync } from "node:child_process";
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { request } from "node:http";
 import { homedir, tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
@@ -16,6 +16,7 @@ import {
   listProjects,
   ProjectError,
   removeProject,
+  setUpProject,
 } from "../src/runtime/projects.ts";
 import { memoryStore } from "../src/runtime/secrets.ts";
 import { createSessions } from "../src/runtime/security.ts";
@@ -35,14 +36,20 @@ const app = (scripts: Record<string, string>) =>
   folderWith({ "package.json": JSON.stringify({ scripts }) });
 
 describe("projects", () => {
-  it("adds a folder with a package.json, makes it current, and keeps one entry per folder", () => {
+  it("adds any folder, makes it current, and keeps one entry per folder", () => {
     const { storage } = setup({});
     const shop = app({ lint: "x", typecheck: "x", test: "x" });
-    assert.throws(() => addProject(storage, folderWith({})), /has no package\.json/);
+    const empty = folderWith({});
+    addProject(storage, empty);
+    assert.equal(inspectProject({ name: "empty", path: empty }, empty).needsSetup, true);
+    assert.equal(inspectProject({ name: "shop", path: shop }, shop).needsSetup, false);
     assert.throws(() => addProject(storage, join(shop, "nope")), /is not a folder/);
     assert.deepEqual(addProject(storage, shop), { name: basename(shop), path: shop });
     addProject(storage, shop, "Shop");
-    assert.deepEqual(listProjects(storage), [{ name: "Shop", path: shop }]);
+    assert.deepEqual(listProjects(storage), [
+      { name: basename(empty), path: empty },
+      { name: "Shop", path: shop },
+    ]);
     assert.equal(currentProject(storage), shop);
   });
 
@@ -54,6 +61,32 @@ describe("projects", () => {
       inspectProject({ name: "home", path: homedir() }, undefined).problems[0] ?? "",
       /holds your whole home folder/,
     );
+  });
+
+  it("sets up an empty folder with checks that run on Node alone, and never overwrites", () => {
+    const { storage } = setup({});
+    const folder = folderWith({
+      "src/add.ts": "export const add = (a: number, b: number) => a + b;\n",
+    });
+    assert.throws(() => setUpProject(storage, folder), /Add the project first/);
+    addProject(storage, folder);
+    setUpProject(storage, folder);
+    const manifest = JSON.parse(readFileSync(join(folder, "package.json"), "utf8"));
+    assert.deepEqual(Object.keys(manifest.scripts), ["typecheck", "test"]);
+    assert.equal(inspectProject({ name: "f", path: folder }, folder).needsSetup, false);
+    assert.throws(
+      () => setUpProject(storage, folder),
+      /already has package\.json and scripts\/check\.mjs/,
+    );
+    // The scripts as npm runs them, with this Node.
+    const npm = (script: string) =>
+      spawnSync(process.execPath, script.split(" ").slice(1), { cwd: folder, encoding: "utf8" });
+    assert.equal(npm(manifest.scripts.typecheck).status, 0);
+    assert.equal(npm(manifest.scripts.test).status, 0);
+    writeFileSync(join(folder, "src", "broken.ts"), "export const x = (a: number => a;\n");
+    const broken = npm(manifest.scripts.typecheck);
+    assert.equal(broken.status, 1);
+    assert.match(broken.stderr, /^src[\\/]broken\.ts: /);
   });
 
   it("takes a project off the list without touching it, and the current one with it", () => {
@@ -176,10 +209,11 @@ describe("the project picker's API", () => {
     );
     assert.deepEqual(listed.projects[0]?.missingScripts, ["typecheck", "test"]);
     assert.equal(listed.delivery, "branch");
-    const empty = folderWith({});
-    const refused = await call(runtime.port, "POST", "/api/projects", cookie, { path: empty });
+    const refused = await call(runtime.port, "POST", "/api/projects", cookie, {
+      path: join(shop, "package.json"),
+    });
     assert.equal(refused.status, 400);
-    assert.match(refused.body, /has no package\.json/);
+    assert.match(refused.body, /is not a folder/);
     const unknown = await call(runtime.port, "POST", "/api/projects/current", cookie, {
       path: app({}),
     });
@@ -195,10 +229,10 @@ describe("the project picker's API", () => {
     const added = await choose();
     assert.equal(added.status, 201);
     assert.ok(added.body.includes(JSON.stringify(docs)));
-    picked = { path: folderWith({}) };
+    picked = { path: join(docs, "nope") };
     const refused = await choose();
     assert.equal(refused.status, 400);
-    assert.match(refused.body, /has no package\.json/);
+    assert.match(refused.body, /is not a folder/);
     picked = { cancelled: true };
     assert.deepEqual(JSON.parse((await choose()).body), { cancelled: true });
     picked = { unavailable: "This computer has no folder dialog AMORA can open." };

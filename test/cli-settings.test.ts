@@ -53,10 +53,16 @@ describe("CLI: budget and model families", () => {
     );
   });
 
-  it("sets the project folder only to one with a package.json, and names missing scripts", () => {
+  it("sets the project folder, sets up one without a package.json, and names missing scripts", () => {
     assert.match(run(["project"]).out, /No project folder yet/);
+    assert.match(run(["project", "--setup"]).out, /Name the folder/);
     const empty = mkdtempSync(join(tmpdir(), "amora-empty-"));
-    assert.equal(run(["project", empty]).code, 1);
+    assert.match(run(["project", empty]).out, /no package\.json yet.*amora project --setup/);
+    assert.match(
+      run(["project", "--setup"]).out,
+      /AMORA wrote package\.json and scripts\/check\.mjs/,
+    );
+    assert.match(run(["project", "--setup"]).out, /already has package\.json/);
     const fixture = fileURLToPath(new URL("fixtures/pricing-site", import.meta.url));
     const set = run(["project", fixture]);
     assert.match(set.out, /New tasks work on .*pricing-site/);
