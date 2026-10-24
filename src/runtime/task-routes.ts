@@ -122,7 +122,10 @@ function summaryOf(content: unknown): string | null {
 // project: the Assistant answers it without one.
 function refuseUnready(desk: TaskDesk, brief: string): void {
   const question = isQuestion(brief);
-  const gaps = desk.readiness().filter(({ fix }) => !(question && fix === "project"));
+  refuseGaps(desk.readiness().filter(({ fix }) => !(question && fix === "project")));
+}
+
+export function refuseGaps(gaps: Gap[]): void {
   if (gaps.length === 0) return;
   const steps = gaps.map(({ problem, command }) => `${problem} Run: ${command}`);
   throw new BadRequest(409, `The agency is not ready for a task. ${steps.join(" ")}`);
