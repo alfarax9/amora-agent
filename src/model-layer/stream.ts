@@ -93,13 +93,21 @@ function toResponse(reply: Reply): ChatResponse {
   };
 }
 
+// The owner's Stop ends a stream as a time limit does, with its own reason.
+function onAbort(signal: AbortSignal | undefined, stopped: () => void): () => void {
+  if (!signal) return () => undefined;
+  if (signal.aborted) stopped();
+  signal.addEventListener("abort", stopped, { once: true });
+  return () => signal.removeEventListener("abort", stopped);
+}
+
 export type StreamTarget = { url: string; headers: Record<string, string>; fetchImpl: Fetch };
 
 export async function streamChat(
   { url, headers, fetchImpl }: StreamTarget,
   body: ChatRequest & Record<string, unknown>,
   { idleMs, totalMs }: StreamLimits,
-  { onText }: ChatOptions = {},
+  { onText, signal }: ChatOptions = {},
 ): Promise<ChatResponse> {
   const controller = new AbortController();
   let stalled: (() => Error) | undefined;
@@ -112,6 +120,10 @@ export async function streamChat(
     clearTimeout(idle);
     idle = setTimeout(stop(silent), idleMs);
   };
+  const unlisten = onAbort(
+    signal,
+    stop(() => new Error("The reply was stopped.")),
+  );
   try {
     const init = { method: "POST", headers, body: JSON.stringify({ ...body, stream: true }) };
     const response = await fetchImpl(url, { ...init, signal: controller.signal });
@@ -126,5 +138,6 @@ export async function streamChat(
   } finally {
     clearTimeout(total);
     clearTimeout(idle);
+    unlisten();
   }
 }
