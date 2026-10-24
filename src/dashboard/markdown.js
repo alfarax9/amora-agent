@@ -1,9 +1,11 @@
 import { el } from "./dom.js";
+import { highlight } from "./highlight.js";
 
-// The Markdown a chat reply uses, turned into elements made from text nodes
-// only, so nothing a model writes can run as HTML: paragraphs, headings,
-// lists, quotes, tables, fenced code, and inline code, bold, italic, and links
-// (http and https only, opened in a new tab).
+// The Markdown a reply uses, turned into elements made from text nodes only,
+// so nothing a model writes can run as HTML: paragraphs, headings, lists,
+// quotes, tables, fenced code with its language, Copy, and Save as artifact,
+// and inline code, bold, italic, and links (http and https only, opened in a
+// new tab).
 
 const inlinePattern = /(`[^`\n]+`|\*\*[^*\n]+\*\*|\*[^*\n]+\*|_[^_\n]+_|\[[^\]\n]+\]\([^)\s]+\))/g;
 
@@ -120,13 +122,35 @@ function prose(text) {
   return nodes;
 }
 
-// Fenced code first: inside a fence nothing is Markdown. An open fence, as
-// in a reply still streaming, runs to the end.
-export function markdown(text) {
+function codeBlock(code, language, onSave) {
+  const copy = el("button", { type: "button", class: "ghost" }, "Copy");
+  copy.addEventListener("click", async () => {
+    await globalThis.navigator.clipboard.writeText(code);
+    copy.textContent = "Copied";
+  });
+  const save = onSave
+    ? el(
+        "button",
+        { type: "button", class: "ghost", onclick: () => onSave(code, language) },
+        "Save as artifact",
+      )
+    : null;
+  return el(
+    "figure",
+    { class: "code-block" },
+    el("figcaption", {}, el("span", { class: "lang" }, language || "code"), copy, save),
+    el("pre", { class: "code" }, el("code", {}, ...highlight(code, language))),
+  );
+}
+
+// Fenced code first: inside a fence nothing is Markdown. An open fence, as in
+// a reply still streaming, runs to the end. `onSave(code, language)` offers
+// Save as artifact on each code block.
+export function markdown(text, { onSave } = {}) {
   const parts = text.split(/^```[^\n]*\n?/m);
+  // Fences open and close in turn; code part 2k + 1 follows fence 2k.
+  const fences = [...text.matchAll(/^```([^\n]*)\n?/gm)].map(([, language]) => language.trim());
   return parts.flatMap((part, index) =>
-    index % 2
-      ? [el("pre", { class: "code" }, el("code", {}, part.replace(/\n$/, "")))]
-      : prose(part),
+    index % 2 ? [codeBlock(part.replace(/\n$/, ""), fences[index - 1], onSave)] : prose(part),
   );
 }
