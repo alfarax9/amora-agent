@@ -5,7 +5,8 @@ import { createConnectFlows } from "../runtime/connect.ts";
 import { createOrchestrator } from "../runtime/orchestrator.ts";
 import { readinessGaps } from "../runtime/readiness.ts";
 import type { ChatDesk } from "../runtime/chat.ts";
-import { assignedModels } from "../model-layer/slots.ts";
+import { assistantId } from "../runtime/answer.ts";
+import { brainOf } from "../runtime/brain.ts";
 import type { TaskDesk } from "../runtime/task-routes.ts";
 import type { Agency } from "../runtime/agency.ts";
 import { agencyFor } from "./agency.ts";
@@ -56,16 +57,15 @@ function taskDesk(context: AppContext, agency: Agency, logger: Logger): TaskDesk
   return { orchestrator, storage: context.storage, roles, divisions, readiness, project };
 }
 
-// Chat talks to the owner's own models: the one they chose for chat, or the
-// global model, from those they have assigned.
-function chatDesk(context: AppContext, agency: Agency, logger: Logger): ChatDesk {
-  const { storage } = context;
-  const chosen = () => storage.getSetting<{ model: string }>("chat")?.model;
+// The agency answers in chat through its Assistant, on the Assistant's own
+// brain: the model its slot resolves to, as for every worker.
+function chatDesk(context: AppContext, agency: Agency, tasks: TaskDesk, logger: Logger): ChatDesk {
+  const { orchestrator, readiness, project } = tasks;
   return {
-    storage,
+    storage: context.storage,
+    work: { orchestrator, readiness, project },
     connect: (model) => agency.connect(model),
-    defaultModel: () => chosen() ?? agency.slots().global,
-    models: () => assignedModels(agency.slots()),
+    brain: () => brainOf(agency, assistantId),
     prompt: readFileSync(join(packageRoot, "prompts", "chat", "system.md"), "utf8"),
     logger,
   };
@@ -74,13 +74,14 @@ function chatDesk(context: AppContext, agency: Agency, logger: Logger): ChatDesk
 function dependencies(context: AppContext, logger: Logger) {
   const agency = agencyFor(context);
   const { storage, secrets, manifests, registry } = context;
+  const tasks = taskDesk(context, agency, logger);
   return {
     sessions: createSessions(),
     flows: createConnectFlows(),
     secrets,
     logger,
-    tasks: taskDesk(context, agency, logger),
-    chats: chatDesk(context, agency, logger),
+    tasks,
+    chats: chatDesk(context, agency, tasks, logger),
     // The same cached price lookup the agency estimates plans with.
     reports: { storage, secrets, manifests, registry, price: agency.price },
   };

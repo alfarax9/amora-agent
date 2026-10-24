@@ -205,16 +205,3 @@ export function chatMessages(storage: Storage, chatId: string): ChatMessage[] {
     .all(chatId) as MessageRow[];
   return rows.map(toMessage);
 }
-
-export function setChatModel(storage: Storage, chatId: string, model: string): void {
-  storage.database.prepare("UPDATE chats SET model = ? WHERE id = ?").run(model, chatId);
-}
-
-// A chat app's Delete: the words are gone, but what each reply cost stays,
-// so deleting a chat never lowers today's spend under the daily limit.
-export function deleteChat(storage: Storage, id: string, now = new Date()): void {
-  storage.database.prepare("UPDATE chat_messages SET text = '' WHERE chat_id = ?").run(id);
-  storage.database
-    .prepare("UPDATE chats SET title = '', deleted_at = ? WHERE id = ?")
-    .run(now.toISOString(), id);
-}

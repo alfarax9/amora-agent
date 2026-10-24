@@ -224,7 +224,7 @@ function streamEvents(response: ServerResponse, events: EventStream): void {
 
 async function chatApi({ request, response, url, deps }: Context): Promise<boolean> {
   if (!deps.chats) return false;
-  const reply = await handleChatApi(deps.chats, request, url.pathname);
+  const reply = await handleChatApi(deps.chats, request, url);
   if (!reply) return false;
   if ("stream" in reply) streamEvents(response, reply);
   else send(response, reply.status, JSON.stringify(reply.body));
