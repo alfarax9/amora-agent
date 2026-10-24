@@ -21,6 +21,12 @@ describe("readiness for a new task", () => {
     assert.deepEqual(readinessGaps(unprobed, project)[0]?.command, "amora models probe fake/alpha");
     agency.storage.setSetting("budgets", { dailyUsd: 1 });
     assert.deepEqual(readinessGaps(agency, project), []);
+    // A folder without a package.json has nothing for the gates to run yet.
+    const empty = mkdtempSync(join(tmpdir(), "amora-empty-"));
+    assert.deepEqual(
+      readinessGaps(agency, empty).map(({ command, fix }) => [command, fix]),
+      [["amora project --setup", "project"]],
+    );
     // A home folder chosen before it was refused counts as no project.
     assert.match(
       readinessGaps(agency, homedir())[0]?.problem ?? "",

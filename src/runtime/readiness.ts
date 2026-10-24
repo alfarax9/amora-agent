@@ -1,6 +1,6 @@
 import { resolveWorker } from "../model-layer/slots.ts";
 import type { Agency } from "./agency.ts";
-import { folderProblem } from "./projects.ts";
+import { folderProblem, hasPackageJson } from "./projects.ts";
 import { plannerId } from "./roster.ts";
 
 // What must be in place before a task is worth starting: every task begins
@@ -32,7 +32,8 @@ function plannerGap(setup: Setup): Gap | undefined {
 }
 
 // A project chosen before a folder was refused, or one that moved, would
-// fail as surely as none.
+// fail as surely as none, and one without a package.json has no scripts for
+// the gates to run.
 function projectGap(project: string | undefined): Gap | undefined {
   const fix = "project" as const;
   if (!project) {
@@ -40,7 +41,10 @@ function projectGap(project: string | undefined): Gap | undefined {
     return { problem, command: "amora project <path>", fix };
   }
   const problem = folderProblem(project);
-  return problem ? { problem, command: "amora project <path>", fix } : undefined;
+  if (problem) return { problem, command: "amora project <path>", fix };
+  if (hasPackageJson(project)) return undefined;
+  const missing = `${project} has no package.json yet, so its work cannot be checked. Set it up from the project picker.`;
+  return { problem: missing, command: "amora project --setup", fix };
 }
 
 export function readinessGaps(setup: Setup, project: string | undefined): Gap[] {
