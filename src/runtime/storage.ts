@@ -158,6 +158,14 @@ const migrations = [
      created_at TEXT NOT NULL,
      PRIMARY KEY (artifact_id, version)
    )`,
+  // Local full-text search over chats, tasks, and artifacts (search.ts). The
+  // stores write it with the same text they store, after refuseSecrets.
+  `CREATE VIRTUAL TABLE search_index USING fts5(kind UNINDEXED, ref UNINDEXED, title, body);
+   INSERT INTO search_index (kind, ref, title, body)
+     SELECT 'chat', id, title, '' FROM chats WHERE deleted_at IS NULL;
+   INSERT INTO search_index (kind, ref, title, body)
+     SELECT 'chat', chat_id, '', text FROM chat_messages WHERE text != '';
+   INSERT INTO search_index (kind, ref, title, body) SELECT 'task', id, '', brief FROM tasks`,
 ];
 
 // S6: nothing is written to the database before it has been scanned. Secrets
