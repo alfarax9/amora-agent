@@ -8,6 +8,7 @@ const scripts = [
   "app.js",
   "cards.js",
   "chat-list.js",
+  "chat-view.js",
   "chat.js",
   "costs.js",
   "dom.js",
