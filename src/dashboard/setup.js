@@ -25,7 +25,7 @@ export function setupNotice(gaps, chooseProject) {
             ? el(
                 "button",
                 { type: "button", class: "primary", onclick: chooseProject },
-                "Choose a project",
+                command === "amora project --setup" ? "Set up the project" : "Choose a project",
               )
             : null,
           el("code", { class: "command" }, command),
