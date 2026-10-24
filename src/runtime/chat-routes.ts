@@ -5,6 +5,7 @@ import { listTrash } from "./chat-history.ts";
 import { answerHistory } from "./chat-history-routes.ts";
 import { addChatMessage, chatMessages, createChat, getChat, listChats } from "./chat-store.ts";
 import { branch, showBranch } from "./chat-tree.ts";
+import { intentOf, refuseUnreadyWork, startTask } from "./intent.ts";
 import { spentSince } from "./task-store.ts";
 import { BadRequest, type JsonReply, readJson, refuseKeys } from "./task-routes.ts";
 
@@ -72,17 +73,20 @@ function thread(desk: ChatDesk, id: string): JsonReply {
 }
 
 // Stores the owner's message after `parentId` (the leaf when undefined) and
-// starts the reply to it.
+// answers it, or starts the task it asks for.
 function send(desk: ChatDesk, id: string, said: Said, parentId?: number | null): JsonReply {
   refuseBusy(id);
   refuseOverLimit(desk);
-  const brain = brainOf(desk);
+  const work = desk.work && intentOf(said.intent, said.text) === "task" ? desk.work : undefined;
+  if (work) refuseUnreadyWork(work);
+  const brain = work ? undefined : brainOf(desk);
   const message = addChatMessage(desk.storage, id, {
     role: "user",
     text: said.text,
     ...(parentId === undefined ? {} : { parentId }),
   });
-  startReply(desk, id, brain, message);
+  if (work) startTask(desk.storage, work, id, message, said.text);
+  if (brain) startReply(desk, id, brain, message);
   return { ...thread(desk, id), status: 202 };
 }
 

@@ -5,7 +5,7 @@ import { answer, assistant, call, chatWorld, eventsOf } from "./chat-fixture.ts"
 
 describe("chat API", () => {
   const world = chatWorld();
-  const { requests, script, post, get, thread, settled, start } = world;
+  const { requests, script, created, post, get, thread, settled, start } = world;
 
   it("starts a chat, streams the reply as events, and stores it with its cost", async () => {
     let release = () => undefined as void;
@@ -104,6 +104,35 @@ describe("chat API", () => {
     assert.equal(none.status, 409);
     assert.match(JSON.parse(none.body).error, /no model that fits.*amora models set global/);
     world.setBrain(assistant);
+  });
+
+  it("starts a task from work, as a card after the message that is never edited or retried", async () => {
+    world.setGaps([{ problem: "No daily limit is set.", command: "amora budget --daily <usd>" }]);
+    const refused = await post("/api/chats", { message: "Add a dark mode toggle", intent: "task" });
+    assert.equal(refused.status, 409);
+    assert.match(JSON.parse(refused.body).error, /amora budget --daily/);
+    world.setGaps([]);
+    assert.equal((await post("/api/task-budget", { usd: 0 })).status, 400);
+    assert.deepEqual(JSON.parse((await post("/api/task-budget", { usd: 2.5 })).body), { usd: 2.5 });
+    const id = await start("Add a dark mode toggle", "auto");
+    const shown = await thread(id);
+    assert.deepEqual(
+      shown.messages.map(({ role, kind, worker }) => [role, kind, worker]),
+      [
+        ["user", "text", null],
+        ["assistant", "card", "planner-decomposer"],
+      ],
+    );
+    assert.deepEqual(created.at(-1), {
+      brief: "Add a dark mode toggle",
+      budgetUsd: 2.5,
+      chatId: id,
+    });
+    assert.equal(typeof shown.messages[1]?.taskId, "string");
+    const edit = { messageId: shown.messages[0]?.id, message: "Add a light mode" };
+    assert.equal((await post(`/api/chats/${id}/edit`, edit)).status, 409);
+    const retry = await post(`/api/chats/${id}/retry`, { messageId: shown.messages[1]?.id });
+    assert.equal(retry.status, 409);
   });
 
   it("keeps every version: a retry and an edit add siblings, and the branch can switch", async () => {
