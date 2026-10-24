@@ -207,7 +207,7 @@ describe("the project picker's API", () => {
       listed.projects.map(({ name, current }) => [name, current]),
       [["Shop", true]],
     );
-    assert.deepEqual(listed.projects[0]?.missingScripts, ["typecheck", "test"]);
+    assert.deepEqual(listed.projects[0]?.missingScripts, ["test"]);
     assert.equal(listed.delivery, "branch");
     const refused = await call(runtime.port, "POST", "/api/projects", cookie, {
       path: join(shop, "package.json"),

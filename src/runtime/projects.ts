@@ -26,8 +26,10 @@ export type ProjectCheck = Project & {
 
 export class ProjectError extends Error {}
 
-// lint_and_typecheck_pass runs lint and typecheck; tests_pass runs test.
-const checkScripts = ["lint", "typecheck", "test"];
+// lint_and_typecheck_pass runs lint and typecheck, tests_pass runs test; a
+// gate runs whichever of its scripts the project has, and asks the owner only
+// when it has none of them.
+const gateScripts = [["lint", "typecheck"], ["test"]];
 
 export function currentProject(storage: Storage): string | undefined {
   return storage.getSetting<{ path: string } | null>("project")?.path;
@@ -84,7 +86,9 @@ export function inspectProject(project: Project, current: string | undefined): P
     current: project.path === current,
     problems,
     needsSetup: !problem && !hasPackageJson(project.path),
-    missingScripts: checkScripts.filter((name) => !(name in (scripts ?? {}))),
+    missingScripts: gateScripts
+      .filter((names) => names.every((name) => !(name in (scripts ?? {}))))
+      .flat(),
     git: !problem && isGitProject(project.path),
   };
 }
