@@ -28,6 +28,7 @@ import {
   listHandoffs,
   listTasks,
   type Plan,
+  type PlanQuestion,
   type Task,
 } from "./task-store.ts";
 
@@ -84,6 +85,7 @@ type RosterEntry = ReturnType<typeof roster>[number];
 // and each one comes after a worker that delivers what it needs.
 function checkPlan(output: unknown, workers: RosterEntry[]): string[] {
   const plan = output as Plan;
+  if (plan.question) return [];
   const problems = plan.steps.length === 0 ? ["/steps has no steps."] : [];
   const delivered = new Set([briefContract]);
   for (const [index, step] of plan.steps.entries()) {
@@ -98,6 +100,16 @@ function checkPlan(output: unknown, workers: RosterEntry[]): string[] {
     if (worker) delivered.add(worker.delivers);
   }
   return problems;
+}
+
+// The Planner's draft becomes the plan to approve, priced, or its question.
+async function placePlan(desk: Desk, id: string, spent: Task, drafted: Plan): Promise<Task> {
+  if (drafted.question) return askOwner(desk, id, spent, drafted);
+  const estimate = await estimatePlan(desk.agency, drafted.steps);
+  const planned = { ...load(desk, id), spentUsd: spent.spentUsd };
+  if (planned.status !== "planning") return save(desk, planned);
+  const withPlan = { ...planned, plan: { ...drafted, estimate }, feedback: [], quotaWaits: 0 };
+  return move(desk, withPlan, "awaiting_plan_approval");
 }
 
 async function plan(desk: Desk, id: string): Promise<Task> {
@@ -122,15 +134,19 @@ async function plan(desk: Desk, id: string): Promise<Task> {
     if (outcome.result !== "passed") {
       return move(desk, spent, "awaiting_decision", `The plan is not ready. ${describe(outcome)}`);
     }
-    const drafted = outcome.output as Plan;
-    const estimate = await estimatePlan(desk.agency, drafted.steps);
-    const planned = { ...load(desk, id), spentUsd: spent.spentUsd };
-    if (planned.status !== "planning") return save(desk, planned);
-    const withPlan = { ...planned, plan: { ...drafted, estimate }, feedback: [], quotaWaits: 0 };
-    return move(desk, withPlan, "awaiting_plan_approval");
+    return await placePlan(desk, id, spent, outcome.output as Plan);
   } catch (error) {
     return stopAfterError(desk, id, "planning", error);
   }
+}
+
+// The Planner asked instead of planning: the question waits where a plan
+// would, and the owner's answer revises it like any feedback.
+function askOwner(desk: Desk, id: string, spent: Task, drafted: Plan): Task {
+  const question = drafted.question as PlanQuestion;
+  say(desk, id, "agency", question.text);
+  const asking = { ...spent, plan: { ...drafted, steps: [] }, feedback: [], quotaWaits: 0 };
+  return move(desk, asking, "awaiting_plan_approval");
 }
 
 const begin = (desk: Desk, id: string) => firstStep(desk, id, plan);
@@ -156,6 +172,7 @@ async function approve(desk: Desk, id: string): Promise<Task> {
   if (task.status !== "awaiting_plan_approval" || !task.plan) {
     throw new Refusal("Only a task waiting for plan approval can be approved.");
   }
+  if (task.plan.question) throw new Refusal("Answer the Planner's question first.");
   if (dailyLimit(desk) === undefined) {
     throw new Refusal("Set a daily budget before approving a task: amora budget --daily <usd>");
   }

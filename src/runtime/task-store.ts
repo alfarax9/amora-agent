@@ -12,7 +12,15 @@ export type PlanStep = { worker: string; goal: string; acceptance?: string };
 // Computed by the runtime from model prices, never by a model: `unpriced`
 // names the models whose price nobody knows yet.
 export type Estimate = { usd: number; unpriced: string[] };
-export type Plan = { summary: string; steps: PlanStep[]; estimate?: Estimate };
+// A plan the Planner could not draft without the owner's answer carries the
+// question instead of steps; the answer revises it (orchestrator.ts).
+export type PlanQuestion = { text: string; choices: string[] };
+export type Plan = {
+  summary: string;
+  steps: PlanStep[];
+  question?: PlanQuestion | null;
+  estimate?: Estimate;
+};
 
 export type Task = {
   id: string;
