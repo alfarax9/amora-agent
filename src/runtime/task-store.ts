@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { indexText } from "./search.ts";
 import { refuseSecrets, type Storage } from "./storage.ts";
 import type { TaskStatus } from "./task-states.ts";
 
@@ -37,6 +38,8 @@ export type Task = {
   returns: number;
   reason?: string;
   project?: string;
+  // The chat the task started in, when it started in one.
+  chatId?: string;
   // Set while the task waits for a provider's quota: when it resumes itself.
   resumeAt?: string;
   // Quota waits in a row; a passed step or plan starts the count again.
@@ -79,6 +82,7 @@ type TaskRow = {
   returns: number;
   reason: string | null;
   project: string | null;
+  chat_id: string | null;
   resume_at: string | null;
   quota_waits: number;
   created_at: string;
@@ -111,6 +115,7 @@ function toTask(row: TaskRow): Task {
     returns: row.returns,
     ...(row.reason === null ? {} : { reason: row.reason }),
     ...(row.project === null ? {} : { project: row.project }),
+    ...(row.chat_id === null ? {} : { chatId: row.chat_id }),
     ...(row.resume_at === null ? {} : { resumeAt: row.resume_at }),
     quotaWaits: row.quota_waits,
     createdAt: row.created_at,
@@ -124,6 +129,7 @@ export function createTask(
   budgetUsd: number,
   now = new Date(),
   project?: string,
+  chatId?: string,
 ) {
   refuseSecrets(brief, "a task brief");
   const at = now.toISOString();
@@ -139,16 +145,18 @@ export function createTask(
     returns: 0,
     quotaWaits: 0,
     ...(project === undefined ? {} : { project }),
+    ...(chatId === undefined ? {} : { chatId }),
     createdAt: at,
     updatedAt: at,
   };
   storage.database
     .prepare(
       `INSERT INTO tasks (id, brief, status, budget_usd, spent_usd, plan, step, attempt, feedback,
-       reason, project, created_at, updated_at)
-       VALUES (?, ?, ?, ?, 0, NULL, 0, 0, '[]', NULL, ?, ?, ?)`,
+       reason, project, chat_id, created_at, updated_at)
+       VALUES (?, ?, ?, ?, 0, NULL, 0, 0, '[]', NULL, ?, ?, ?, ?)`,
     )
-    .run(task.id, brief, task.status, budgetUsd, project ?? null, at, at);
+    .run(task.id, brief, task.status, budgetUsd, project ?? null, chatId ?? null, at, at);
+  indexText(storage, "task", task.id, { body: brief });
   return task;
 }
 
