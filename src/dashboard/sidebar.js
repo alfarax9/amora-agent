@@ -1,7 +1,8 @@
 import { el } from "./dom.js";
+import { sessionStatus } from "./status.js";
 
-// The sidebar's recent Octa Code sessions, grouped by project folder as Claude
-// Code groups them, and the names the pages give each status.
+// The sidebar's recent Octa Code sessions, grouped by repository, each with
+// its status as a shape and a word; and the names the pages give each status.
 
 export const statusNames = {
   planning: "Planning",
@@ -31,12 +32,13 @@ function link(task, selected) {
   return el(
     "a",
     {
-      class: "task-link",
-      href: `#task-${task.id}`,
+      class: "task-link session-link",
+      href: `/code/${task.id}`,
       title: titleOf(task),
       "aria-current": task.id === selected ? "page" : undefined,
     },
-    titleOf(task),
+    sessionStatus(task, { compact: true }),
+    el("span", { class: "link-text" }, titleOf(task)),
   );
 }
 
