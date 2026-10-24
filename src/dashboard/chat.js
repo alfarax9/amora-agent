@@ -1,93 +1,135 @@
+import { call } from "./api.js";
+import { openArtifact } from "./artifacts.js";
+import { deleteChat, exportChat, renameChat, renderChatList } from "./chat-list.js";
+import { brainText, homeView, messageView, reply, threadHead } from "./chat-view.js";
 import { el } from "./dom.js";
-import { markdown } from "./markdown.js";
+import { go } from "./router.js";
 
-// Chat: plain conversations with a model, as in a chat app, apart from the
-// code team's sessions. #chat is a new chat; #chat-<id> is one chat, whose
-// reply streams in as server-sent events and is drawn as Markdown.
+// Chat: conversations with the agency (app spec §8). A question is answered
+// by the Assistant as it streams in; work becomes a task, shown as its cards.
+// / is a new chat and /chat/<id> one chat. Replies stream as server-sent
+// events; Stop keeps what was written, and every retry and edit is a version.
 
 const $ = (id) => document.getElementById(id);
 const composer = $("chat-composer");
 const input = $("chat-input");
 const send = $("chat-send");
-const picker = $("chat-model");
+const intent = $("chat-intent");
 const error = $("chat-error");
-const state = { chats: [], models: [], model: null, thread: null, live: null, id: null };
-let call;
+const state = { list: { chats: [], trash: [] }, brain: null, thread: null, live: null, id: null };
+let app;
 let root;
 let events;
+let editing = null;
 
-const shortName = (model) => model.split("/").at(-1) ?? model;
+const streaming = () => Boolean(state.live && !state.live.error);
 
-function greeting() {
-  const hour = new Date().getHours();
-  return hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
+function announce(text) {
+  $("live").textContent = text;
 }
 
-export function renderChatList() {
-  if (state.chats.length === 0) return [el("p", { class: "meta task-link" }, "No chats yet.")];
-  return state.chats.map((chat) =>
-    el(
-      "a",
-      {
-        class: "task-link",
-        href: `#chat-${chat.id}`,
-        title: chat.title,
-        "aria-current": chat.id === state.id ? "page" : undefined,
-      },
-      chat.title,
-    ),
-  );
+function stored(key, value) {
+  try {
+    if (value === undefined) return globalThis.localStorage.getItem(key) ?? "";
+    if (value) globalThis.localStorage.setItem(key, value);
+    else globalThis.localStorage.removeItem(key);
+  } catch {
+    return "";
+  }
+  return value;
 }
 
-function drawPicker(current) {
-  const options = state.models.length ? state.models : current ? [current] : [];
-  picker.replaceChildren(
-    ...options.map((model) =>
-      el(
-        "option",
-        { value: model, selected: model === current ? "" : undefined },
-        shortName(model),
-      ),
-    ),
-  );
-  picker.disabled = options.length === 0;
+const draftKey = () => `amora.draft.${state.id ?? "new"}`;
+
+function drawList() {
+  const changed = (reply) => {
+    state.list = { chats: reply.chats, trash: reply.trash ?? state.list.trash };
+    drawList();
+    if (state.id && state.thread) void open(state.id);
+  };
+  $("chat-list").replaceChildren(...renderChatList(state.list, state.id, changed));
 }
 
-function copyButton(text) {
-  const button = el("button", { type: "button", class: "ghost" }, "Copy");
-  button.addEventListener("click", async () => {
-    await globalThis.navigator.clipboard.writeText(text);
-    button.textContent = "Copied";
-  });
-  return button;
+function drawComposer() {
+  const [text, detail] = brainText(state.brain);
+  $("chat-brain").textContent = text;
+  $("chat-brain").title = detail;
+  send.textContent = streaming() ? "■" : "↑";
+  send.setAttribute("aria-label", streaming() ? "Stop the reply" : "Send");
+  send.title = streaming() ? "Stop (Esc)" : "Send (Enter)";
+  send.classList.toggle("ready", streaming() || input.value.trim() !== "");
+  const project = app.data?.project;
+  $("chat-note").textContent =
+    intent.value === "task"
+      ? `Work runs on ${project ?? "no project yet: choose one in Octa Code"}.`
+      : "";
 }
 
-function reply(text, { streaming = false, failed = null } = {}) {
-  const body = text
-    ? markdown(text)
-    : [el("span", { class: "typing" }, el("span"), el("span"), el("span"))];
-  const actions = failed
-    ? el(
-        "div",
-        { class: "reply-actions" },
-        el("p", { class: "error" }, failed),
-        el("button", { type: "button", class: "secondary", onclick: retry }, "Retry"),
+const handlers = {
+  act: (...args) => app.act(...args),
+  show: (id) => void post(`/api/chats/${state.id}/branch`, { messageId: id }),
+  retry: (messageId) => void post(`/api/chats/${state.id}/retry`, messageId ? { messageId } : {}),
+  edit: (message, text) => {
+    editing = null;
+    void post(`/api/chats/${state.id}/edit`, {
+      messageId: message.id,
+      message: text,
+      intent: intent.value,
+    });
+  },
+  startEdit: (id) => ((editing = id), drawThread()),
+  redraw: () => ((editing = null), drawThread()),
+  saveCode: (code, language) => void saveCode(code, language),
+};
+
+function drawThread() {
+  if (!state.thread) return;
+  const { chat, messages } = state.thread;
+  const view = { data: app.data, brain: state.brain, editing };
+  const live = state.live
+    ? reply(
+        {
+          worker: "assistant",
+          text: state.live.text,
+          streaming: !state.live.error,
+          failed: state.live.error,
+          versions: [],
+        },
+        view,
+        handlers,
       )
-    : streaming
-      ? null
-      : el("div", { class: "reply-actions" }, copyButton(text));
-  return el(
-    "li",
-    { class: "reply" },
-    el("span", { class: "agency-mark", "aria-hidden": "true" }, "A"),
-    el("div", { class: "reply-body" }, el("div", { class: "prose" }, body), actions),
+    : null;
+  // A reply being written replaces what followed the message it answers.
+  const answering = state.live ? messages.findIndex(({ id }) => id === state.live.parentId) : -1;
+  const shown = answering >= 0 ? messages.slice(0, answering + 1) : messages;
+  const list = el(
+    "ol",
+    { class: "messages chat-messages" },
+    shown.map((message) => messageView(message, view, handlers)),
+    live,
   );
+  const thread = el("div", { class: "thread chat-thread" }, list);
+  const old = root.querySelector(".chat-thread");
+  const atEnd = !old || old.scrollHeight - old.scrollTop - old.clientHeight < 80;
+  const top = old?.scrollTop ?? 0;
+  shell().replaceChildren(threadHead(chat, chatActions(chat)), thread);
+  thread.scrollTop = atEnd ? thread.scrollHeight : top;
+  drawComposer();
 }
 
-function message({ role, text }) {
-  return role === "user"
-    ? el("li", { class: "you" }, el("p", { class: "duo" }, text))
-    : reply(text);
+function chatActions(chat) {
+  const changed = (listed) => (
+    (state.list = { chats: listed.chats, trash: listed.trash }),
+    drawList(),
+    void open(chat.id)
+  );
+  return {
+    rename: () => void renameChat(chat, changed),
+    star: () =>
+      void call("POST", `/api/chats/${chat.id}/star`, { starred: !chat.starred }).then(changed),
+    exportChat: () => void exportChat(chat.id),
+    remove: () => void deleteChat(chat, (listed) => ((state.list = listed), drawList()), true),
+  };
 }
 
 // The thread redraws as a reply streams in; the composer stays where it is,
@@ -101,66 +143,43 @@ function shell() {
   return body;
 }
 
-function drawThread() {
-  const { chat, messages } = state.thread;
-  const live = state.live;
-  const list = el(
-    "ol",
-    { class: "messages chat-messages" },
-    messages.map(message),
-    live ? reply(live.text, { streaming: !live.error, failed: live.error ?? null }) : null,
-  );
-  const head = el(
-    "header",
-    { class: "thread-head" },
-    el("h1", {}, chat.title),
-    el("button", { type: "button", class: "ghost", onclick: remove }, "Delete"),
-  );
-  const thread = el("div", { class: "thread chat-thread" }, list);
-  shell().replaceChildren(head, thread);
-  thread.scrollTop = thread.scrollHeight;
-  drawPicker(chat.model);
-  input.placeholder = "Reply to AMORA…";
-}
-
 function drawHome() {
-  const start = el(
-    "div",
-    { class: "start chat-start" },
-    el("h1", {}, greeting()),
-    el("p", { class: "meta" }, "Ask anything. For work on a project, start an Octa Code session."),
-  );
+  const start = homeView(app.data, (text) => {
+    input.value = text;
+    input.focus();
+    drawComposer();
+  });
   root.replaceChildren(start);
   start.append(composer);
-  drawPicker(state.model);
-  input.placeholder = "How can I help you today?";
   input.focus();
+  drawComposer();
 }
 
 function follow(id) {
   events?.close();
+  announce("AMORA is replying.");
   events = new globalThis.EventSource(`/api/chats/${id}/events`);
   const update = (change) => {
     if (state.id !== id) return events.close();
     change();
     drawThread();
   };
-  events.addEventListener("snapshot", (event) =>
-    update(() => (state.live = JSON.parse(event.data))),
-  );
+  const parse = (event) => JSON.parse(event.data);
+  events.addEventListener("snapshot", (event) => update(() => (state.live = parse(event))));
   events.addEventListener("text", (event) =>
-    update(() => (state.live = { text: (state.live?.text ?? "") + JSON.parse(event.data).text })),
-  );
-  events.addEventListener("reset", () => update(() => (state.live = { text: "" })));
-  events.addEventListener("failed", (event) => {
     update(
-      () => (state.live = { text: state.live?.text ?? "", error: JSON.parse(event.data).error }),
-    );
+      () => (state.live = { ...state.live, text: (state.live?.text ?? "") + parse(event).text }),
+    ),
+  );
+  events.addEventListener("reset", () => update(() => (state.live = { ...state.live, text: "" })));
+  events.addEventListener("failed", (event) => {
+    update(() => (state.live = { ...state.live, error: parse(event).error }));
     events.close();
   });
+  const finish = () => (events.close(), announce("The reply is done."), void open(id));
   // The connection itself failing: the stored chat says where it stands.
-  events.addEventListener("error", () => (events.close(), void open(id)));
-  events.addEventListener("done", () => (events.close(), void open(id)));
+  events.addEventListener("error", finish);
+  events.addEventListener("done", finish);
 }
 
 async function open(id) {
@@ -169,24 +188,41 @@ async function open(id) {
   state.thread = thread;
   state.live = thread.pending;
   drawThread();
-  if (thread.pending && !thread.pending.error) follow(id);
+  if (streaming()) follow(id);
 }
 
-async function loadChats() {
+async function post(path, body) {
+  error.textContent = "";
+  try {
+    const reply = await call("POST", path, body);
+    state.thread = reply;
+    state.live = reply.pending;
+    drawThread();
+    if (streaming()) follow(state.id);
+  } catch (failure) {
+    error.textContent = failure.message;
+  }
+}
+
+async function loadList() {
   const overview = await call("GET", "/api/chats");
-  Object.assign(state, { chats: overview.chats, models: overview.models, model: overview.model });
+  state.list = { chats: overview.chats, trash: overview.trash };
+  state.brain = overview.brain;
+  drawList();
 }
 
-// Shows #chat or #chat-<id> in `container`; the chat list is reloaded first.
-export async function showChat(container, id, changed) {
+// Shows / or /chat/<id> in `container`.
+export async function showChat(container, id) {
   root = container;
   state.id = id;
+  state.thread = null;
+  state.live = null;
+  editing = null;
   composer.hidden = false;
   error.textContent = "";
-  await loadChats();
-  changed();
+  input.value = stored(draftKey());
+  await loadList();
   if (!id) return drawHome();
-  state.thread = null;
   root.replaceChildren(
     el("div", { class: "page" }, el("p", { class: "meta" }, "Opening the chat…")),
   );
@@ -195,57 +231,54 @@ export async function showChat(container, id, changed) {
 
 async function submit() {
   const text = input.value.trim();
-  // One reply at a time: the next message waits until this one is written.
-  if (!text || (state.live && !state.live.error)) return;
-  error.textContent = "";
+  if (streaming()) return void call("POST", `/api/chats/${state.id}/stop`);
+  if (!text) return;
+  const path = state.id ? `/api/chats/${state.id}/messages` : "/api/chats";
+  const draft = draftKey();
   try {
-    const path = state.id ? `/api/chats/${state.id}/messages` : "/api/chats";
-    const body = state.id ? { message: text } : { message: text, model: picker.value || undefined };
-    const reply = await call("POST", path, body);
+    const reply = await call("POST", path, { message: text, intent: intent.value });
     input.value = "";
     input.style.height = "";
-    send.classList.remove("ready");
-    if (!state.id) return void (globalThis.location.hash = `#chat-${reply.chat.id}`);
+    stored(draft, "");
+    if (!state.id) return go(`/chat/${reply.chat.id}`);
     state.thread = reply;
-    state.live = reply.pending ?? { text: "" };
+    state.live = reply.pending ?? null;
     drawThread();
-    follow(state.id);
+    if (streaming()) follow(state.id);
+    void loadList();
+    void app.refresh();
   } catch (failure) {
     error.textContent = failure.message;
   }
 }
 
-async function retry() {
-  const reply = await call("POST", `/api/chats/${state.id}/retry`);
-  state.thread = reply;
-  state.live = { text: "" };
-  drawThread();
-  follow(state.id);
-}
-
-async function remove() {
-  if (
-    !globalThis.confirm(
-      "Delete this chat? Its messages are removed; what it cost stays in today's spend.",
-    )
-  )
-    return;
-  await call("POST", `/api/chats/${state.id}/delete`);
-  globalThis.location.hash = "#chat";
-}
-
-async function chooseModel() {
-  const model = picker.value;
-  const path = state.id ? `/api/chats/${state.id}/model` : "/api/chat/model";
+async function saveCode(code, language) {
+  const title = `${language || "Code"} from ${state.thread?.chat.title ?? "a chat"}`;
   try {
-    await call("POST", path, { model });
+    const { artifact } = await call("POST", "/api/artifacts", {
+      title,
+      kind: "code",
+      language,
+      content: code,
+      chatId: state.id,
+    });
+    openArtifact(artifact.id);
   } catch (failure) {
     error.textContent = failure.message;
   }
 }
 
-export function initChat(options) {
-  call = options.call;
+// The cards follow their tasks: each poll that changed something redraws them.
+// The home page's suggestions wait for the first poll, which says which
+// divisions are installed.
+export function tasksChanged() {
+  if (state.thread?.messages.some(({ kind }) => kind === "card")) drawThread();
+  const home = !state.id && root?.querySelector(".chat-start");
+  if (home && !home.querySelector(".suggestions") && app.data) drawHome();
+}
+
+export function initChat(context) {
+  app = context;
   input.addEventListener("keydown", (event) => {
     if (event.key !== "Enter" || event.shiftKey || event.isComposing) return;
     event.preventDefault();
@@ -253,11 +286,16 @@ export function initChat(options) {
   });
   input.addEventListener("input", () => {
     input.style.height = "auto";
-    input.style.height = `${input.scrollHeight}px`;
-    send.classList.toggle("ready", input.value.trim() !== "");
+    input.style.height = `${Math.min(input.scrollHeight, globalThis.innerHeight * 0.4)}px`;
+    stored(draftKey(), input.value);
+    drawComposer();
   });
+  intent.addEventListener("change", drawComposer);
   send.addEventListener("click", () => void submit());
-  picker.addEventListener("change", () => void chooseModel());
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && streaming() && !composer.hidden)
+      void call("POST", `/api/chats/${state.id}/stop`);
+  });
 }
 
 export function leaveChat() {

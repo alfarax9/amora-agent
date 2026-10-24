@@ -1,4 +1,6 @@
+import { chatComposer, codeComposer, dialogs, sidebar, topbar } from "./app-shell.ts";
 import { chatStyle } from "./chat-style.ts";
+import { shellStyle } from "./shell-style.ts";
 import { dashboardStyle } from "./dashboard-style.ts";
 
 // The runtime's pages. Everything is served from this origin: the runtime
@@ -102,77 +104,10 @@ ${keyed ? creditLimit : ""}
 </section>`;
 }
 
-// The composer is one element the script moves between the new-task page and
-// a task's thread, so what the owner is typing survives every re-render.
-const composer = `<div id="composer" class="composer-wrap" hidden>
-<div class="composer">
-<textarea id="brief" rows="1" aria-label="Message to the agency" placeholder="Message the agency"></textarea>
-<button id="send" type="button" class="send" aria-label="Send" title="Send (Enter)">↑</button>
-</div>
-<div class="composer-row">
-<button id="project-chip" type="button" class="project-chip" aria-haspopup="dialog" hidden>Choose a project</button>
-<label id="budget-field" for="budget">Task budget $<input id="budget" type="number" min="0.01" step="0.01" value="1.00"></label>
-<span id="composer-note"></span>
-</div>
-<p id="composer-error" class="error" role="alert"></p>
-</div>
-<dialog id="project-picker" class="picker" aria-labelledby="picker-title"></dialog>`;
-
-const topbar = `<header class="topbar">
-<ul class="status-list">
-<li><button id="toggle-sidebar" type="button" class="secondary only-narrow" aria-label="Show navigation">☰</button></li>
-<li class="here"><svg aria-hidden="true" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg> <span id="address"></span></li>
-<li>Orchestrator <span id="orchestrator-status" class="ok">OK</span></li>
-<li id="gateway-item">Gateway <span id="gateway-status"></span></li>
-</ul>
-<div class="top-right">
-<span id="budget-meter" class="budget wide-only"></span>
-<button id="pause" type="button" class="secondary" hidden>Pause all workers</button>
-</div>
-</header>`;
-
-// Two modes, as the Claude app has chat and code: Chat talks with a model;
-// Octa Code works with the team on a project. Each shows its own sidebar.
-const chatIcon = `<svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.4A8 8 0 1 1 21 12z"/></svg>`;
-const codeIcon = `<svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m8 6-6 6 6 6M16 6l6 6-6 6M14 4l-4 16"/></svg>`;
-
-const sidebar = `<nav class="sidebar" aria-label="Dashboard">
-<div class="modes" role="group" aria-label="Mode">
-<a class="mode" data-mode="chat" href="#chat">${chatIcon} Chat</a>
-<a class="mode" data-mode="code" href="#new">${codeIcon} Octa Code</a>
-</div>
-<a href="#chat" class="primary new-task for-chat"><span aria-hidden="true">+</span> New chat</a>
-<a id="new-task" href="#new" class="primary new-task for-code"><span aria-hidden="true">+</span> New session</a>
-<div class="nav for-code">
-<a class="nav-item" data-route="overview" href="#overview">Overview</a>
-<a class="nav-item" data-route="tasks" href="#tasks">Sessions <span id="decision-count" class="count" hidden></span></a>
-<a class="nav-item" data-route="workers" href="#workers">Workers</a>
-<a class="nav-item" data-route="models" href="#models">Models</a>
-<a class="nav-item" data-route="costs" href="#costs">Costs</a>
-</div>
-<p class="section-title for-chat">Chats</p>
-<div id="chat-list" class="recent for-chat"></div>
-<div id="recent" class="recent for-code"></div>
-<div class="sidebar-foot"><a class="nav-item" data-route="settings" href="#settings">Settings</a></div>
-</nav>`;
-
-// The chat composer, which the chat script moves between a new chat and a
-// chat's thread, with the model the chat talks to.
-const chatComposer = `<div id="chat-composer" class="composer-wrap" hidden>
-<div class="composer">
-<textarea id="chat-input" rows="1" aria-label="Message" placeholder="How can I help you today?"></textarea>
-<button id="chat-send" type="button" class="send" aria-label="Send" title="Send (Enter)">↑</button>
-</div>
-<div class="composer-row"><label class="model-chip" for="chat-model">Model <select id="chat-model"></select></label></div>
-<p id="chat-error" class="error" role="alert"></p>
-</div>`;
-
-// The agency (PRD §8 and the dashboard PRD), after the AMORA website: a top
-// bar with the runtime's state, the budget, and Pause on every page; Chat and
-// Octa Code in the sidebar, Octa Code with New session, Overview, Sessions, a
-// session's thread with its plan, changes, and log beside it, Workers, Models,
-// and Costs; Settings for both. The page is static; its scripts fetch the API
-// and render with text nodes only.
+// The AMORA App (the app spec, milestone A1): one page for every path, whose
+// scripts draw the page the address names (router.js). The frame is in
+// app-shell.ts; the page is static, and its scripts fetch the API and render
+// with text nodes only.
 export function dashboardPage(state: { maskedKey?: string; chat: boolean }): string {
   const gateway = state.maskedKey
     ? `OpenRouter connected (key <code>${escapeHtml(state.maskedKey)}</code>)`
@@ -181,15 +116,15 @@ export function dashboardPage(state: { maskedKey?: string; chat: boolean }): str
     ? `<div id="view" class="main-view"></div>`
     : `<div class="page"><p class="meta">The agency chat is not running in this process.</p></div>`;
   return page(
-    "Agency",
-    `<style>${dashboardStyle}${chatStyle}</style>
+    "Chat",
+    `<style>${dashboardStyle}${shellStyle}${chatStyle}</style>
 <div class="app" id="app" data-mode="chat" data-gateway="${state.maskedKey ? "connected" : "missing"}">
 ${topbar}
 ${sidebar}
-<div class="main"><p id="action-error" class="error" role="alert"></p>${view}${settingsPage(gateway, state.maskedKey !== undefined)}</div>
-<aside id="panel" class="panel" aria-label="Task details" hidden></aside>
+<div class="main" id="main"><p id="action-error" class="error" role="alert"></p>${view}${settingsPage(gateway, state.maskedKey !== undefined)}</div>
+<aside id="panel" class="panel" aria-label="Side panel" hidden></aside>
 </div>
-${state.chat ? composer + chatComposer : ""}
+${state.chat ? codeComposer + chatComposer + dialogs : ""}
 <script type="module" src="/dashboard/settings.js"></script>
 ${state.chat ? `<script type="module" src="/dashboard/app.js"></script>` : ""}`,
     "dashboard",

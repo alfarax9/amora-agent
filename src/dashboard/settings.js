@@ -142,12 +142,12 @@ document.getElementById("save-task-budget")?.addEventListener("click", async () 
 });
 
 // Read each time Settings opens, so the figures are current.
-const onSettings = () => globalThis.location.hash === "#settings";
+const onSettings = () => globalThis.location.pathname === "/settings";
 const opened = () => {
   if (!onSettings()) return;
   if (rules) void loadRules();
   if (taskBudget) void loadTaskBudget();
   if (shown) void load();
 };
-globalThis.addEventListener("hashchange", opened);
+globalThis.addEventListener("amora:route", opened);
 opened();

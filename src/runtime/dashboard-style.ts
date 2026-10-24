@@ -45,8 +45,6 @@ export const dashboardStyle = `
   input, textarea, select { background: var(--bg-alt); color: var(--text); border: 1px solid var(--border-strong); border-radius: var(--radius); padding: .45rem .6rem; font: inherit; box-sizing: border-box; }
   label { display: block; font-size: .75rem; color: var(--text-tertiary); margin: .75rem 0 .3rem; }
 
-  .app { display: grid; grid-template: "top top top" auto "side main panel" minmax(0, 1fr) / 13rem minmax(0, 1fr) auto; height: 100vh; }
-  .topbar { grid-area: top; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .75rem; border-bottom: 1px solid var(--border); padding: .6rem 1rem; font-size: .75rem; }
   .status-list { display: flex; flex-wrap: wrap; align-items: center; gap: .25rem 1rem; list-style: none; margin: 0; padding: 0; color: var(--text-tertiary); }
   .status-list .here { color: var(--text); }
   .ok { color: var(--highlight-to); } .off { color: var(--text); }
@@ -57,19 +55,7 @@ export const dashboardStyle = `
   .bar.over span { background: var(--danger); }
   .budget b { color: var(--text); font-weight: 400; }
 
-  .sidebar { grid-area: side; border-right: 1px solid var(--border); padding: .75rem; display: flex; flex-direction: column; gap: 1rem; min-height: 0; overflow-y: auto; }
-  .new-task { display: flex; align-items: center; justify-content: center; gap: .4rem; font-size: .8125rem; }
-  .nav { display: flex; flex-direction: column; gap: 2px; }
-  .nav-item { display: flex; justify-content: space-between; text-align: left; border-radius: var(--radius); padding: .5rem .75rem; font-size: .8125rem; color: var(--text-tertiary); text-decoration: none; }
-  .nav-item[aria-current="page"] { background: var(--overlay); color: var(--text); }
-  .count { font-size: .6875rem; border-radius: 999px; padding: 0 .4rem; background: var(--overlay); color: var(--text); }
-  .section-title { font-size: .6875rem; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: .06em; margin: 0 .75rem; }
-  .recent { display: flex; flex-direction: column; gap: 2px; }
-  .task-link { display: block; text-align: left; border-radius: var(--radius); padding: .4rem .75rem; font-size: .75rem; color: var(--text-secondary); text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .task-link[aria-current="page"] { background: var(--overlay); color: var(--text); }
 
-  .main { grid-area: main; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
-  .main-view { display: flex; flex-direction: column; min-height: 0; flex: 1; }
   .status-list li { display: flex; align-items: center; gap: .375rem; }
   .page { overflow-y: auto; padding: 1.25rem 1.5rem 2rem; display: flex; flex-direction: column; gap: 1rem; }
   .page-head { display: flex; align-items: center; gap: .75rem; flex-wrap: wrap; }
@@ -150,7 +136,6 @@ export const dashboardStyle = `
   .start h1 { font-size: 2rem; font-weight: 400; letter-spacing: -.02em; margin-bottom: .5rem; }
   .start .composer-wrap { padding: 1.25rem 0 0; text-align: left; }
 
-  .panel { grid-area: panel; width: 24rem; border-left: 1px solid var(--border); display: flex; flex-direction: column; min-height: 0; background: var(--bg-alt); }
   .tabs { display: flex; gap: .25rem; padding: .5rem; border-bottom: 1px solid var(--border); }
   .tab { border-radius: var(--radius); padding: .35rem .75rem; font-size: .8125rem; color: var(--text-tertiary); }
   .tab[aria-selected="true"] { background: var(--overlay); color: var(--text); }
@@ -226,17 +211,4 @@ export const dashboardStyle = `
   @keyframes message-in { from { opacity: 0; transform: translateY(8px); } }
   @media (prefers-reduced-motion: reduce) { *, ::before { animation: none !important; transition: none !important; } }
 
-  .only-narrow { display: none; }
-  @media (max-width: 1100px) {
-    .panel:not([hidden]) { position: fixed; right: 0; top: 0; bottom: 0; z-index: 3; width: min(24rem, 92vw); }
-  }
-  @media (max-width: 760px) {
-    .app { grid-template: "top" auto "main" minmax(0, 1fr) / minmax(0, 1fr); }
-    .sidebar { position: fixed; inset: 0 auto 0 0; width: min(15rem, 85vw); z-index: 4; background: var(--bg); transform: translateX(-100%); transition: transform .2s; }
-    .app.sidebar-open .sidebar { transform: none; }
-    .only-narrow { display: inline-block; }
-    .wide-only { display: none; }
-    .cards { grid-template-columns: 1fr; }
-    .card { margin-left: 0; }
-  }
 `;
