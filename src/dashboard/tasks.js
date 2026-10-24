@@ -20,7 +20,7 @@ function row(task) {
   return el(
     "tr",
     {},
-    el("td", {}, el("a", { href: `#task-${task.id}` }, titleOf(task))),
+    el("td", {}, el("a", { href: `/code/${task.id}` }, titleOf(task))),
     el("td", { class: kind }, statusNames[task.status] ?? task.status),
     el("td", { class: "wide-only" }, stepText(task)),
     el("td", { class: "wide-only" }, String(task.attempt + 1)),
@@ -52,7 +52,7 @@ export function renderTasks(data) {
       "div",
       { class: "page-head" },
       el("h1", {}, "Sessions"),
-      el("a", { class: "primary", href: "#new" }, "New session"),
+      el("a", { class: "primary", href: "/code" }, "New session"),
     ),
     el("section", { class: "box" }, body),
   );
