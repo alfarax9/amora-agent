@@ -122,6 +122,11 @@ const migrations = [
      cost_usd REAL NOT NULL DEFAULT 0,
      created_at TEXT NOT NULL
    )`,
+  // The AMORA App's chat (A1). A chat can be starred, and deleting it moves it
+  // to the trash until the trash is emptied, which blanks its words; costs stay.
+  `ALTER TABLE chats ADD COLUMN starred INTEGER NOT NULL DEFAULT 0;
+   ALTER TABLE chats ADD COLUMN purged_at TEXT;
+   UPDATE chats SET purged_at = deleted_at WHERE deleted_at IS NOT NULL`,
 ];
 
 // S6: nothing is written to the database before it has been scanned. Secrets
