@@ -139,6 +139,7 @@ const migrations = [
      WHERE p.chat_id = chat_messages.chat_id AND p.id < chat_messages.id);
    ALTER TABLE chats ADD COLUMN leaf_id INTEGER;
    UPDATE chats SET leaf_id = (SELECT MAX(id) FROM chat_messages WHERE chat_id = chats.id)`,
+  `ALTER TABLE tasks ADD COLUMN chat_id TEXT`,
 ];
 
 // S6: nothing is written to the database before it has been scanned. Secrets
