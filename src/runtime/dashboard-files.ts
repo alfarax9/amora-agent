@@ -20,6 +20,7 @@ const scripts = [
   "reports.js",
   "review.js",
   "router.js",
+  "search.js",
   "settings.js",
   "setup.js",
   "sidebar.js",
