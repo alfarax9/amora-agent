@@ -23,6 +23,7 @@ const scripts = [
   "search.js",
   "settings.js",
   "setup.js",
+  "shell.js",
   "sidebar.js",
   "status.js",
   "tasks.js",
