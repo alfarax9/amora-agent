@@ -55,7 +55,7 @@ function approvals(data, act, open) {
       { class: "approval duo" },
       el("p", {}, approvalText(task)),
       el("span", { class: "actions" }, [
-        el("a", { class: "secondary", href: `#task-${task.id}` }, plan ? "View plan" : "Open"),
+        el("a", { class: "secondary", href: `/code/${task.id}` }, plan ? "View plan" : "Open"),
         primary,
       ]),
     );
@@ -76,7 +76,7 @@ function pipeline(task, roles) {
     el(
       "p",
       { class: "pipeline-head" },
-      el("a", { href: `#task-${task.id}` }, titleOf(task)),
+      el("a", { href: `/code/${task.id}` }, titleOf(task)),
       el("span", {}, note),
     ),
     steps.length > 0
