@@ -9,6 +9,7 @@ const scripts = [
   "chat.js",
   "costs.js",
   "dom.js",
+  "highlight.js",
   "log.js",
   "markdown.js",
   "models.js",
