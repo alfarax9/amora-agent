@@ -99,7 +99,7 @@ function projectChoice(project) {
   const lacks = project.needsSetup
     ? "No package.json yet: Set up lets AMORA check the work"
     : project.missingScripts.length
-      ? `No ${project.missingScripts.join(", ")} script`
+      ? `No ${project.missingScripts.join(" or ")} script`
       : null;
   return el(
     "button",
