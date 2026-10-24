@@ -116,11 +116,37 @@ save?.addEventListener("click", async () => {
   save.disabled = false;
 });
 
+// The budget each task started from Chat gets.
+const taskBudget = document.getElementById("task-budget");
+
+async function loadTaskBudget() {
+  try {
+    taskBudget.value = String((await call("GET", undefined, "/api/task-budget")).usd);
+  } catch (failure) {
+    document.getElementById("task-budget-error").textContent = failure.message;
+  }
+}
+
+document.getElementById("save-task-budget")?.addEventListener("click", async () => {
+  const saved = document.getElementById("task-budget-saved");
+  const problem = document.getElementById("task-budget-error");
+  problem.textContent = "";
+  saved.textContent = "";
+  try {
+    const reply = await call("POST", { usd: Number(taskBudget.value) }, "/api/task-budget");
+    taskBudget.value = String(reply.usd);
+    saved.textContent = "Saved.";
+  } catch (failure) {
+    problem.textContent = failure.message;
+  }
+});
+
 // Read each time Settings opens, so the figures are current.
 const onSettings = () => globalThis.location.hash === "#settings";
 const opened = () => {
   if (!onSettings()) return;
   if (rules) void loadRules();
+  if (taskBudget) void loadTaskBudget();
   if (shown) void load();
 };
 globalThis.addEventListener("hashchange", opened);

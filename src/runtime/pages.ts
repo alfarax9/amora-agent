@@ -94,7 +94,10 @@ function settingsPage(gateway: string, keyed: boolean): string {
 ${rules}
 <section class="box"><h2>Gateway</h2><p>${gateway}</p></section>
 <section class="box"><h2>Budget</h2><p id="settings-budget" class="meta"></p>
-<p class="meta">Change the daily limit with <code>amora budget --daily &lt;usd&gt;</code>.</p></section>
+<p class="meta">Change the daily limit with <code>amora budget --daily &lt;usd&gt;</code>.</p>
+<label for="task-budget">Budget for each task started from Chat, in USD</label>
+<div class="actions"><input id="task-budget" type="number" min="0.01" step="0.01"><button id="save-task-budget" type="button" class="secondary">Save</button><span id="task-budget-saved" class="meta" aria-live="polite"></span></div>
+<p id="task-budget-error" class="error" role="alert"></p></section>
 ${keyed ? creditLimit : ""}
 </section>`;
 }
