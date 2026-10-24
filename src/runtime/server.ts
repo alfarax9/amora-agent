@@ -8,6 +8,7 @@ import { maskSecret } from "./secret-scanner.ts";
 import type { SecretStore } from "./secrets.ts";
 import { handleLimitApi } from "./limit-routes.ts";
 import { chooseFolder, type Chosen } from "./folder-dialog.ts";
+import { handleArtifactApi } from "./artifact-routes.ts";
 import { type EventStream, handleChatApi } from "./chat-routes.ts";
 import type { ChatDesk } from "./chat.ts";
 import { handleProjectApi } from "./project-routes.ts";
@@ -231,6 +232,14 @@ async function chatApi({ request, response, url, deps }: Context): Promise<boole
   return true;
 }
 
+// Artifacts and search belong to chat, and read the same database.
+async function artifactApi({ request, response, url, deps }: Context): Promise<boolean> {
+  const reply = deps.chats && (await handleArtifactApi(deps.chats.storage, request, url));
+  if (!reply) return false;
+  send(response, reply.status, JSON.stringify(reply.body));
+  return true;
+}
+
 async function reportApi({ request, response, url, deps }: Context): Promise<boolean> {
   if (!deps.reports) return false;
   const reply = await handleReportApi(deps.reports, request, url.pathname);
@@ -257,7 +266,7 @@ async function route(context: Context): Promise<void> {
   if (request.method === "GET" && context.url.pathname.startsWith("/dashboard/")) {
     return script(context);
   }
-  for (const api of [limitApi, projectApi, chatApi, taskApi, reportApi]) {
+  for (const api of [limitApi, projectApi, chatApi, artifactApi, taskApi, reportApi]) {
     if (await api(context)) return;
   }
   send(response, 404, messagePage("Not found", "There is no page here."));
