@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { spentSince } from "../src/runtime/task-store.ts";
+import { createTask, spentSince } from "../src/runtime/task-store.ts";
 import { chatWorld } from "./chat-fixture.ts";
 
 describe("chat history, artifacts, search, and the app's pages", () => {
@@ -58,5 +58,42 @@ describe("chat history, artifacts, search, and the app's pages", () => {
     assert.ok(words.every(({ text }) => text === ""));
     await post(`/api/chats/${id}/restore`);
     assert.equal((await get(`/api/chats/${id}`)).status, 404);
+  });
+
+  it("keeps artifacts with their versions, and finds chats, tasks, and artifacts", async () => {
+    const made = await post("/api/artifacts", {
+      title: "Tax helper",
+      kind: "code",
+      language: "js",
+      content: "export const tax = (n) => n * 0.11;",
+    });
+    assert.equal(made.status, 201);
+    const { artifact } = JSON.parse(made.body) as { artifact: { id: string } };
+    const next = { content: "export const vat = (n) => n * 0.12;" };
+    await post(`/api/artifacts/${artifact.id}/versions`, next);
+    const shown = JSON.parse((await get(`/api/artifacts/${artifact.id}`)).body) as {
+      versions: { version: number }[];
+    };
+    assert.deepEqual(
+      shown.versions.map(({ version }) => version),
+      [1, 2],
+    );
+    const key = `sk-or-v1-${"a1b2c3d4".repeat(8)}`;
+    assert.equal((await post("/api/artifacts", { title: "k", content: key })).status, 400);
+    const chatId = await start("What is a closure in JavaScript?");
+    await settled(chatId);
+    createTask(storage, "Build a closure explainer page", 1);
+    const hits = async (q: string) => {
+      const found = await get(`/api/search?q=${encodeURIComponent(q)}`);
+      return (JSON.parse(found.body) as { hits: { kind: string; ref: string }[] }).hits;
+    };
+    const closure = await hits("closure");
+    assert.ok(closure.some(({ kind, ref }) => kind === "chat" && ref === chatId));
+    assert.ok(closure.some(({ kind }) => kind === "task"));
+    assert.deepEqual(
+      (await hits("vat")).map(({ kind }) => kind),
+      ["artifact"],
+    );
+    assert.deepEqual(await hits('"*'), []);
   });
 });
