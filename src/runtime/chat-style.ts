@@ -7,13 +7,13 @@ export const chatStyle = `
   .app[data-mode="chat"] .for-code, .app:not([data-mode="chat"]) .for-chat { display: none !important; }
   .app[data-mode="chat"] #pause { display: none !important; }
   .modes { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; padding: 2px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-alt); }
-  .mode { display: flex; align-items: center; justify-content: center; gap: .375rem; border-radius: calc(var(--radius) - 3px); padding: .4rem .5rem; font-size: .8125rem; color: var(--text-3); text-decoration: none; white-space: nowrap; }
+  .mode { display: flex; align-items: center; justify-content: center; gap: .375rem; border-radius: calc(var(--radius) - 3px); padding: .4rem .5rem; font-size: .8125rem; color: var(--text-tertiary); text-decoration: none; white-space: nowrap; }
   .mode:hover { color: var(--text); }
   .mode[aria-current] { background: var(--overlay); color: var(--text); }
-  .group-title { margin: .5rem .75rem .125rem; font-size: .6875rem; color: var(--text-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .group-title { margin: .5rem .75rem .125rem; font-size: .6875rem; color: var(--text-tertiary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .group-title:first-child { margin-top: 0; }
   .sidebar-foot { margin-top: auto; border-top: 1px solid var(--border); padding-top: .5rem; }
-  .ghost { border-radius: var(--radius); padding: .3rem .6rem; font-size: .75rem; color: var(--text-3); }
+  .ghost { border-radius: var(--radius); padding: .3rem .6rem; font-size: .75rem; color: var(--text-tertiary); }
   .ghost:hover { background: var(--overlay); color: var(--text); }
   .model-chip select { border-radius: 999px; padding: .2rem .6rem; font-size: .75rem; max-width: 16rem; background: transparent; }
   .settings textarea { width: 100%; resize: vertical; }
@@ -35,7 +35,7 @@ export const chatStyle = `
   .prose li + li { margin-top: .25rem; }
   .prose h3 { font-size: 1.0625rem; font-weight: 600; margin: 1.25rem 0 .5rem; }
   .prose h4 { font-size: .9375rem; font-weight: 600; margin: 1rem 0 .4rem; }
-  .prose blockquote { border-left: 2px solid var(--border-strong); padding-left: .875rem; color: var(--text-2); }
+  .prose blockquote { border-left: 2px solid var(--border-strong); padding-left: .875rem; color: var(--text-secondary); }
   .prose strong { font-weight: 600; }
   .prose code { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: .8125rem; background: var(--overlay); border-radius: .3rem; padding: .05rem .3rem; }
   .prose pre.code { background: var(--bg-alt); border: 1px solid var(--border); border-radius: var(--radius); padding: .75rem .875rem; overflow-x: auto; }
