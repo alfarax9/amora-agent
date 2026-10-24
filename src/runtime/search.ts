@@ -7,7 +7,7 @@ import type { Storage } from "./storage.ts";
 
 export type SearchKind = "chat" | "task" | "artifact";
 
-export type SearchHit = { kind: SearchKind; ref: string; snippet: string };
+export type SearchHit = { kind: SearchKind; ref: string; title: string; snippet: string };
 
 export function indexText(
   storage: Storage,
@@ -42,6 +42,21 @@ function matchOf(query: string): string | undefined {
 
 type HitRow = { kind: SearchKind; ref: string; snippet: string };
 
+// What each hit is called where the owner knows it: a chat's title, a task's
+// first line, an artifact's title.
+const titleQueries: Record<SearchKind, string> = {
+  chat: "SELECT title FROM chats WHERE id = ?",
+  task: "SELECT substr(brief, 1, 200) AS title FROM tasks WHERE id = ?",
+  artifact: "SELECT title FROM artifacts WHERE id = ?",
+};
+
+function titleOf(storage: Storage, { kind, ref }: HitRow): string {
+  const row = storage.database.prepare(titleQueries[kind]).get(ref) as
+    { title: string } | undefined;
+  const line = row?.title.split("\n")[0]?.trim() ?? "";
+  return line.length > 80 ? `${line.slice(0, 79)}…` : line;
+}
+
 // Trashed chats are left out; a chat matched by several messages appears once.
 // A snippet marks each match with control characters 2 and 3, which no typed
 // text contains, for the page to show in bold (search.js).
@@ -60,5 +75,6 @@ export function search(storage: Storage, query: string, limit = 30): SearchHit[]
   const seen = new Set<string>();
   return rows
     .filter(({ kind, ref }) => !seen.has(`${kind}:${ref}`) && seen.add(`${kind}:${ref}`))
-    .slice(0, limit);
+    .slice(0, limit)
+    .map((row) => ({ ...row, title: titleOf(storage, row) }));
 }
