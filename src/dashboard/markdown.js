@@ -2,8 +2,8 @@ import { el } from "./dom.js";
 
 // The Markdown a chat reply uses, turned into elements made from text nodes
 // only, so nothing a model writes can run as HTML: paragraphs, headings,
-// lists, quotes, fenced code, and inline code, bold, italic, and links (http
-// and https only, opened in a new tab).
+// lists, quotes, tables, fenced code, and inline code, bold, italic, and links
+// (http and https only, opened in a new tab).
 
 const inlinePattern = /(`[^`\n]+`|\*\*[^*\n]+\*\*|\*[^*\n]+\*|_[^_\n]+_|\[[^\]\n]+\]\([^)\s]+\))/g;
 
@@ -43,9 +43,52 @@ function heading(line) {
   return el(marks.length <= 2 ? "h3" : "h4", {}, ...inline(text));
 }
 
+const cells = (line) =>
+  line
+    .trim()
+    .replace(/^\||\|$/g, "")
+    .split("|")
+    .map((cell) => cell.trim());
+
+// A table scrolls in its own container, so a wide one never widens the page.
+function table(lines) {
+  const [head = "", , ...rows] = lines;
+  const separator = /^\s*\|?\s*:?-{2,}/.test(lines[1] ?? "");
+  const body = separator ? rows : lines.slice(1);
+  return el(
+    "div",
+    { class: "table-wrap" },
+    el(
+      "table",
+      {},
+      el(
+        "thead",
+        {},
+        el(
+          "tr",
+          {},
+          cells(head).map((cell) => el("th", {}, ...inline(cell))),
+        ),
+      ),
+      el(
+        "tbody",
+        {},
+        body.map((row) =>
+          el(
+            "tr",
+            {},
+            cells(row).map((cell) => el("td", {}, ...inline(cell))),
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
 // Lines of the same kind make one block; a blank line ends a block.
 function kindOf(line) {
   if (/^#{1,6}\s/.test(line)) return "heading";
+  if (/^\s*\|.*\|\s*$/.test(line)) return "table";
   if (listItem.test(line)) return "list";
   if (/^>\s?/.test(line)) return "quote";
   return "text";
@@ -54,6 +97,7 @@ function kindOf(line) {
 function block(kind, lines) {
   if (kind === "heading") return lines.map(heading);
   if (kind === "list") return [list(lines)];
+  if (kind === "table") return [table(lines)];
   if (kind === "quote")
     return [el("blockquote", {}, paragraph(lines.map((l) => l.replace(/^>\s?/, ""))))];
   return [paragraph(lines)];
