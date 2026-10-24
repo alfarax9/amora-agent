@@ -25,7 +25,17 @@ export default defineConfig([
     // The dashboard's scripts run in the browser, not in Node.
     files: ["src/dashboard/**/*.js"],
     languageOptions: {
-      globals: { document: "readonly", fetch: "readonly", setInterval: "readonly" },
+      globals: {
+        document: "readonly",
+        fetch: "readonly",
+        setInterval: "readonly",
+        setTimeout: "readonly",
+        clearTimeout: "readonly",
+        URL: "readonly",
+        URLSearchParams: "readonly",
+        Blob: "readonly",
+        Event: "readonly",
+      },
     },
   },
   // Separate projects that tests and the benchmark run tasks against, with their
