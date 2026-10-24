@@ -26,7 +26,8 @@ export const dashboardStyle = `
   main.dashboard { max-width: none; margin: 0; padding: 0; }
   h1, h2, h3 { color: var(--text); font-weight: 500; margin: 0; }
   a { color: var(--highlight-to); }
-  code { font-family: var(--font); color: var(--text); }
+  code, pre, kbd, .mono { font-family: var(--font-mono); }
+  code { color: var(--text); }
   button { font: inherit; color: inherit; cursor: pointer; border: 0; background: none; }
   :focus-visible { outline: 2px solid var(--accent-glow); outline-offset: 3px; }
   button:disabled { opacity: .45; cursor: default; }
@@ -34,11 +35,13 @@ export const dashboardStyle = `
   .error { color: var(--danger); font-size: .8125rem; }
   .error:empty { display: none; }
   .duo { border: 1px solid transparent; background: linear-gradient(var(--fill, var(--bg)), var(--fill, var(--bg))) padding-box, var(--duo) border-box; }
-  .primary { border-radius: var(--radius); padding: .45rem .9rem; color: var(--text); font-weight: 600; border: 1px solid transparent; background: linear-gradient(var(--bg), var(--bg)) padding-box, var(--duo) border-box; }
+  .primary { border-radius: var(--pill); padding: .45rem 1rem; color: var(--text); font-weight: 600; background: var(--accent); border: 1px solid var(--accent); }
+  .primary:hover { border-color: var(--accent-glow); }
   .primary, .secondary { text-decoration: none; display: inline-block; }
-  .secondary { border-radius: var(--radius); padding: .45rem .9rem; color: var(--text); border: 1px solid var(--border-strong); }
+  .secondary { border-radius: var(--pill); padding: .45rem .9rem; color: var(--text); border: 1px solid var(--border-strong); }
   .secondary.danger { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 45%, transparent); }
-  .secondary:hover, .nav-item:hover, .task-link:hover { background: var(--overlay); }
+  .secondary:hover { border-color: var(--text-tertiary); }
+  .nav-item:hover, .task-link:hover { background: var(--overlay); }
   input, textarea, select { background: var(--bg-alt); color: var(--text); border: 1px solid var(--border-strong); border-radius: var(--radius); padding: .45rem .6rem; font: inherit; box-sizing: border-box; }
   label { display: block; font-size: .75rem; color: var(--text-tertiary); margin: .75rem 0 .3rem; }
 
@@ -98,7 +101,7 @@ export const dashboardStyle = `
   th.right, td.right { padding-right: 0; }
   th.right + th, td.right + td { padding-left: .75rem; }
   .worker { display: flex; align-items: center; gap: .5rem; color: var(--text); }
-  .dot { width: .375rem; height: .375rem; border-radius: 999px; flex: none; background: var(--division, var(--text-tertiary)); box-shadow: 0 0 10px var(--division, transparent); }
+  .dot { width: .375rem; height: .375rem; border-radius: 999px; flex: none; background: var(--division, var(--text-tertiary)); }
   .active { color: var(--highlight-to); } .failed { color: var(--danger); } .waiting { color: var(--text); } .passed { color: var(--highlight-from); }
   .row-link { cursor: pointer; } .row-link:hover td { background: var(--overlay); }
   .row-link a { color: var(--text); text-decoration: none; }
@@ -115,7 +118,7 @@ export const dashboardStyle = `
   .you { display: flex; justify-content: flex-end; }
   .you p { --fill: var(--surface); max-width: 80%; margin: 0; border-radius: 1rem 1rem .375rem 1rem; padding: .5rem .875rem; color: var(--text); white-space: pre-wrap; }
   .from { display: flex; align-items: flex-end; gap: .625rem; }
-  .from .bubble { max-width: 82%; border: 1px solid var(--border-strong); background: rgb(0 0 0 / .55); border-radius: 1rem 1rem 1rem .375rem; padding: .5rem .875rem; }
+  .from .bubble { max-width: 82%; border: 1px solid var(--border-strong); background: var(--bg-alt); border-radius: 1rem 1rem 1rem .375rem; padding: .5rem .875rem; }
   .from .bubble p { margin: 0; }
   .from .name { font-size: .75rem; color: var(--division, var(--highlight-to)); }
   .from .bubble .text { margin-top: .125rem; color: var(--text); white-space: pre-wrap; }
@@ -133,14 +136,14 @@ export const dashboardStyle = `
   .banner { max-width: 46rem; margin: 0 auto .75rem; border: 1px solid var(--text); border-radius: var(--radius); padding: .5rem .875rem; font-size: .8125rem; color: var(--text); }
 
   .composer-wrap { padding: .5rem 1.25rem 1rem; }
-  .composer { max-width: 46rem; margin: 0 auto; display: flex; align-items: flex-end; gap: .75rem; border: 1px solid var(--border-strong); background: var(--surface); border-radius: 1.5rem; padding: .375rem .375rem .375rem 1rem; box-shadow: inset -3px -2px 8px 0 rgb(255 255 255 / .07); }
+  .composer { max-width: 46rem; margin: 0 auto; display: flex; align-items: flex-end; gap: .75rem; border: 1px solid var(--border-strong); background: var(--surface); border-radius: 1.5rem; padding: .375rem .375rem .375rem 1rem; }
   .composer:focus-within { border-color: var(--highlight-to); }
   .composer textarea { flex: 1; border: 0; background: transparent; resize: none; padding: .45rem 0; min-height: 1.5rem; max-height: 12rem; color: var(--text); }
   .composer textarea:focus-visible { outline: none; }
   .composer-row { max-width: 46rem; margin: .4rem auto 0; display: flex; align-items: center; gap: .75rem; font-size: .75rem; color: var(--text-tertiary); }
   .composer-row label { margin: 0; display: flex; align-items: center; gap: .375rem; }
   .composer-row input { width: 5.5rem; padding: .2rem .45rem; border-radius: .5rem; }
-  .send { width: 2rem; height: 2rem; flex: none; border-radius: 999px; display: grid; place-items: center; background: var(--overlay); color: var(--text-tertiary); font-weight: 700; transition: background-color .3s, box-shadow .3s; }
+  .send { width: 2rem; height: 2rem; flex: none; border-radius: 999px; display: grid; place-items: center; background: var(--overlay); color: var(--text-tertiary); font-weight: 700; transition: background-color .12s; }
   .send.ready { background: var(--accent); color: var(--text); }
   .composer-wrap .error { max-width: 46rem; margin: .4rem auto 0; }
   .start { margin: auto; width: min(46rem, 100%); padding: 1.5rem; box-sizing: border-box; text-align: center; }
@@ -165,8 +168,8 @@ export const dashboardStyle = `
   .settings { max-width: 40rem; }
   .project-chip { display: inline-flex; align-items: center; gap: .375rem; border: 1px solid var(--border-strong); border-radius: 999px; padding: .2rem .65rem; color: var(--text-secondary); font-size: .75rem; }
   .project-chip:hover { background: var(--overlay); color: var(--text); }
-  dialog.picker { background: var(--surface); color: var(--text-secondary); border: 1px solid var(--border-strong); border-radius: 1rem; padding: 1rem 1.125rem; width: min(32rem, calc(100vw - 2rem)); box-shadow: 0 1rem 3rem rgb(0 0 0 / .5); }
-  dialog.picker::backdrop { background: rgb(0 0 0 / .55); }
+  dialog.picker { background: var(--surface); color: var(--text-secondary); border: 1px solid var(--border-strong); border-radius: 1rem; padding: 1rem 1.125rem; width: min(32rem, calc(100vw - 2rem)); }
+  dialog.picker::backdrop { background: transparent; }
   dialog.picker h2 { font-size: 1rem; margin-bottom: .75rem; }
   dialog.picker input { width: 100%; }
   .picker-list { display: flex; flex-direction: column; gap: 2px; margin: .5rem 0; max-height: 18rem; overflow-y: auto; }
