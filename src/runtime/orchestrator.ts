@@ -48,7 +48,8 @@ export type Decision =
 // Every call checks the request and answers at once; the work it starts runs
 // in the background, and `settled` waits for a task's work to finish.
 export type Orchestrator = {
-  create(brief: string, budgetUsd: number, project?: string): Task;
+  // `chatId` names the chat the task started in, whose card shows it.
+  create(brief: string, budgetUsd: number, project?: string, chatId?: string): Task;
   approve(id: string): Promise<Task>;
   revise(id: string, feedback: string): Task;
   decide(id: string, decision: Decision): Task;
@@ -278,11 +279,12 @@ export function createOrchestrator(
   // Only the runtime resumes tasks by itself; a benchmark run or a test must not.
   if (autoResume) desk.wake = wakeLater(desk, (id) => begin(desk, id));
   return {
-    create(brief, budgetUsd, project) {
+    create(brief, budgetUsd, project, chatId) {
       if (!(budgetUsd > 0)) throw new Refusal("A task needs a budget above $0.");
-      // A question needs no project: answering it copies nothing.
-      const folder = isQuestion(brief) ? undefined : project;
-      const task = createTask(agency.storage, brief, budgetUsd, now(), folder);
+      // A question needs no project: answering it copies nothing. Chat has
+      // already told questions from work, so a task from chat is work.
+      const folder = !chatId && isQuestion(brief) ? undefined : project;
+      const task = createTask(agency.storage, brief, budgetUsd, now(), folder, chatId);
       say(desk, task.id, "owner", brief);
       startWork(desk, task.id, () => begin(desk, task.id));
       return task;
