@@ -26,6 +26,7 @@ const scripts = [
   "router.js",
   "search.js",
   "settings.js",
+  "setup-page.js",
   "setup.js",
   "shell.js",
   "shortcuts.js",
