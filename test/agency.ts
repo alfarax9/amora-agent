@@ -70,6 +70,7 @@ export const plan = (steps: string[]) => ({
     goal: `Goal for ${worker}`,
     acceptance: `Done for ${worker}`,
   })),
+  question: null,
 });
 
 export const passing = { verdict: "pass", findings: [] };

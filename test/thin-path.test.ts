@@ -96,6 +96,7 @@ function script(bug = false): Record<string, unknown[]> {
     plan_v1: [
       {
         summary: "A pricing section with three plans, tested.",
+        question: null,
         steps: [
           "product-manager",
           "ux-architect",

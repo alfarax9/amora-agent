@@ -73,6 +73,7 @@ function replies(taxCode: string, review: unknown = pass): Record<string, unknow
   return {
     plan_v1: {
       summary: "Tax.",
+      question: null,
       steps: steps.map((worker) => ({ worker, goal: `${worker} part`, acceptance: "It works." })),
     },
     requirements_v1: {
@@ -104,6 +105,7 @@ function replies(taxCode: string, review: unknown = pass): Record<string, unknow
     },
     slim_plan: {
       summary: "Tax.",
+      question: null,
       steps: ["software-engineer", "unit-integration-tester"].map((worker) => ({
         worker,
         goal: worker,
