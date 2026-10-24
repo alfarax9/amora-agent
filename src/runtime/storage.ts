@@ -140,6 +140,24 @@ const migrations = [
    ALTER TABLE chats ADD COLUMN leaf_id INTEGER;
    UPDATE chats SET leaf_id = (SELECT MAX(id) FROM chat_messages WHERE chat_id = chats.id)`,
   `ALTER TABLE tasks ADD COLUMN chat_id TEXT`,
+  // Artifacts: versioned outputs kept outside the message flow.
+  `CREATE TABLE artifacts (
+     id TEXT PRIMARY KEY,
+     chat_id TEXT,
+     title TEXT NOT NULL,
+     kind TEXT NOT NULL,
+     language TEXT,
+     created_at TEXT NOT NULL,
+     updated_at TEXT NOT NULL
+   );
+   CREATE TABLE artifact_versions (
+     artifact_id TEXT NOT NULL REFERENCES artifacts (id),
+     version INTEGER NOT NULL,
+     content TEXT NOT NULL,
+     worker TEXT,
+     created_at TEXT NOT NULL,
+     PRIMARY KEY (artifact_id, version)
+   )`,
 ];
 
 // S6: nothing is written to the database before it has been scanned. Secrets
