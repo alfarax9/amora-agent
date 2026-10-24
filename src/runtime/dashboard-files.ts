@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 // names are served, so a path in a request can never reach another file.
 
 const scripts = [
+  "api.js",
   "app.js",
   "chat.js",
   "costs.js",
