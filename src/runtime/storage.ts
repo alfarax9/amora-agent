@@ -127,6 +127,18 @@ const migrations = [
   `ALTER TABLE chats ADD COLUMN starred INTEGER NOT NULL DEFAULT 0;
    ALTER TABLE chats ADD COLUMN purged_at TEXT;
    UPDATE chats SET purged_at = deleted_at WHERE deleted_at IS NOT NULL`,
+  // Messages form a tree: an edit or a retry adds a sibling, and the chat
+  // shows the branch that ends at its leaf. A reply names the worker that
+  // answered; a card stands for a task the chat started.
+  `ALTER TABLE chat_messages ADD COLUMN parent_id INTEGER REFERENCES chat_messages (id);
+   ALTER TABLE chat_messages ADD COLUMN worker TEXT;
+   ALTER TABLE chat_messages ADD COLUMN status TEXT NOT NULL DEFAULT 'done';
+   ALTER TABLE chat_messages ADD COLUMN kind TEXT NOT NULL DEFAULT 'text';
+   ALTER TABLE chat_messages ADD COLUMN task_id TEXT;
+   UPDATE chat_messages SET parent_id = (SELECT MAX(p.id) FROM chat_messages p
+     WHERE p.chat_id = chat_messages.chat_id AND p.id < chat_messages.id);
+   ALTER TABLE chats ADD COLUMN leaf_id INTEGER;
+   UPDATE chats SET leaf_id = (SELECT MAX(id) FROM chat_messages WHERE chat_id = chats.id)`,
 ];
 
 // S6: nothing is written to the database before it has been scanned. Secrets
