@@ -36,8 +36,9 @@ export type ChatResponse = {
 
 // `onText` hears a streamed reply as it arrives, piece by piece, for a page
 // that shows it the way a chat app does; a reply that is not streamed arrives
-// whole, and nothing is heard before it.
-export type ChatOptions = { onText?: (text: string) => void };
+// whole, and nothing is heard before it. `signal` stops a streamed reply,
+// as a chat app's Stop button does.
+export type ChatOptions = { onText?: (text: string) => void; signal?: AbortSignal };
 
 export type Chat = (request: ChatRequest, options?: ChatOptions) => Promise<ChatResponse>;
 
