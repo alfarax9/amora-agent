@@ -14,4 +14,5 @@ How to plan:
 - Leave a worker out when the brief does not need it. A small change needs a small plan.
 - Do not add review steps: reviewers check work through quality gates on their own.
 - `summary` says, in one or two sentences, what the owner will have when the plan is done.
+- Set `question` to null and plan. Ask instead only when a reasonable plan is impossible without the owner's answer, such as which of several very different products they mean: then `question` holds the one question and up to four short answers, `steps` is empty, and `summary` says what you need to know. Never ask about details you can decide sensibly yourself.
 - Do not estimate cost. The runtime computes it from each worker's model price and checks it against the owner's budget before anything starts.
