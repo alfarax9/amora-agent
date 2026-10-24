@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
+import { randomUUID } from "node:crypto";
 import { describe, it } from "node:test";
 import { createTask, spentSince } from "../src/runtime/task-store.ts";
-import { chatWorld } from "./chat-fixture.ts";
+import { call, chatWorld } from "./chat-fixture.ts";
 
 describe("chat history, artifacts, search, and the app's pages", () => {
   const world = chatWorld();
@@ -95,5 +96,15 @@ describe("chat history, artifacts, search, and the app's pages", () => {
       ["artifact"],
     );
     assert.deepEqual(await hits('"*'), []);
+  });
+
+  it("serves the app's pages on their paths, after sign-in only", async () => {
+    for (const path of [`/chat/${randomUUID()}`, "/code", "/agency/workers", "/settings"]) {
+      const page = await get(path);
+      assert.equal(page.status, 200, path);
+      assert.match(page.body, /<div class="app"/);
+    }
+    assert.equal((await get("/agency/nope")).status, 404);
+    assert.equal((await call(world.runtime().port, "GET", "/code")).status, 401);
   });
 });
