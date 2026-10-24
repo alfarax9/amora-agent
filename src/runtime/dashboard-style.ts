@@ -176,6 +176,7 @@ export const dashboardStyle = `
   .picker-name { color: var(--text); } .check { color: var(--highlight); }
   .picker-row { display: flex; align-items: flex-start; gap: .25rem; }
   .picker-row .picker-item { flex: 1; }
+  .picker-row .set-up { align-self: center; padding: .3rem .7rem; font-size: .75rem; }
   .remove { color: var(--text-3); border-radius: var(--radius); padding: .35rem .6rem; font-size: 1rem; line-height: 1; }
   .remove:hover { background: var(--overlay); color: var(--danger); }
   .picker-add { display: flex; align-items: center; justify-content: space-between; gap: .5rem; border-top: 1px solid var(--border); margin-top: .25rem; padding-top: .25rem; }

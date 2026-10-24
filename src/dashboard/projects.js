@@ -44,6 +44,35 @@ async function remove(project) {
   await changed();
 }
 
+// An empty folder, or code without a package.json, gets AMORA's starter one,
+// so the gates have scripts to run.
+async function setUp(project) {
+  $("picker-error").textContent = "";
+  try {
+    const reply = await call("POST", "/api/projects/setup", { path: project.path });
+    renderPicker(reply.projects, "");
+    $("picker-status").textContent =
+      `${project.name} is set up: package.json and scripts/check.mjs.`;
+    await changed();
+  } catch (error) {
+    $("picker-error").textContent = error.message;
+  }
+}
+
+function setUpButton(project) {
+  if (!project.needsSetup) return null;
+  return el(
+    "button",
+    {
+      type: "button",
+      class: "secondary set-up",
+      title: "Write AMORA's starter package.json and scripts/check.mjs into this folder",
+      onclick: () => void setUp(project),
+    },
+    "Set up",
+  );
+}
+
 function projectItem(project) {
   const removeButton = el(
     "button",
@@ -56,14 +85,22 @@ function projectItem(project) {
     },
     "×",
   );
-  return el("div", { class: "picker-row" }, projectChoice(project), removeButton);
+  return el(
+    "div",
+    { class: "picker-row" },
+    projectChoice(project),
+    setUpButton(project),
+    removeButton,
+  );
 }
 
 function projectChoice(project) {
   const trouble = project.problems[0];
-  const lacks = project.missingScripts.length
-    ? `No ${project.missingScripts.join(", ")} script`
-    : null;
+  const lacks = project.needsSetup
+    ? "No package.json yet: Set up lets AMORA check the work"
+    : project.missingScripts.length
+      ? `No ${project.missingScripts.join(", ")} script`
+      : null;
   return el(
     "button",
     {
@@ -145,10 +182,13 @@ async function addFromSystem() {
   button.disabled = true;
   try {
     const reply = await call("POST", "/api/folders/choose");
-    if (!reply.cancelled) {
-      picker.close();
-      await changed();
+    if (reply.cancelled) return;
+    await changed();
+    // A folder without a package.json stays in view, with its Set up button.
+    if (!reply.projects.some((project) => project.current && project.needsSetup)) {
+      return picker.close();
     }
+    renderPicker(reply.projects, "");
   } catch (error) {
     $("picker-error").textContent =
       error.status === 501 ? `${error.message} Add one with: amora project <path>` : error.message;
