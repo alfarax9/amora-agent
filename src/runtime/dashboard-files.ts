@@ -11,6 +11,7 @@ const scripts = [
   "chat-list.js",
   "chat-view.js",
   "chat.js",
+  "code.js",
   "costs.js",
   "dom.js",
   "highlight.js",
