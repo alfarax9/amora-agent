@@ -15,6 +15,10 @@ export function el(tag, attributes = {}, ...children) {
   return node;
 }
 
+// A button that does one thing; most of the app's buttons are this.
+export const button = (label, onclick, kind = "ghost", attributes = {}) =>
+  el("button", { type: "button", class: kind, onclick, ...attributes }, label);
+
 // The same rule as src/runtime/money.ts: cents, or the first two significant
 // digits of an amount below one cent, so "$0.00" never hides it.
 export function usd(amount) {
