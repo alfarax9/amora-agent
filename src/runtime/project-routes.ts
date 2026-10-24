@@ -8,6 +8,7 @@ import {
   listProjects,
   ProjectError,
   removeProject,
+  setUpProject,
 } from "./projects.ts";
 import { deliveryMode } from "./ship.ts";
 import type { Storage } from "./storage.ts";
@@ -15,7 +16,8 @@ import { BadRequest, type JsonReply, readJson } from "./task-routes.ts";
 
 // The projects new tasks can work on, for the composer's project picker:
 // list them with what each lacks, add one from the system's folder dialog,
-// choose one, and take one off the list. Behind
+// choose one, set one up with AMORA's starter package.json, and take one off
+// the list. Behind
 // the session and Origin checks like every API route.
 
 export type ProjectDesk = { storage: Storage; chooseFolder: () => Promise<Chosen> };
@@ -32,6 +34,7 @@ const changes: Record<string, (storage: Storage, folder: string, name?: string) 
   "/api/projects": addProject,
   "/api/projects/current": chooseProject,
   "/api/projects/remove": removeProject,
+  "/api/projects/setup": setUpProject,
 };
 
 async function post(storage: Storage, request: IncomingMessage, path: string) {

@@ -214,6 +214,11 @@ describe("the project picker's API", () => {
     });
     assert.equal(refused.status, 400);
     assert.match(refused.body, /is not a folder/);
+    const empty = folderWith({});
+    await call(runtime.port, "POST", "/api/projects", cookie, { path: empty });
+    const set = await call(runtime.port, "POST", "/api/projects/setup", cookie, { path: empty });
+    const setUp = JSON.parse(set.body) as { projects: { path: string; needsSetup: boolean }[] };
+    assert.equal(setUp.projects.find(({ path }) => path === empty)?.needsSetup, false);
     const unknown = await call(runtime.port, "POST", "/api/projects/current", cookie, {
       path: app({}),
     });
