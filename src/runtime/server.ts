@@ -248,6 +248,14 @@ async function reportApi({ request, response, url, deps }: Context): Promise<boo
   return true;
 }
 
+// What a signed-in owner opens: the fixed routes and the dashboard's scripts
+// (dashboard-files.ts lists the only ones served).
+function sessionPage({ request, url }: Context): Handler | undefined {
+  const handler = sessionRoutes[`${request.method} ${url.pathname}`];
+  if (handler || request.method !== "GET") return handler;
+  return url.pathname.startsWith("/dashboard/") ? script : undefined;
+}
+
 async function route(context: Context): Promise<void> {
   const { request, response, port, deps } = context;
   const rejection = rejectForeignRequest(request.headers, port);
@@ -260,12 +268,8 @@ async function route(context: Context): Promise<void> {
     const message = "Open the sign-in link that amora printed in your terminal.";
     return send(response, 401, messagePage("Sign in first", message));
   }
-  const handler = sessionRoutes[key];
-  if (handler) return handler(context);
-  // dashboard-files.ts lists the only scripts served under this path.
-  if (request.method === "GET" && context.url.pathname.startsWith("/dashboard/")) {
-    return script(context);
-  }
+  const page = sessionPage(context);
+  if (page) return page(context);
   for (const api of [limitApi, projectApi, chatApi, artifactApi, taskApi, reportApi]) {
     if (await api(context)) return;
   }
