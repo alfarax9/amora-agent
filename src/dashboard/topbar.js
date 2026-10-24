@@ -1,7 +1,7 @@
 import { el, usd } from "./dom.js";
 
-// The top bar on every page: the address, the runtime's state, today's spend
-// against the daily limit, and Pause all workers.
+// The top bar on every page: the runtime's state, today's spend against the
+// daily limit, and Pause all workers; the address is in the sidebar's footer.
 
 const $ = (id) => document.getElementById(id);
 
