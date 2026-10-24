@@ -176,6 +176,13 @@ const publicRoutes: Record<string, Handler> = {
   "GET /connect/openrouter/callback": openRouterCallback,
 };
 
+// The app's own pages: the same page, which draws the one in the address
+// (router.js), so a link or a reload lands where it points.
+const id = "[0-9a-f-]{36}";
+const appPage = new RegExp(
+  `^/(chat/${id}|code(/${id})?|artifacts|setup|agency(/(tasks(/${id})?|workers|models|costs))?|settings)$`,
+);
+
 const sessionRoutes: Record<string, Handler> = {
   "GET /": home,
   "GET /api/status": status,
@@ -248,12 +255,13 @@ async function reportApi({ request, response, url, deps }: Context): Promise<boo
   return true;
 }
 
-// What a signed-in owner opens: the fixed routes and the dashboard's scripts
-// (dashboard-files.ts lists the only ones served).
+// What a signed-in owner opens: the fixed routes, the dashboard's scripts
+// (dashboard-files.ts lists the only ones served), and the app's pages.
 function sessionPage({ request, url }: Context): Handler | undefined {
   const handler = sessionRoutes[`${request.method} ${url.pathname}`];
   if (handler || request.method !== "GET") return handler;
-  return url.pathname.startsWith("/dashboard/") ? script : undefined;
+  if (url.pathname.startsWith("/dashboard/")) return script;
+  return appPage.test(url.pathname) ? home : undefined;
 }
 
 async function route(context: Context): Promise<void> {
