@@ -41,7 +41,7 @@ function handoffLine(handoff) {
     {},
     el("span", { class: kind }, `${gate}${reason}`),
     " · ",
-    el("a", { href: `#task-${handoff.taskId}` }, handoff.task),
+    el("a", { href: `/code/${handoff.taskId}` }, handoff.task),
     el(
       "span",
       { class: "meta" },
